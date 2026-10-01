@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { apiFetch } from "@/lib/api";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +33,7 @@ export default function LoginPage() {
     formData.append("password", password);
 
     try {
-      const response = await fetch("http://localhost:8000/login", {
+      const response = await apiFetch("/login", {
         method: "POST",
         body: formData,
       });
@@ -42,12 +43,7 @@ export default function LoginPage() {
         throw new Error(errorData.detail || "E-mail ou senha incorretos.");
       }
 
-      const data = await response.json();
-
-      sessionStorage.setItem("patient_data", JSON.stringify(data.patient_data));
-      sessionStorage.setItem("vaccines", JSON.stringify(data.vaccines));
-      sessionStorage.setItem("alerts", JSON.stringify(data.alerts));
-      sessionStorage.setItem("documents", JSON.stringify(data.documents));
+      await response.json();
 
       window.location.href = "/home";
     } catch (err) {
@@ -177,7 +173,7 @@ export default function LoginPage() {
         className="py-6 text-center"
       >
         <p className="text-xs text-muted-foreground">
-          Seus dados estao protegidos com criptografia de ponta
+          Sua sessão é protegida e expira automaticamente
         </p>
         <div className="flex items-center justify-center gap-1 mt-1">
           <Shield className="w-3 h-3 text-accent" />

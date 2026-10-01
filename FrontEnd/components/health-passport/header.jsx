@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/health-passport/theme-provider";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 
 export function Header({ userName, userAvatar, healthStatus}) {
   const { theme, toggleTheme } = useTheme();
@@ -33,8 +34,10 @@ export function Header({ userName, userAvatar, healthStatus}) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    router.push("/");
+  const handleLogout = async () => {
+    await apiFetch("/logout", { method: "POST" });
+    router.replace("/");
+    router.refresh();
   };
 
   const statusConfig = {
@@ -50,6 +53,12 @@ export function Header({ userName, userAvatar, healthStatus}) {
       icon: Bell,
       className: "bg-warning text-warning-foreground",
     },
+    overdue: {
+      label: "Atenção",
+      variant: "destructive",
+      icon: Bell,
+      className: "bg-destructive text-destructive-foreground",
+    },
     alert: {
       label: "Atenção",
       variant: "destructive",
@@ -58,7 +67,7 @@ export function Header({ userName, userAvatar, healthStatus}) {
     },
   };
 
-  const status = statusConfig[healthStatus];
+  const status = statusConfig[healthStatus] || statusConfig.pending;
   const StatusIcon = status.icon;
 
   const initials = userName

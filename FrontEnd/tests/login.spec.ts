@@ -11,6 +11,8 @@ const MOCK_PACIENTE_RESPONSE = {
     status_saude: 'updated',
     tipo_sanguineo: 'A+',
     valor_qr: 'QR_Carlos',
+    maior_de_idade: true,
+    idade: 41,
   },
   vaccines: [
     {
@@ -92,6 +94,13 @@ test.describe('Página de Login', () => {
         body: JSON.stringify(MOCK_PACIENTE_RESPONSE),
       })
     );
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_PACIENTE_RESPONSE),
+      })
+    );
 
     await page.goto('/');
     await waitForHydration(page);
@@ -105,14 +114,13 @@ test.describe('Página de Login', () => {
 
 test.describe('Página Home', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await waitForHydration(page);
-    await page.evaluate((data) => {
-      sessionStorage.setItem('patient_data', JSON.stringify(data.patient_data));
-      sessionStorage.setItem('vaccines', JSON.stringify(data.vaccines));
-      sessionStorage.setItem('alerts', JSON.stringify(data.alerts));
-      sessionStorage.setItem('documents', JSON.stringify(data.documents));
-    }, MOCK_PACIENTE_RESPONSE);
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_PACIENTE_RESPONSE),
+      })
+    );
     await page.goto('/home');
     await waitForHydration(page);
   });
@@ -126,11 +134,15 @@ test.describe('Página Home', () => {
   });
 
   test('redireciona para login se não há sessão', async ({ page }) => {
-    await page.evaluate(() => sessionStorage.clear());
-    await Promise.all([
-      page.waitForURL((url) => !url.href.includes('/home'), { timeout: 15000 }),
-      page.reload(),
-    ]);
-    await expect(page).not.toHaveURL(/\/home/);
+    await page.unroute('**/me');
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Autenticação necessária.' }),
+      })
+    );
+    await page.reload({ waitUntil: 'commit' }).catch(() => undefined);
+    await expect(page).toHaveURL('/', { timeout: 15000 });
   });
 });

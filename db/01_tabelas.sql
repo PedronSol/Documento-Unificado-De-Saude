@@ -12,7 +12,7 @@ CREATE TABLE
         CHECK (cpf_paciente REGEXP '^[0-9]{11}$'),
         nome_paciente VARCHAR(20) NOT NULL,
         nome_completo VARCHAR(100) NOT NULL,
-        email VARCHAR(30) NOT NULL,
+        email VARCHAR(254) NOT NULL UNIQUE,
         senha_hash VARCHAR(255) NOT NULL,
         avatar VARCHAR(255),
         status_saude ENUM ('updated', 'pending', 'overdue'),
@@ -20,6 +20,17 @@ CREATE TABLE
         valor_qr VARCHAR(255),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         data_nascimento DATE NOT NULL
+    );
+
+CREATE TABLE
+    IF NOT EXISTS sessoes (
+        token_hash CHAR(64) PRIMARY KEY,
+        paciente_id CHAR(11) NOT NULL,
+        expira_em DATETIME NOT NULL,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_sessoes_paciente (paciente_id),
+        INDEX idx_sessoes_expiracao (expira_em),
+        FOREIGN KEY (paciente_id) REFERENCES pacientes (cpf_paciente) ON DELETE CASCADE
     );
 
 CREATE TABLE

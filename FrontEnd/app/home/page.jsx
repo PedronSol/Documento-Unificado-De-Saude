@@ -15,6 +15,7 @@ import { ThemeProvider } from "@/components/health-passport/theme-provider";
 import { Header } from "@/components/health-passport/header";
 import { MedicalAlerts } from "@/components/health-passport/medical-alerts";
 import { DigitalDocuments } from "@/components/health-passport/digital-documents";
+import { apiFetch } from "@/lib/api";
 
 export default function HealthPassportPage() {
   const [userData, setUserData] = useState(null);
@@ -40,20 +41,31 @@ export default function HealthPassportPage() {
   };
 
   useEffect(() => {
-    const storedUser = sessionStorage.getItem("patient_data");
-    const storedVaccines = sessionStorage.getItem("vaccines");
-    const storedAlerts = sessionStorage.getItem("alerts");
-    const storedDocuments = sessionStorage.getItem("documents");
+    let active = true;
 
-    if (!storedUser) {
-      window.location.href = "/";
-      return;
+    async function loadDashboard() {
+      try {
+        const response = await apiFetch("/me");
+        if (!response.ok) {
+          window.location.replace("/");
+          return;
+        }
+
+        const data = await response.json();
+        if (!active) return;
+        setUserData(data.patient_data);
+        setVaccineData(data.vaccines);
+        setAlertsData(data.alerts);
+        setDocumentsData(data.documents);
+      } catch {
+        window.location.replace("/");
+      }
     }
 
-    setUserData(JSON.parse(storedUser));
-    setVaccineData(storedVaccines ? JSON.parse(storedVaccines) : []);
-    setAlertsData(storedAlerts ? JSON.parse(storedAlerts) : []);
-    setDocumentsData(storedDocuments ? JSON.parse(storedDocuments) : []);
+    loadDashboard();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenAddModal = () => {
@@ -88,13 +100,11 @@ export default function HealthPassportPage() {
     };
 
     const isEditing = editingVaccine !== null;
-    const url = isEditing
-      ? `http://localhost:8000/patients/${userData.cpf_paciente}/vaccines/${idVacina}`
-      : `http://localhost:8000/patients/${userData.cpf_paciente}/vaccines`;
+    const url = isEditing ? `/me/vaccines/${idVacina}` : "/me/vaccines";
     const method = isEditing ? "PUT" : "POST";
 
     try {
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -102,13 +112,10 @@ export default function HealthPassportPage() {
 
       if (!response.ok) throw new Error("Erro ao salvar dados da vacina.");
 
-      const refreshRes = await fetch(
-        `http://localhost:8000/patients/${userData.cpf_paciente}/vaccines`,
-      );
+      const refreshRes = await apiFetch("/me/vaccines");
       const freshVaccines = await refreshRes.json();
 
       setVaccineData(freshVaccines);
-      sessionStorage.setItem("vaccines", JSON.stringify(freshVaccines));
       setIsModalOpen(false);
     } catch (err) {
       alert(err.message);
@@ -122,10 +129,9 @@ export default function HealthPassportPage() {
       return;
 
     try {
-      const response = await fetch(
-        `http://localhost:8000/patients/${userData.cpf_paciente}/vaccines/${id_vacina}`,
-        { method: "DELETE" },
-      );
+      const response = await apiFetch(`/me/vaccines/${id_vacina}`, {
+        method: "DELETE",
+      });
 
       if (!response.ok) throw new Error("Erro ao deletar vacina.");
 
@@ -133,7 +139,6 @@ export default function HealthPassportPage() {
         (v) => v.id_vacina !== id_vacina,
       );
       setVaccineData(updatedVaccines);
-      sessionStorage.setItem("vaccines", JSON.stringify(updatedVaccines));
     } catch (err) {
       alert(err.message);
     }
