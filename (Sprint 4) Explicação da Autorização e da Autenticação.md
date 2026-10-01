@@ -4,13 +4,13 @@ Para o Sprint 04 da matéria de Engenharia de Software foi solicitado que fossem
 
 ## Autenticação
 
-A autenticação na aplicação é feita na página de Login, em que o usuário informa o seu e-mail e a sua senha e a aplicação irá verificar se o e-mail fornecido existe e se a senha informada é a correta para aquele usuário. Isso é feito por meio de uma consulta ao Banco de Dados em que a API seleciona todos os pacientes cujo e-mail é igual ao fornecido, mas, como é uma condição do Banco que pacientes não tenha e-mails iguais, irá retornar apenas um único paciente. Este paciente tem então o campo de senha comparado com a senha fornecida ao formulário de login. Caso o e-mail e a senha estejam corretos, o usuário consegue entrar na aplicação, caso contrário, receberá uma mensagem de erro.
+A autenticação começa na página de login. A senha fornecida é verificada contra um hash PBKDF2 armazenado no banco; senhas em texto puro não são armazenadas. Após uma autenticação válida, a API cria uma sessão aleatória com expiração, armazena apenas o hash do token no MySQL e envia o token ao navegador em um cookie `HttpOnly`. As rotas privadas consultam essa sessão para identificar o paciente atual.
 
 ## Autorização
 
-A autorização é feita com base na idade do paciente, tendo sido implementada uma autorização em modelo **ABAC** ou ***Attribute-Based Access Control***, em que a idade do paciente é calculada no Back-End de acordo com a sua data de nascimento fornecida no Banco de Dados e é definido se este paciente é maior ou menor de idade, ou seja, se a sua idade calculada no momento de seu login é maior ou igual ou menor do que 18 anos.
+A autorização é feita com base na idade do paciente, em um modelo simples de **ABAC** (*Attribute-Based Access Control*). A idade é calculada no backend a partir da data de nascimento armazenada no banco.
 
-Caso a idade calculada seja maior, o usuário possui plenos poderes sobre a sua conta, podendo modificar os seus dados (no momento, esta modificação se dá pela capacidade de adicionar, alterar e deletar vacinas). Caso seja menor, porém, o usuário perde a capacidade de modificar os seus dados, partindo do pressuposto de que usuário menores de idade não possuem responsabilidade suficiente para se responsabilizar por seus próprios dados (no momento, esta "limitação de poderes" é implementada com o os botões de adição, modificação e deleção das vacinas desaparecendo e o usuário perdendo a capacidade de realizar estas ações diretamente no Front-End).
+Pacientes adultos podem adicionar, alterar e remover suas vacinas. Para menores de idade, os controles não são exibidos no frontend e, principalmente, o backend rejeita essas alterações com status HTTP 403. As rotas usam o paciente identificado pela sessão e não aceitam um CPF arbitrário enviado pelo cliente.
 
 ## Testes
 
