@@ -18,6 +18,7 @@ Pastas na raiz devem usar nomes minúsculos. Código gerado, caches e resultados
 - Backend local: `make back-dev`
 - Frontend e backend locais: `make both`
 - Build das imagens: `make build`
+- Backend e banco via Docker: `make local-up`
 - Aplicação completa: `docker compose up --build`
 - Testes do backend: `python -m pytest` dentro de `backend/`
 - Desenvolvimento do frontend: `npm run dev` dentro de `frontend/`

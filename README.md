@@ -56,6 +56,7 @@ make front-dev  # inicia o frontend local
 make back-dev   # inicia o backend local
 make both       # inicia frontend e backend locais em paralelo
 make build      # constrói as imagens Docker
+make local-up   # sobe backend e banco via Docker em segundo plano
 ```
 
 Para executar a aplicação como um todo, deve-se entrar no diretório no qual o projeto foi clonado e executar o comando:

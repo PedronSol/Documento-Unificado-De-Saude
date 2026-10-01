@@ -1,4 +1,4 @@
-.PHONY: front-dev back-dev both build
+.PHONY: front-dev back-dev both build local-up
 
 front-dev:
 	cd frontend && npm run dev
@@ -11,3 +11,6 @@ both:
 
 build:
 	docker compose build
+
+local-up:
+	docker compose up --build -d db backend
