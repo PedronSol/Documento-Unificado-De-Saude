@@ -18,7 +18,7 @@ eggs/
 .eggs/
 lib/
 lib64/
-!FrontEnd/lib/
+!frontend/lib/
 parts/
 sdist/
 var/
@@ -29,6 +29,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 dev/cache/
+frontend/dev/
 *.sst
 *.log
 
@@ -70,8 +71,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
-FrontEnd/playwright-report
-FrontEnd/playwright-report/*
+frontend/playwright-report
+frontend/playwright-report/*
+frontend/test-results/
 
 # Translations
 *.mo
