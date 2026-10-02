@@ -9,7 +9,7 @@ from database_config import DatabaseSettings, create_database_engine
 from migration_service import upgrade_database
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.skipif(

@@ -8,7 +8,8 @@ O roadmap arquitetural e sua árvore de dependências estão em `docs/architectu
 
 ## Estrutura
 
-- `backend/`: API FastAPI, regras de autorização e testes Python.
+- `backend/`: API FastAPI e regras de autorização; testes ficam em
+  `backend/__tests__/`.
 - `frontend/`: aplicação Next.js e testes Playwright.
 - `db/`: criação do schema e dados locais de demonstração.
 

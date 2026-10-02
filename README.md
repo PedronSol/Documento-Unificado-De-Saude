@@ -100,7 +100,8 @@ A segunda parte do projeto é sua interface, que contém a página de login, a p
 
 ### Back End
 
-A terceira parte é o backend, responsável pelas rotas, autenticação, autorização e testes. O código está presente na pasta `backend`.
+A terceira parte é o backend, responsável pelas rotas, autenticação e
+autorização. O código está em `backend/` e os testes em `backend/__tests__/`.
 
 ### Docker
 

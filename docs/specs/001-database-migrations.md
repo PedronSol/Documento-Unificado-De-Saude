@@ -142,10 +142,10 @@ camada de configuração ainda não existe.
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
 | legado | Executor próprio chegou a RED/GREEN/REFACTOR | Substituído antes do commit | Motivo: evitar reimplementar responsabilidades do Alembic | Não será mantido |
-| Alembic 1 | `database_config` ausente durante a coleta | `DatabaseSettings` e factory: 2 testes passaram | URL criada por `URL.create`, sem interpolar credenciais | `backend/test_database_config.py` |
-| Alembic 2 | `database_admin` ausente durante a coleta | Executor Alembic e administração: 10 testes passaram | Configuração, migration e administração separadas | `backend/test_migrations.py` |
+| Alembic 1 | `database_config` ausente durante a coleta | `DatabaseSettings` e factory: 2 testes passaram | URL criada por `URL.create`, sem interpolar credenciais | `backend/__tests__/test_database_config.py` |
+| Alembic 2 | `database_admin` ausente durante a coleta | Executor Alembic e administração: 10 testes passaram | Configuração, migration e administração separadas | `backend/__tests__/test_migrations.py` |
 | Alembic 3 | CLI não aceitava dependências injetadas | Teste direcionado passou | Composition root recebe factories e casos de uso | `backend/database_tasks.py` |
-| MySQL real | Teste legado falhou ao importar `migrate` removido | Teste adaptado ao Alembic | Execução local pendente por indisponibilidade do Docker Desktop | `backend/test_migrations_integration.py` |
+| MySQL real | Teste legado falhou ao importar `migrate` removido | Teste adaptado ao Alembic | Execução local pendente por indisponibilidade do Docker Desktop | `backend/__tests__/test_migrations_integration.py` |
 
 ## Critérios de conclusão
 

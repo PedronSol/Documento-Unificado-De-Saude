@@ -7,7 +7,7 @@ from database_admin import UnsafeEnvironmentError, reset_database, seed_database
 from migration_service import upgrade_database
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class FakeConnection:

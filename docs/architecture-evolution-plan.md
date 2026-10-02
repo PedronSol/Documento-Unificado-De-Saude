@@ -544,7 +544,7 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 |---|---|---|---|---|
 | 2026-10-01 | 0 | PLANNED → SPEC REVIEW | `docs/specs/000` a `040` | Features importadas, decisões propostas e spec de migrations prontas para revisão. |
 | 2026-10-01 | 0 | SPEC REVIEW → IN PROGRESS | Specs `000` e `001` | Fundação e migrations aprovadas; primeiro ciclo TDD é a próxima atividade. |
-| 2026-10-01 | 0 | IN PROGRESS → DONE | `backend/test_migrations.py` | RED, GREEN e REFACTOR comprovados; 11 testes do backend passaram. |
+| 2026-10-01 | 0 | IN PROGRESS → DONE | `backend/__tests__/test_migrations.py` | RED, GREEN e REFACTOR comprovados; 11 testes do backend passaram. |
 | 2026-10-01 | 1 | PLANNED → IN PROGRESS | Experimento local não versionado | Primeiro runner próprio criado por TDD; posteriormente removido em favor do Alembic. |
 | 2026-10-02 | 1 | IN PROGRESS | Experimento local não versionado | Runner próprio chegou a 24 testes verdes; evidência preservada apenas como histórico da decisão. |
 | 2026-10-02 | 1 | DECISÃO REVISADA | Specs `000` e `001` | Executor próprio substituído por Alembic; DI aplicada a configuração e conexões. |
