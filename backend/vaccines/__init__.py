@@ -1,0 +1,1 @@
+"""Operações do recurso vacina."""

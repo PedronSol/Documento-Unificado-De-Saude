@@ -165,7 +165,7 @@ flowchart TD
 |---|---|---|---|---|
 | 0 | Baseline de specs e TDD | — | DONE | Primeiro ciclo TDD registrado na spec `001` |
 | 1 | Migrações de banco | 0 | DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) |
-| 2 | Modularização do backend | 0 | PLANNED | — |
+| 2 | Modularização do backend | 0 | DONE | Branch `refactor/backend-modularization`; spec `002` |
 | 3 | Identidade, papéis e IDs internos | 1, 2 | PLANNED | — |
 | 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
 | 5 | Auditoria clínica | 4 | PLANNED | — |
@@ -239,14 +239,14 @@ alterar a arquitetura.
 
 ### Tarefas
 
-- [ ] Escrever testes de caracterização dos contratos atuais.
-- [ ] Extrair configuração para `config.py`.
-- [ ] Extrair conexão e transações para `database.py`.
-- [ ] Mover autenticação para `auth/`.
-- [ ] Mover pacientes e vacinas para módulos próprios.
-- [ ] Registrar módulos com `APIRouter`.
-- [ ] Remover SQL e regras de negócio de `main.py`.
-- [ ] Confirmar que respostas HTTP existentes não mudaram.
+- [x] Escrever testes de caracterização dos contratos atuais.
+- [x] Extrair configuração para `config.py`.
+- [x] Extrair conexão e transações para `database.py`.
+- [x] Mover autenticação para `auth/`.
+- [x] Mover pacientes e vacinas para módulos próprios.
+- [x] Registrar módulos com `APIRouter`.
+- [x] Remover SQL e regras de negócio de `main.py`.
+- [x] Confirmar que respostas HTTP existentes não mudaram.
 
 ### Critérios de conclusão
 
