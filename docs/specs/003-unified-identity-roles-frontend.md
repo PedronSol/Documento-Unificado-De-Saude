@@ -102,7 +102,8 @@ em um dashboard SaaS genérico.
    `patient`, `doctor` e `admin`.
 2. CPF é obrigatório (`NOT NULL`) e único para todo `User`, qualquer que seja
    sua `role`; um `User` pode ter simultaneamente os perfis `Patient` e
-   `Doctor`. CPF continua sendo dado cadastral, não chave técnica.
+   `Doctor`. CPF continua sendo dado cadastral, não chave técnica. Sua
+   persistência não implica exposição automática em contratos da API.
 3. E-mail é único por `User` e a consulta de login usa SQL parametrizado.
 4. `roles` e status ativo são definidos no servidor; o cliente não os envia nem
    pode elevá-los durante o login.
@@ -143,7 +144,9 @@ em um dashboard SaaS genérico.
 22. `doctors.doctor_id` é a chave interna e `user_id` é único em cada perfil.
 23. `vaccines`, `alerts` e `documents` passam a referenciar `patient_id` numérico.
 24. Respostas clínicas não expõem `password_hash`, token ou CPF como ID técnico
-    nem dados de outro perfil.
+    nem dados de outro perfil. O contrato de identidade também omite CPF;
+    qualquer exposição futura exige necessidade explícita, finalidade definida
+    e revisão de segurança na respectiva spec.
 25. O envelope transitório de login e `/me` sempre inclui `user.roles`; dados do
     dashboard existem somente no contexto `patient`.
 26. Para `doctor` e `admin`, o frontend mostra identidade e escopo atual, sem
@@ -387,6 +390,21 @@ ser `BIGINT` e referenciam `patients.patient_id`.
   effects.
 
 ## Segurança e autorização
+
+### CPF, minimização de dados e LGPD
+
+CPF é mantido em `users` como dado cadastral obrigatório e único para todos os
+usuários. A necessidade de persistir esse dado não significa que todas as telas,
+respostas ou integrações devam recebê-lo. O contrato `UserIdentity` retorna
+somente os campos necessários à experiência atual (`user_id`, nome, e-mail e
+roles), reduzindo cópias e pontos de exposição do dado pessoal.
+
+Esta decisão de engenharia se alinha aos princípios de necessidade e segurança
+da LGPD: limitar o tratamento e a exposição ao mínimo necessário para a
+finalidade atual. Não é uma conclusão jurídica sobre a base legal ou os demais
+requisitos aplicáveis ao produto. Uma necessidade futura de consultar ou exibir
+CPF deverá definir finalidade, público autorizado, proteção e retenção em spec
+revisada antes da implementação.
 
 - `role` nunca é aceita do formulário de login.
 - Um CRM informado pelo usuário não concede `role` nem permissão. A mudança para
