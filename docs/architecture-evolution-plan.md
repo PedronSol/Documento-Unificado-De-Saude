@@ -165,7 +165,7 @@ flowchart TD
 |---|---|---|---|---|
 | 0 | Baseline de specs e TDD | — | DONE | Primeiro ciclo TDD registrado na spec `001` |
 | 1 | Migrações de banco | 0 | DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) |
-| 2 | Modularização do backend | 0 | DONE | Branch `refactor/backend-modularization`; spec `002` |
+| 2 | Modularização do backend | 0 | DONE | [PR #2](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/2) |
 | 3 | Identidade, papéis e IDs internos | 1, 2 | PLANNED | — |
 | 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
 | 5 | Auditoria clínica | 4 | PLANNED | — |
