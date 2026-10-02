@@ -112,7 +112,7 @@ flowchart TD
     S0[Step 0: Baseline de specs e TDD]
     S1[Step 1: Migrações de banco]
     S2[Step 2: Modularização do backend]
-    S3[Step 3: Identidade, papéis e IDs internos]
+    S3[Step 3: Identidade, roles e IDs internos]
     S4[Step 4: Contratos e autorização por recurso]
     S5[Step 5: Auditoria clínica]
     S6[Step 6: Marcadores de saúde]
@@ -166,7 +166,7 @@ flowchart TD
 | 0 | Baseline de specs e TDD | — | DONE | Primeiro ciclo TDD registrado na spec `001` |
 | 1 | Migrações de banco | 0 | DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) |
 | 2 | Modularização do backend | 0 | DONE | [PR #2](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/2) |
-| 3 | Identidade, papéis e IDs internos | 1, 2 | PLANNED | — |
+| 3 | Identidade, roles e IDs internos | 1, 2 | IN PROGRESS | `docs/specs/003-unified-identity-roles-frontend.md` |
 | 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
 | 5 | Auditoria clínica | 4 | PLANNED | — |
 | 6 | Marcadores de saúde | 5 | PLANNED | — |
@@ -254,30 +254,44 @@ alterar a arquitetura.
 - Não há abstrações genéricas sem consumidor.
 - Testes de caracterização permanecem verdes.
 
-## Step 3 — Identidade, papéis e IDs internos
+## Step 3 — Identidade, roles e IDs internos
 
-**Objetivo:** autenticar pacientes e médicos pelo mesmo modelo de usuário.
+**Objetivo:** autenticar uma identidade `User` com uma ou mais `roles` e
+refletir os contextos autorizados numa experiência de acesso testável no
+frontend.
 
 **Dependências:** Steps 1 e 2.
 
 ### Tarefas
 
-- [ ] Escrever cenários de login por papel, usuário inativo e papel incorreto.
-- [ ] Criar `usuarios` com papel `patient`, `doctor` ou `admin`.
-- [ ] Adicionar IDs internos para pacientes.
+- [ ] Escrever cenários de login por `role`, `User` inativo e `role`
+      incorreta.
+- [ ] Criar `users` e `user_roles` para `patient`, `doctor` e `admin`.
+- [ ] Adicionar IDs internos para `patients`.
 - [ ] Manter CPF único, mas removê-lo das chaves estrangeiras e URLs.
-- [ ] Criar perfil de médico com CRM único.
-- [ ] Migrar sessões para `usuario_id`.
-- [ ] Migrar relações clínicas para o ID interno do paciente.
-- [ ] Criar `get_current_user` e dependências de papel.
-- [ ] Atualizar seeds e contratos de autenticação.
+- [ ] Criar perfil `Doctor` com CRM/UF únicos.
+- [ ] Migrar `sessions` para `user_id`.
+- [ ] Migrar relações clínicas para `patient_id`.
+- [ ] Criar `get_current_user` e dependências de `role`.
+- [ ] Atualizar seeds e contratos de autenticação com perfis demonstrativos de
+      `Patient`, `Doctor` verificado, conta combinada e `Doctor` pendente.
 - [ ] Cobrir migração e autorização com testes.
+- [ ] Introduzir Vitest e React Testing Library como suíte unitária do frontend.
+- [ ] Melhorar o login com semântica acessível e linguagem neutra a `role`.
+- [ ] Exibir dashboard de paciente ou estado institucional seguro conforme o
+      contexto autorizado.
+- [ ] Cobrir login, erros, sessão e renderização por `role` com testes
+      unitários.
+- [ ] Preservar e ampliar os fluxos Playwright afetados.
 
 ### Critérios de conclusão
 
-- Paciente e médico compartilham autenticação e sessão.
+- `Patient` e `Doctor` compartilham `User` e `Session`.
 - Sessões e URLs não dependem de CPF.
-- Papel incorreto retorna `403`.
+- `Role` incorreta retorna `403`.
+- Login e home representam o contexto sem tratar o frontend como fonte de
+  autorização.
+- Testes unitários React, Playwright, build e testes backend passam.
 
 ## Step 4 — Contratos e autorização por recurso
 
@@ -533,7 +547,7 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | Identificador interno | `BIGINT AUTO_INCREMENT`; CPF permanece único | APROVADA |
 | Dados existentes | Dados atuais são demonstrativos e recriáveis | APROVADA |
 | Migrações | Alembic; SQLAlchemy somente na infraestrutura | APROVADA |
-| Papéis | Um papel principal por usuário inicialmente | APROVADA |
+| Roles | Múltiplas `roles` concedidas pelo servidor por identidade | APROVADA |
 | Arquivos | Local em desenvolvimento; contrato compatível com S3 | APROVADA |
 | OCR | Worker com jobs no MySQL, sem Redis inicialmente | APROVADA |
 | Arquitetura | Monólito modular | APROVADA |
