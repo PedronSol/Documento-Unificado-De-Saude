@@ -17,7 +17,7 @@ Exemplo: `001-database-migrations.md`.
 | Spec | Assunto | Status |
 |---|---|---|
 | `000-foundation-decisions.md` | Decisões arquiteturais iniciais | SPEC APPROVED |
-| `001-database-migrations.md` | Migrações versionadas | SPEC APPROVED |
+| `001-database-migrations.md` | Migrações versionadas | IMPLEMENTED |
 | `010-health-markers.md` | Marcadores do paciente | SPEC REVIEW |
 | `020-health-documents-ocr.md` | Documentos e OCR | SPEC REVIEW |
 | `030-medical-panel.md` | Painel e autorização médica | SPEC REVIEW |

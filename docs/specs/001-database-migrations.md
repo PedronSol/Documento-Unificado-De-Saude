@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -145,16 +145,16 @@ camada de configuração ainda não existe.
 | Alembic 1 | `database_config` ausente durante a coleta | `DatabaseSettings` e factory: 2 testes passaram | URL criada por `URL.create`, sem interpolar credenciais | `backend/__tests__/test_database_config.py` |
 | Alembic 2 | `database_admin` ausente durante a coleta | Executor Alembic e administração: 10 testes passaram | Configuração, migration e administração separadas | `backend/__tests__/test_migrations.py` |
 | Alembic 3 | CLI não aceitava dependências injetadas | Teste direcionado passou | Composition root recebe factories e casos de uso | `backend/database_tasks.py` |
-| MySQL real | Teste legado falhou ao importar `migrate` removido | Teste adaptado ao Alembic | Execução local pendente por indisponibilidade do Docker Desktop | `backend/__tests__/test_migrations_integration.py` |
+| MySQL real | Teste legado falhou ao importar `migrate` removido | Testes adaptados ao Alembic passaram no MySQL 8 real | Cobertura separada para idempotência, preservação de dados e interrupção após falha | `backend/__tests__/test_migrations_integration.py` |
 
 ## Critérios de conclusão
 
 - [x] Spec aprovada.
-- [ ] Todos os cenários possuem testes executados no MySQL real.
+- [x] Todos os cenários possuem testes executados no MySQL real.
 - [x] Banco vazio é inicializado sem `DROP DATABASE` no fluxo normal.
-- [ ] Execução repetida está coberta pelo teste de integração, pendente de execução local no MySQL real.
+- [x] Execução repetida está coberta pelo teste de integração no MySQL real.
 - [x] Seeds são independentes e restritos ao ambiente de desenvolvimento.
-- [ ] Definition of Done do roadmap atendida.
+- [x] Definition of Done do roadmap atendida.
 
 ## Questões para revisão
 
@@ -167,3 +167,6 @@ camada de configuração ainda não existe.
 - Aprovada em 2026-10-01 junto às decisões de fundação.
 - Revisada e aprovada em 2026-10-02 para adoção de Alembic, SQLAlchemy e DI nos
   limites de infraestrutura.
+- Implementada e validada em 2026-10-02 com MySQL 8 real via Docker: banco
+  vazio, segunda execução idempotente, preservação de dados, interrupção após
+  SQL inválido e persistência do volume após reinício do container.

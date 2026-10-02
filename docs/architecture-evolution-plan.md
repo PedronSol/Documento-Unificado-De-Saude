@@ -164,7 +164,7 @@ flowchart TD
 | Step | Entrega | Dependências | Status | Referência |
 |---|---|---|---|---|
 | 0 | Baseline de specs e TDD | — | DONE | Primeiro ciclo TDD registrado na spec `001` |
-| 1 | Migrações de banco | 0 | IN PROGRESS | Validação em MySQL real pendente |
+| 1 | Migrações de banco | 0 | DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) |
 | 2 | Modularização do backend | 0 | PLANNED | — |
 | 3 | Identidade, papéis e IDs internos | 1, 2 | PLANNED | — |
 | 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
@@ -212,7 +212,7 @@ alterar a arquitetura.
 ### Tarefas
 
 - [x] Executar o primeiro ciclo TDD de aplicação e registro da migration inicial.
-- [ ] Completar testes de aplicação única e ordenada no MySQL real.
+- [x] Completar testes de aplicação única e ordenada no MySQL real.
 - [x] Criar `db/migrations/` e controle de versão `alembic_version`.
 - [x] Converter o schema atual na migração inicial.
 - [x] Remover `DROP DATABASE` do fluxo normal.
@@ -549,3 +549,4 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-02 | 1 | IN PROGRESS | Experimento local não versionado | Runner próprio chegou a 24 testes verdes; evidência preservada apenas como histórico da decisão. |
 | 2026-10-02 | 1 | DECISÃO REVISADA | Specs `000` e `001` | Executor próprio substituído por Alembic; DI aplicada a configuração e conexões. |
 | 2026-10-02 | 1 | IN PROGRESS | Alembic `0001`, composition root e testes | Runner próprio removido; 21 testes passaram e 1 integração foi ignorada porque o Docker Desktop não está ativo. |
+| 2026-10-02 | 1 | IN PROGRESS → DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) | Testes automatizados passaram no MySQL 8 real via Docker; idempotência, preservação de dados, falha ordenada, volume persistente e inicialização do backend foram validados. |
