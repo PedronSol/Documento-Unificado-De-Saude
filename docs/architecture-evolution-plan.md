@@ -166,7 +166,7 @@ flowchart TD
 | 0 | Baseline de specs e TDD | — | DONE | Primeiro ciclo TDD registrado na spec `001` |
 | 1 | Migrações de banco | 0 | DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) |
 | 2 | Modularização do backend | 0 | DONE | [PR #2](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/2) |
-| 3 | Identidade, roles e IDs internos | 1, 2 | IN PROGRESS | `docs/specs/003-unified-identity-roles-frontend.md` |
+| 3 | Identidade, roles e IDs internos | 1, 2 | DONE | [commit aea6e60](https://github.com/PedronSol/Documento-Unificado-De-Saude/commit/aea6e60) |
 | 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
 | 5 | Auditoria clínica | 4 | PLANNED | — |
 | 6 | Marcadores de saúde | 5 | PLANNED | — |
@@ -287,12 +287,12 @@ frontend.
 
 ### Critérios de conclusão
 
-- `Patient` e `Doctor` compartilham `User` e `Session`.
-- Sessões e URLs não dependem de CPF.
-- `Role` incorreta retorna `403`.
-- Login e home representam o contexto sem tratar o frontend como fonte de
+- [x] `Patient` e `Doctor` compartilham `User` e `Session`.
+- [x] Sessões e URLs não dependem de CPF.
+- [x] `Role` incorreta retorna `403`.
+- [x] Login e home representam o contexto sem tratar o frontend como fonte de
   autorização.
-- Testes unitários React, Playwright, build e testes backend passam.
+- [x] Testes unitários React, Playwright, build e testes backend passam.
 
 ## Step 4 — Contratos e autorização por recurso
 
