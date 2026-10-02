@@ -1,0 +1,542 @@
+# Plano de Evolução Arquitetural
+
+## Objetivo
+
+Preparar o Documento Unificado de Saúde para marcadores clínicos, área médica,
+compartilhamento por QR-Code e documentos com OCR sem transformar o projeto em
+uma arquitetura maior do que o problema atual exige.
+
+Este documento é o tracker interno do plano. As funcionalidades somente podem
+entrar em implementação depois que sua spec estiver escrita e revisada.
+
+## Premissas
+
+- A aplicação continuará como um monólito modular.
+- O banco atual contém dados de demonstração. Se essa premissa mudar, o plano de
+  migração deverá ser revisado antes do Step 1.
+- SQL explícito e `mysql-connector` serão mantidos enquanto atenderem ao projeto.
+- Não serão introduzidos microserviços, Redis, filas externas, event sourcing ou
+  ORM sem uma necessidade comprovada por uma spec.
+- Backend, frontend, banco e testes fazem parte da mesma entrega vertical.
+
+## Princípios obrigatórios
+
+### Spec-driven development
+
+Toda mudança de comportamento começa em uma spec versionada em `docs/specs/`.
+Cada spec deve conter:
+
+- contexto e problema;
+- histórias e regras de negócio;
+- cenários de aceitação em Given/When/Then;
+- contratos de API e dados afetados;
+- requisitos de segurança e autorização;
+- casos de erro e limites;
+- não objetivos;
+- estratégia de testes;
+- dependências e critérios de conclusão.
+
+Se a implementação revelar uma regra nova, a spec deve ser atualizada antes do
+código correspondente.
+
+### Strict TDD
+
+O ciclo obrigatório para cada comportamento é:
+
+1. **RED:** escrever o menor teste que expresse um cenário da spec e confirmar
+   que ele falha pela razão esperada.
+2. **GREEN:** implementar apenas o necessário para o teste passar.
+3. **REFACTOR:** melhorar nomes, remover duplicação e ajustar responsabilidades
+   mantendo toda a suíte verde.
+4. Executar os testes afetados e os testes de regressão relevantes.
+
+Código de produção não deve ser escrito antes de existir um teste falhando para
+o comportamento, incluindo autorização, migrações e tratamento de erros.
+
+### DRY
+
+- Remover duplicação real e estável.
+- Não criar abstrações para uma única ocorrência ou para uma necessidade futura
+  hipotética.
+- Preferir duplicação pequena e explícita a uma abstração prematura difícil de
+  entender.
+
+### Keep It Simple
+
+- Preferir SQL, funções e módulos explícitos.
+- Adicionar uma camada somente quando ela possuir responsabilidade concreta.
+- Entregar a menor fatia vertical que satisfaça a spec.
+
+### SOLID
+
+- Cada módulo deve ter uma responsabilidade clara.
+- Regras clínicas devem ser testáveis sem depender da camada HTTP.
+- Dependências externas, como armazenamento e OCR, devem ficar atrás de
+  contratos pequenos apenas quando houver mais de uma implementação ou quando o
+  isolamento for necessário para testes.
+- Não criar interfaces vazias ou hierarquias apenas para afirmar aderência ao
+  SOLID.
+
+### No overengineering
+
+- Não implementar requisitos que não estejam em uma spec aprovada.
+- Não preparar infraestrutura sem consumidor imediato.
+- Toda nova dependência deve resolver um problema atual e documentado.
+
+## Workflow de cada entrega
+
+1. Selecionar uma tarefa desbloqueada neste plano.
+2. Criar ou atualizar sua spec em `docs/specs/`.
+3. Revisar a spec, contratos, riscos e não objetivos.
+4. Marcar a tarefa como `SPEC APPROVED` neste documento.
+5. Executar o ciclo RED, GREEN e REFACTOR em incrementos pequenos.
+6. Atualizar documentação e exemplos de ambiente.
+7. Executar a Definition of Done.
+8. Atualizar status, PR/commit e observações neste tracker.
+
+## Status utilizados
+
+- `PLANNED`: aguardando início.
+- `SPEC WRITING`: spec em elaboração.
+- `SPEC REVIEW`: aguardando revisão.
+- `SPEC APPROVED`: pronta para TDD.
+- `IN PROGRESS`: implementação em RED/GREEN/REFACTOR.
+- `BLOCKED`: dependência ou decisão pendente registrada.
+- `DONE`: Definition of Done atendida.
+
+## Árvore de dependências
+
+```mermaid
+flowchart TD
+    S0[Step 0: Baseline de specs e TDD]
+    S1[Step 1: Migrações de banco]
+    S2[Step 2: Modularização do backend]
+    S3[Step 3: Identidade, papéis e IDs internos]
+    S4[Step 4: Contratos e autorização por recurso]
+    S5[Step 5: Auditoria clínica]
+    S6[Step 6: Marcadores de saúde]
+    S7[Step 7: Área médica e grupos]
+    S8[Step 8: Compartilhamento e QR-Code]
+    S9[Step 9: Armazenamento de documentos]
+    S10[Step 10: OCR e revisão]
+    S11[Step 11: Organização do frontend]
+    S12[Step 12: Consolidação operacional]
+
+    S0 --> S1
+    S0 --> S2
+    S1 --> S3
+    S2 --> S3
+    S3 --> S4
+    S3 --> S11
+    S4 --> S5
+    S4 --> S11
+    S5 --> S6
+    S5 --> S9
+    S6 --> S7
+    S6 --> S8
+    S4 --> S7
+    S9 --> S10
+    S7 --> S11
+    S8 --> S11
+    S10 --> S11
+    S7 --> S12
+    S8 --> S12
+    S10 --> S12
+    S11 --> S12
+```
+
+### Leitura da árvore
+
+- Steps 1 e 2 podem ocorrer em paralelo depois do baseline.
+- Identidade depende de banco evolutivo e módulos técnicos separados.
+- Auditoria vem antes das features clínicas para evitar dados sem autoria.
+- Área médica depende de autorização e marcadores.
+- QR-Code depende do resumo clínico fornecido pelos marcadores.
+- OCR depende primeiro do armazenamento seguro de documentos.
+- A organização do frontend começa após identidade e contratos, mas suas telas
+  são concluídas incrementalmente com cada feature.
+- O Step 12 consolida o que já foi testado em cada step; testes não são adiados
+  para o final.
+
+## Tracker geral
+
+| Step | Entrega | Dependências | Status | Referência |
+|---|---|---|---|---|
+| 0 | Baseline de specs e TDD | — | PLANNED | — |
+| 1 | Migrações de banco | 0 | PLANNED | — |
+| 2 | Modularização do backend | 0 | PLANNED | — |
+| 3 | Identidade, papéis e IDs internos | 1, 2 | PLANNED | — |
+| 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
+| 5 | Auditoria clínica | 4 | PLANNED | — |
+| 6 | Marcadores de saúde | 5 | PLANNED | — |
+| 7 | Área médica e grupos | 4, 6 | PLANNED | — |
+| 8 | Compartilhamento e QR-Code | 6 | PLANNED | — |
+| 9 | Armazenamento de documentos | 5 | PLANNED | — |
+| 10 | OCR e revisão | 9 | PLANNED | — |
+| 11 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
+| 12 | Consolidação operacional | 7, 8, 10, 11 | PLANNED | — |
+
+## Step 0 — Baseline de specs e TDD
+
+**Objetivo:** estabelecer a fonte de verdade e comprovar o workflow antes de
+alterar a arquitetura.
+
+**Dependências:** nenhuma.
+
+### Tarefas
+
+- [x] Criar `docs/specs/README.md` com o template obrigatório de spec.
+- [ ] Importar e normalizar o conteúdo de `Features_DUS.txt` para specs
+      versionadas no repositório.
+- [ ] Criar uma spec técnica para migrações de banco.
+- [ ] Registrar as decisões iniciais: IDs internos, papéis, preservação de dados
+      e estratégia de arquivos.
+- [ ] Confirmar que dados atuais são descartáveis ou escrever plano de backfill.
+- [ ] Definir como evidenciar RED, GREEN e REFACTOR nas PRs.
+- [ ] Executar um ciclo TDD pequeno como prova do workflow.
+
+### Critérios de conclusão
+
+- Template de spec revisado.
+- Features atuais versionadas dentro do repositório.
+- Primeira spec marcada como aprovada.
+- Workflow TDD documentado e comprovado.
+
+## Step 1 — Migrações e ciclo de vida do banco
+
+**Objetivo:** evoluir o schema sem apagar dados.
+
+**Dependências:** Step 0.
+
+### Tarefas
+
+- [ ] Escrever testes de aplicação única e ordenada das migrações.
+- [ ] Criar `db/migrations/` e tabela `schema_migrations`.
+- [ ] Converter o schema atual na migração inicial.
+- [ ] Remover `DROP DATABASE` do fluxo normal.
+- [ ] Mover dados de demonstração para `db/seeds/development.sql`.
+- [ ] Criar executor simples de migrações com `mysql-connector`.
+- [ ] Adicionar `make db-migrate`, `make db-seed` e `make db-reset`.
+- [ ] Restringir o reset ao ambiente local.
+- [ ] Integrar migrações ao Compose antes do backend.
+- [ ] Documentar criação, aplicação e rollback compensatório de migrations.
+
+### Critérios de conclusão
+
+- Banco vazio chega ao schema esperado.
+- Segunda execução não reaplica migrations.
+- Subir containers não remove dados.
+- Testes de migration passam no banco real do Compose.
+
+## Step 2 — Modularização mínima do backend
+
+**Objetivo:** separar infraestrutura e domínios sem mudar comportamento.
+
+**Dependências:** Step 0.
+
+### Tarefas
+
+- [ ] Escrever testes de caracterização dos contratos atuais.
+- [ ] Extrair configuração para `config.py`.
+- [ ] Extrair conexão e transações para `database.py`.
+- [ ] Mover autenticação para `auth/`.
+- [ ] Mover pacientes e vacinas para módulos próprios.
+- [ ] Registrar módulos com `APIRouter`.
+- [ ] Remover SQL e regras de negócio de `main.py`.
+- [ ] Confirmar que respostas HTTP existentes não mudaram.
+
+### Critérios de conclusão
+
+- `main.py` apenas configura a aplicação.
+- Não há abstrações genéricas sem consumidor.
+- Testes de caracterização permanecem verdes.
+
+## Step 3 — Identidade, papéis e IDs internos
+
+**Objetivo:** autenticar pacientes e médicos pelo mesmo modelo de usuário.
+
+**Dependências:** Steps 1 e 2.
+
+### Tarefas
+
+- [ ] Escrever cenários de login por papel, usuário inativo e papel incorreto.
+- [ ] Criar `usuarios` com papel `patient`, `doctor` ou `admin`.
+- [ ] Adicionar IDs internos para pacientes.
+- [ ] Manter CPF único, mas removê-lo das chaves estrangeiras e URLs.
+- [ ] Criar perfil de médico com CRM único.
+- [ ] Migrar sessões para `usuario_id`.
+- [ ] Migrar relações clínicas para o ID interno do paciente.
+- [ ] Criar `get_current_user` e dependências de papel.
+- [ ] Atualizar seeds e contratos de autenticação.
+- [ ] Cobrir migração e autorização com testes.
+
+### Critérios de conclusão
+
+- Paciente e médico compartilham autenticação e sessão.
+- Sessões e URLs não dependem de CPF.
+- Papel incorreto retorna `403`.
+
+## Step 4 — Contratos e autorização por recurso
+
+**Objetivo:** desacoplar autenticação do dashboard e centralizar ownership.
+
+**Dependências:** Step 3.
+
+### Tarefas
+
+- [ ] Escrever matriz de autorização por endpoint.
+- [ ] Reduzir a resposta de login ao usuário autenticado.
+- [ ] Fazer `/me` retornar somente o perfil.
+- [ ] Manter endpoints separados para vacinas, marcadores e documentos.
+- [ ] Reservar rotas médicas sob `/medical`.
+- [ ] Criar verificação central de acesso médico ao paciente.
+- [ ] Padronizar respostas `401`, `403`, `404`, `409` e `422`.
+- [ ] Criar testes contra acesso por ID manipulado.
+
+### Critérios de conclusão
+
+- Recursos são carregados independentemente.
+- Toda consulta sensível verifica usuário, papel e ownership.
+- A matriz de autorização está coberta por testes.
+
+## Step 5 — Auditoria clínica
+
+**Objetivo:** registrar autoria de alterações e acessos sensíveis antes das novas
+features clínicas.
+
+**Dependências:** Step 4.
+
+### Tarefas
+
+- [ ] Escrever testes para auditoria atômica e sanitização.
+- [ ] Criar tabela `auditoria`.
+- [ ] Registrar ator, paciente, ação, recurso e data.
+- [ ] Suportar snapshots JSON anteriores e posteriores quando necessários.
+- [ ] Participar da mesma transação da mudança clínica.
+- [ ] Proibir senha, token e conteúdo integral de documentos nos logs.
+- [ ] Preparar ações para marcadores, documentos, QR e acesso médico.
+
+### Critérios de conclusão
+
+- Operação que falha não deixa auditoria inconsistente.
+- Toda mudança clínica identifica responsável e momento.
+- Dados secretos não aparecem na auditoria.
+
+## Step 6 — Marcadores de saúde
+
+**Objetivo:** permitir ao paciente gerenciar condições, diagnósticos, alergias e
+medicações com histórico.
+
+**Dependências:** Step 5.
+
+### Tarefas
+
+- [ ] Converter os cenários de marcadores em testes de aceitação.
+- [ ] Criar `marcadores_saude` com tipo, nome, dados clínicos e status.
+- [ ] Registrar criador, atualizador e timestamps.
+- [ ] Impedir duplicidade ativa por paciente, tipo e nome normalizado.
+- [ ] Implementar criação, listagem, edição e desativação lógica.
+- [ ] Reutilizar a regra de maioridade.
+- [ ] Integrar auditoria na mesma transação.
+- [ ] Criar a interface do paciente seguindo os estados da spec.
+- [ ] Cobrir validação, duplicidade, ownership e desativação.
+
+### Critérios de conclusão
+
+- Nenhuma exclusão física apaga histórico clínico.
+- Duplicidade ativa retorna `409`.
+- Cenários da spec passam no backend e no Playwright.
+
+## Step 7 — Área médica e grupos de atendimento
+
+**Objetivo:** autorizar médicos somente sobre pacientes atribuídos.
+
+**Dependências:** Steps 4 e 6.
+
+### Tarefas
+
+- [ ] Escrever cenários de vínculo válido, inválido e inativo.
+- [ ] Criar grupos, vínculos de médicos e vínculos de pacientes.
+- [ ] Implementar busca de pacientes autorizados por nome ou CPF.
+- [ ] Criar prontuário longitudinal médico somente leitura.
+- [ ] Reutilizar o módulo de marcadores para alterações médicas.
+- [ ] Registrar usuário e CRM nas alterações.
+- [ ] Bloquear acesso direto a paciente de outro grupo.
+- [ ] Criar interface médica e testes ponta a ponta.
+
+### Critérios de conclusão
+
+- Médico vê apenas pacientes de grupos ativos compartilhados.
+- Acesso não autorizado retorna `403`, inclusive por URL direta.
+- Alterações aparecem no histórico com autoria médica.
+
+## Step 8 — Compartilhamento temporário e QR-Code
+
+**Objetivo:** compartilhar um resumo mínimo sem login, com expiração e
+revogação.
+
+**Dependências:** Step 6.
+
+### Tarefas
+
+- [ ] Escrever testes para token válido, expirado, revogado e adulterado.
+- [ ] Criar `compartilhamentos` com token hash, expiração e revogação.
+- [ ] Armazenar somente o hash do token.
+- [ ] Criar endpoints autenticados para gerar e revogar.
+- [ ] Criar endpoint público somente leitura.
+- [ ] Definir explicitamente os campos permitidos no resumo.
+- [ ] Excluir CPF, e-mail e dados não necessários.
+- [ ] Auditar geração, revogação e acesso.
+- [ ] Gerar QR-Code e temporizador no frontend.
+
+### Critérios de conclusão
+
+- QR contém somente URL com token aleatório.
+- Expiração e revogação têm efeito imediato.
+- Nenhum dado clínico é retornado para token inválido.
+
+## Step 9 — Armazenamento seguro de documentos
+
+**Objetivo:** armazenar arquivos sem acoplar binários ao banco.
+
+**Dependências:** Step 5.
+
+### Tarefas
+
+- [ ] Escrever testes de formato, tamanho, ownership e falha de persistência.
+- [ ] Definir contrato pequeno de armazenamento.
+- [ ] Implementar armazenamento local para desenvolvimento.
+- [ ] Salvar no banco somente metadados e chave do arquivo.
+- [ ] Usar nomes internos aleatórios.
+- [ ] Validar extensão, MIME real, tamanho e integridade básica.
+- [ ] Criar estados `uploaded`, `processing`, `needs_review`, `confirmed`,
+      `failed` e `removed`.
+- [ ] Proteger download por autorização.
+- [ ] Implementar remoção lógica e limpeza física controlada.
+- [ ] Auditar upload, download e remoção.
+
+### Critérios de conclusão
+
+- Arquivos não são públicos nem previsíveis.
+- Binários não são armazenados no MySQL.
+- Paciente não acessa documento alheio.
+
+## Step 10 — OCR e revisão manual
+
+**Objetivo:** processar documentos de modo assíncrono e confirmar dados antes de
+inseri-los no histórico.
+
+**Dependências:** Step 9.
+
+### Tarefas
+
+- [ ] Escrever testes usando um OCR fake antes da integração real.
+- [ ] Criar tabela `ocr_jobs`.
+- [ ] Criar worker simples baseado no banco, sem Redis inicialmente.
+- [ ] Tornar o processamento idempotente.
+- [ ] Salvar texto, campos, confiança e erros.
+- [ ] Marcar baixa confiança para revisão obrigatória.
+- [ ] Criar endpoint de acompanhamento do processamento.
+- [ ] Criar endpoints de correção e confirmação.
+- [ ] Vincular biomarcadores ao documento somente após confirmação.
+- [ ] Preservar documento original quando o OCR falhar.
+- [ ] Criar interface de revisão e testes ponta a ponta.
+
+### Critérios de conclusão
+
+- Upload HTTP não aguarda OCR.
+- Reprocessamento não duplica biomarcadores.
+- Dados somente entram no histórico após confirmação.
+
+## Step 11 — Organização incremental do frontend
+
+**Objetivo:** separar navegação e estado por papel e feature.
+
+**Dependências:** Steps 3 e 4; conclusão acompanha Steps 7, 8 e 10.
+
+### Tarefas
+
+- [ ] Escrever testes de navegação e papel antes de reorganizar rotas.
+- [ ] Criar áreas `patient`, `medical` e `share`.
+- [ ] Separar componentes por feature.
+- [ ] Manter `apiFetch` como cliente HTTP central.
+- [ ] Criar hooks somente quando houver lógica reutilizada.
+- [ ] Padronizar tratamento de `401`, `403`, `409` e `422`.
+- [ ] Redirecionar o login conforme papel.
+- [ ] Remover mocks conforme cada integração real entrar.
+- [ ] Não introduzir Redux enquanto estado local e hooks forem suficientes.
+
+### Critérios de conclusão
+
+- Nenhuma página central concentra todas as features.
+- Papel controla navegação, mas segurança permanece no backend.
+- Cada feature possui loading, vazio, erro e confirmação testados.
+
+## Step 12 — Consolidação operacional
+
+**Objetivo:** consolidar integrações, saúde da aplicação e pipeline final.
+
+**Dependências:** Steps 7, 8, 10 e 11.
+
+### Tarefas
+
+- [ ] Executar migrations em um banco de integração limpo na CI.
+- [ ] Consolidar matriz completa de autorização.
+- [ ] Criar `/health/live` e `/health/ready`.
+- [ ] Adicionar healthcheck do backend ao Compose.
+- [ ] Adicionar identificador de requisição aos logs.
+- [ ] Revisar logs para ausência de dados sensíveis.
+- [ ] Executar testes unitários, integração, build e Playwright na CI.
+- [ ] Validar recuperação de banco e arquivos no ambiente definido.
+- [ ] Revisar documentação operacional e variáveis de ambiente.
+
+### Critérios de conclusão
+
+- CI valida migrations, backend, frontend e fluxos ponta a ponta.
+- Compose distingue processo vivo de aplicação pronta.
+- Logs permitem diagnóstico sem vazar dados clínicos.
+
+## Definition of Ready
+
+Uma tarefa só pode entrar em implementação quando:
+
+- [ ] sua dependência está `DONE` ou existe um acordo explícito de paralelismo;
+- [ ] a spec está versionada e em `SPEC APPROVED`;
+- [ ] critérios de aceitação e não objetivos estão claros;
+- [ ] contratos de API e dados afetados foram identificados;
+- [ ] riscos de segurança e autorização foram avaliados;
+- [ ] o primeiro teste RED foi identificado.
+
+## Definition of Done
+
+Uma tarefa só pode ser marcada como `DONE` quando:
+
+- [ ] cenários da spec possuem testes;
+- [ ] há evidência do ciclo RED, GREEN e REFACTOR;
+- [ ] testes unitários e de integração afetados passam;
+- [ ] build relevante passa;
+- [ ] autorização possui casos positivos e negativos;
+- [ ] migrations foram testadas em banco limpo quando aplicável;
+- [ ] documentação e exemplos de ambiente foram atualizados;
+- [ ] `git diff --check` passa;
+- [ ] não existem artefatos gerados versionados;
+- [ ] o tracker contém status e referência do commit ou PR;
+- [ ] nenhuma implementação fora da spec foi adicionada.
+
+## Decisões pendentes para revisão
+
+| Decisão | Recomendação inicial | Status |
+|---|---|---|
+| Identificador interno | `BIGINT AUTO_INCREMENT`; CPF permanece único | PENDENTE |
+| Dados existentes | Considerar dados atuais descartáveis | PENDENTE |
+| Migrações | SQL versionado e executor pequeno em Python | PENDENTE |
+| Papéis | Um papel principal por usuário inicialmente | PENDENTE |
+| Arquivos | Local em desenvolvimento; contrato compatível com S3 | PENDENTE |
+| OCR | Worker com jobs no MySQL, sem Redis inicialmente | PENDENTE |
+| Arquitetura | Monólito modular | PENDENTE |
+
+## Registro de evolução
+
+| Data | Step | Mudança de status | Referência | Observação |
+|---|---|---|---|---|
+| — | — | — | — | Preencher a cada avanço relevante. |
