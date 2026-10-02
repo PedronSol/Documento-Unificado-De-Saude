@@ -264,25 +264,26 @@ frontend.
 
 ### Tarefas
 
-- [ ] Escrever cenários de login por `role`, `User` inativo e `role`
+- [x] Escrever cenários de login por `role`, `User` inativo e `role`
       incorreta.
-- [ ] Criar `users` e `user_roles` para `patient`, `doctor` e `admin`.
-- [ ] Adicionar IDs internos para `patients`.
-- [ ] Manter CPF único, mas removê-lo das chaves estrangeiras e URLs.
-- [ ] Criar perfil `Doctor` com CRM/UF únicos.
-- [ ] Migrar `sessions` para `user_id`.
-- [ ] Migrar relações clínicas para `patient_id`.
-- [ ] Criar `get_current_user` e dependências de `role`.
-- [ ] Atualizar seeds e contratos de autenticação com perfis demonstrativos de
+- [x] Criar `users` e `user_roles` para `patient`, `doctor` e `admin`.
+- [x] Adicionar IDs internos para `patients`.
+- [x] Manter CPF obrigatório e único para todo usuário, mas removê-lo das
+      chaves estrangeiras e URLs.
+- [x] Criar perfil `Doctor` com CRM/UF únicos.
+- [x] Migrar `sessions` para `user_id`.
+- [x] Migrar relações clínicas para `patient_id`.
+- [x] Criar `get_current_user` e dependências de `role`.
+- [x] Atualizar seeds e contratos de autenticação com perfis demonstrativos de
       `Patient`, `Doctor` verificado, conta combinada e `Doctor` pendente.
-- [ ] Cobrir migração e autorização com testes.
-- [ ] Introduzir Vitest e React Testing Library como suíte unitária do frontend.
-- [ ] Melhorar o login com semântica acessível e linguagem neutra a `role`.
-- [ ] Exibir dashboard de paciente ou estado institucional seguro conforme o
+- [x] Cobrir migração e autorização com testes.
+- [x] Introduzir Vitest e React Testing Library como suíte unitária do frontend.
+- [x] Melhorar o login com semântica acessível e linguagem neutra a `role`.
+- [x] Exibir dashboard de paciente ou estado institucional seguro conforme o
       contexto autorizado.
-- [ ] Cobrir login, erros, sessão e renderização por `role` com testes
+- [x] Cobrir login, erros, sessão e renderização por `role` com testes
       unitários.
-- [ ] Preservar e ampliar os fluxos Playwright afetados.
+- [x] Preservar e ampliar os fluxos Playwright afetados.
 
 ### Critérios de conclusão
 

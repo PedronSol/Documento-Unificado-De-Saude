@@ -100,8 +100,9 @@ em um dashboard SaaS genérico.
 
 1. Cada `User` possui uma ou mais `roles` concedidas pelo servidor entre
    `patient`, `doctor` e `admin`.
-2. CPF identifica uma única pessoa em `users`; um `User` pode ter simultaneamente
-   os perfis `Patient` e `Doctor`.
+2. CPF é obrigatório (`NOT NULL`) e único para todo `User`, qualquer que seja
+   sua `role`; um `User` pode ter simultaneamente os perfis `Patient` e
+   `Doctor`. CPF continua sendo dado cadastral, não chave técnica.
 3. E-mail é único por `User` e a consulta de login usa SQL parametrizado.
 4. `roles` e status ativo são definidos no servidor; o cliente não os envia nem
    pode elevá-los durante o login.
@@ -194,6 +195,8 @@ Quando envia e-mail e senha corretos
 Então sua identidade pode ser autenticada e suas outras `roles` permanecem
 disponíveis
 Mas a `role` `doctor` não é concedida nem aceita para autorização.
+E se nenhuma outra `role` for autorizada, o frontend informa acesso indisponível
+sem inferir contexto `admin` ou carregar recursos clínicos.
 
 ### Cenário: login de administrador
 
@@ -467,28 +470,29 @@ ser `BIGINT` e referenciam `patients.patient_id`.
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| migration 0002 | — | — | — | — |
-| identidade e roles | — | — | — | — |
-| login frontend | — | — | — | — |
-| home por role | — | — | — | — |
+| migration 0002 | `test_migrations.py` esperava schema unificado antes de existir a revisão | Integração MySQL aplicou revisão e seed; verificou CPF presente e único em todos os usuários | Seed e constraints alinhados ao schema | `backend/__tests__/test_migrations_integration.py` |
+| identidade e roles | testes esperavam `get_current_user`, sessão por usuário e autorização por role | testes de API/autorização passaram com IDs internos e bloqueio de acesso indevido | queries clínicas só ocorrem para role paciente | `backend/__tests__/test_identity_api.py`, `test_identity_authorization.py` |
+| login frontend | RTL importava componente e cenário ainda inexistentes | campos acessíveis, erros e estado de loading passaram em Vitest | estado e chamadas de API isolados | `frontend/tests/login-form.test.jsx` |
+| home por role | RTL esperava home institucional sem dados clínicos; comportamento antigo pressupunha paciente | alternância de contexto, admin, 401 e role indisponível passaram | dashboard carregado apenas para contexto paciente | `frontend/tests/authenticated-home.test.jsx` |
 
 ## Critérios de conclusão
 
 - [x] Spec revisada e aprovada.
-- [ ] Migration `0002` validada em MySQL real e sem alterar `0001`.
-- [ ] `Patient`, `Doctor` e `admin` compartilham autenticação e sessão.
-- [ ] `Sessions` e relações clínicas não dependem de CPF.
-- [ ] `Role` incorreta retorna `403` antes de acesso clínico.
-- [ ] Conta inativa não cria nem reutiliza sessão.
-- [ ] `Role` profissional não pode ser autodeclarada e `Doctor` não verificado
+- [x] Migration `0002` validada em MySQL real e sem alterar `0001`.
+- [x] Todo `User` mantém CPF obrigatório e único, sem usar CPF como ID técnico.
+- [x] `Patient`, `Doctor` e `admin` compartilham autenticação e sessão.
+- [x] `Sessions` e relações clínicas não dependem de CPF.
+- [x] `Role` incorreta retorna `403` antes de acesso clínico.
+- [x] Conta inativa não cria nem reutiliza sessão.
+- [x] `Role` profissional não pode ser autodeclarada e `Doctor` não verificado
   não acessa o contexto profissional.
-- [ ] Seeds demonstram login e interface distintos de `Patient` e `Doctor`
+- [x] Seeds demonstram login e interface distintos de `Patient` e `Doctor`
   verificado, além do bloqueio profissional de `Doctor` pendente.
-- [ ] Login e home melhorados conforme a direção visual e requisitos de
+- [x] Login e home melhorados conforme a direção visual e requisitos de
   acessibilidade.
-- [ ] Componentes desta entrega cobertos por React Testing Library.
-- [ ] `npm test`, `npm run test:e2e`, `npm run build` e suíte backend passam.
-- [ ] Contratos, seeds, documentação e roadmap sincronizados.
+- [x] Componentes desta entrega cobertos por React Testing Library.
+- [x] `npm test`, `npm run test:e2e`, `npm run build` e suíte backend passam.
+- [x] Contratos, seeds, documentação e roadmap sincronizados.
 
 ## Decisões aprovadas
 

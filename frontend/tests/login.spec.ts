@@ -2,11 +2,15 @@ import { test, expect } from '@playwright/test';
 
 const MOCK_PACIENTE_RESPONSE = {
   message: 'Login efetuado com sucesso!',
+  user: {
+    user_id: 1,
+    display_name: 'Carlos Eduardo Silva',
+    email: 'carlos.silva@email.com',
+    roles: ['patient'],
+  },
   patient_data: {
-    cpf_paciente: '00011122222',
     nome_paciente: 'Carlos Silva',
     nome_completo: 'Carlos Eduardo Silva',
-    email: 'carlos.silva@email.com',
     avatar: null,
     status_saude: 'updated',
     tipo_sanguineo: 'A+',
@@ -49,9 +53,9 @@ test.describe('Página de Login', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    await expect(page.getByText('Passaporte de Saúde')).toBeVisible();
-    await expect(page.getByText('Acesse sua carteira digital de saúde')).toBeVisible();
-    await expect(page.getByPlaceholder('seu@email.com')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sua história de saúde, com você.' })).toBeVisible();
+    await expect(page.getByText('Documento Unificado de Saúde')).toBeVisible();
+    await expect(page.getByLabel('E-mail')).toBeVisible();
     await expect(page.getByPlaceholder('Digite sua senha')).toBeVisible();
     await expect(page.getByRole('button', { name: /Entrar/i })).toBeVisible();
   });
@@ -60,11 +64,10 @@ test.describe('Página de Login', () => {
     await page.goto('/');
     await waitForHydration(page);
 
-    const senhaInput = page.getByPlaceholder('Digite sua senha');
+    const senhaInput = page.getByRole('textbox', { name: 'Senha' });
     await expect(senhaInput).toHaveAttribute('type', 'password');
 
-    // Botão irmão do input de senha (ícone de olho)
-    await page.locator('input[placeholder="Digite sua senha"] ~ button').click();
+    await page.getByRole('button', { name: 'Mostrar senha' }).click();
     await expect(senhaInput).toHaveAttribute('type', 'text');
   });
 
@@ -79,8 +82,8 @@ test.describe('Página de Login', () => {
 
     await page.goto('/');
     await waitForHydration(page);
-    await page.getByPlaceholder('seu@email.com').fill('errado@email.com');
-    await page.getByPlaceholder('Digite sua senha').fill('senhaerrada');
+    await page.getByLabel('E-mail').fill('errado@email.com');
+    await page.getByRole('textbox', { name: 'Senha' }).fill('senhaerrada');
     await page.getByRole('button', { name: /Entrar/i }).click();
 
     await expect(page.getByText('E-mail ou senha incorretos.')).toBeVisible({ timeout: 10000 });
@@ -104,8 +107,8 @@ test.describe('Página de Login', () => {
 
     await page.goto('/');
     await waitForHydration(page);
-    await page.getByPlaceholder('seu@email.com').fill('carlos.silva@email.com');
-    await page.getByPlaceholder('Digite sua senha').fill('senha123');
+    await page.getByLabel('E-mail').fill('carlos.silva@email.com');
+    await page.getByRole('textbox', { name: 'Senha' }).fill('senha123');
     await page.getByRole('button', { name: /Entrar/i }).click();
 
     await expect(page).toHaveURL('/home', { timeout: 10000 });
@@ -131,6 +134,35 @@ test.describe('Página Home', () => {
 
   test('exibe vacinas do paciente', async ({ page }) => {
     await expect(page.getByText('COVID-19 (Pfizer)')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('exibe estado institucional para doctor sem dados clínicos', async ({ page }) => {
+    await page.unroute('**/me');
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: 'Sessão válida.',
+          user: {
+            user_id: 7,
+            display_name: 'Dr. Rui Lima',
+            email: 'rui@example.com',
+            roles: ['doctor'],
+          },
+          patient_data: null,
+          vaccines: [],
+          alerts: [],
+          documents: [],
+        }),
+      })
+    );
+    await page.reload();
+
+    await expect(page.getByRole('heading', { name: 'Área profissional' })).toBeVisible();
+    await expect(page.getByText('Dr. Rui Lima')).toBeVisible();
+    await expect(page.getByText('Histórico de Vacinação')).toHaveCount(0);
+    await expect(page.getByText('COVID-19 (Pfizer)')).toHaveCount(0);
   });
 
   test('redireciona para login se não há sessão', async ({ page }) => {

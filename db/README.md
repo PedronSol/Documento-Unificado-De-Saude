@@ -1,5 +1,12 @@
 # Banco de dados
 
+A revisão `0002` introduz identidade unificada: todo registro em `users` possui
+CPF obrigatório e único, independentemente das roles. Relações, sessões e
+identificadores técnicos usam IDs internos; CPF não é removido do cadastro.
+O seed de desenvolvimento contém contas demonstrativas de paciente, médico
+verificado/pendente e administrador. Credenciais seedadas são exclusivamente
+para desenvolvimento local.
+
 O schema MySQL é versionado pelo Alembic. A aplicação não usa SQLAlchemy ORM;
 SQLAlchemy fornece apenas a conexão usada pela infraestrutura de migrations,
 seed e reset.
