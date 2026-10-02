@@ -1,5 +1,3 @@
-USE passaporte_saude;
-
 INSERT IGNORE INTO pacientes (
     cpf_paciente,
     nome_paciente,

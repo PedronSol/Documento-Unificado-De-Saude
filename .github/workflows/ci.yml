@@ -39,16 +39,22 @@ jobs:
       - name: Instalar dependências Python
         run: pip install -r backend/requirements.txt
 
-      - name: Popular banco de dados
+      - name: Aplicar migrations e dados de desenvolvimento
+        working-directory: backend
+        env:
+          APP_ENV: development
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
         run: |
-          mysql -h 127.0.0.1 -P 3306 -u root -proot < db/01_tabelas.sql
-          mysql -h 127.0.0.1 -P 3306 -u root -proot passaporte_saude < db/02_popular_bd.sql
+          python -m database_tasks migrate ../db/alembic.ini
+          python -m database_tasks seed ../db/seeds/development.sql
 
       - name: Rodar testes com pytest
         working-directory: backend
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
+          RUN_DB_INTEGRATION: "1"
         run: pytest -v
 
   testes-frontend:

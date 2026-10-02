@@ -21,6 +21,9 @@ Pastas na raiz devem usar nomes minúsculos. Código gerado, caches e resultados
 - Frontend e backend locais: `make both`
 - Build das imagens: `make build`
 - Backend e banco via Docker: `make local-up`
+- Aplicar migrations: `make db-migrate`
+- Carregar dados demonstrativos: `make db-seed`
+- Recriar banco local: `make db-reset`
 - Aplicação completa: `docker compose up --build`
 - Testes do backend: `python -m pytest` dentro de `backend/`
 - Desenvolvimento do frontend: `npm run dev` dentro de `frontend/`
@@ -61,6 +64,12 @@ Não implemente comportamento descoberto durante o desenvolvimento antes de inco
 - Adicione testes pequenos para regras de segurança e para o comportamento alterado seguindo strict TDD.
 - Preserve o contrato atual quando isso não comprometer segurança ou clareza.
 - Não faça refatorações não relacionadas à tarefa atual.
+- Use Alembic para migrations; mantenha SQLAlchemy restrito à infraestrutura
+  enquanto uma spec não justificar ORM na aplicação.
+- Injete configuração e dependências externas no composition root; regras de
+  domínio não devem ler ambiente nem instanciar conexões.
+- Nunca altere uma migration já aplicada; crie uma nova migration forward-only.
+- Seeds e reset destrutivo são permitidos somente em desenvolvimento.
 
 ## Antes de concluir
 

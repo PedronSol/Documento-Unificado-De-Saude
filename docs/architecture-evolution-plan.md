@@ -14,7 +14,8 @@ entrar em implementação depois que sua spec estiver escrita e revisada.
 - A aplicação continuará como um monólito modular.
 - O banco atual contém dados de demonstração. Se essa premissa mudar, o plano de
   migração deverá ser revisado antes do Step 1.
-- SQL explícito e `mysql-connector` serão mantidos enquanto atenderem ao projeto.
+- SQL explícito e `mysql-connector` serão mantidos no backend enquanto atenderem
+  ao projeto; Alembic e SQLAlchemy serão usados na infraestrutura de migrations.
 - Não serão introduzidos microserviços, Redis, filas externas, event sourcing ou
   ORM sem uma necessidade comprovada por uma spec.
 - Backend, frontend, banco e testes fazem parte da mesma entrega vertical.
@@ -162,8 +163,8 @@ flowchart TD
 
 | Step | Entrega | Dependências | Status | Referência |
 |---|---|---|---|---|
-| 0 | Baseline de specs e TDD | — | PLANNED | — |
-| 1 | Migrações de banco | 0 | PLANNED | — |
+| 0 | Baseline de specs e TDD | — | DONE | Primeiro ciclo TDD registrado na spec `001` |
+| 1 | Migrações de banco | 0 | IN PROGRESS | Validação em MySQL real pendente |
 | 2 | Modularização do backend | 0 | PLANNED | — |
 | 3 | Identidade, papéis e IDs internos | 1, 2 | PLANNED | — |
 | 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
@@ -186,14 +187,14 @@ alterar a arquitetura.
 ### Tarefas
 
 - [x] Criar `docs/specs/README.md` com o template obrigatório de spec.
-- [ ] Importar e normalizar o conteúdo de `Features_DUS.txt` para specs
+- [x] Importar e normalizar o conteúdo de `Features_DUS.txt` para specs
       versionadas no repositório.
-- [ ] Criar uma spec técnica para migrações de banco.
-- [ ] Registrar as decisões iniciais: IDs internos, papéis, preservação de dados
+- [x] Criar uma spec técnica para migrações de banco.
+- [x] Registrar as decisões iniciais: IDs internos, papéis, preservação de dados
       e estratégia de arquivos.
-- [ ] Confirmar que dados atuais são descartáveis ou escrever plano de backfill.
-- [ ] Definir como evidenciar RED, GREEN e REFACTOR nas PRs.
-- [ ] Executar um ciclo TDD pequeno como prova do workflow.
+- [x] Confirmar que dados atuais são descartáveis ou escrever plano de backfill.
+- [x] Definir como evidenciar RED, GREEN e REFACTOR nas PRs.
+- [x] Executar um ciclo TDD pequeno como prova do workflow.
 
 ### Critérios de conclusão
 
@@ -210,16 +211,18 @@ alterar a arquitetura.
 
 ### Tarefas
 
-- [ ] Escrever testes de aplicação única e ordenada das migrações.
-- [ ] Criar `db/migrations/` e tabela `schema_migrations`.
-- [ ] Converter o schema atual na migração inicial.
-- [ ] Remover `DROP DATABASE` do fluxo normal.
-- [ ] Mover dados de demonstração para `db/seeds/development.sql`.
-- [ ] Criar executor simples de migrações com `mysql-connector`.
-- [ ] Adicionar `make db-migrate`, `make db-seed` e `make db-reset`.
-- [ ] Restringir o reset ao ambiente local.
-- [ ] Integrar migrações ao Compose antes do backend.
-- [ ] Documentar criação, aplicação e rollback compensatório de migrations.
+- [x] Executar o primeiro ciclo TDD de aplicação e registro da migration inicial.
+- [ ] Completar testes de aplicação única e ordenada no MySQL real.
+- [x] Criar `db/migrations/` e controle de versão `alembic_version`.
+- [x] Converter o schema atual na migração inicial.
+- [x] Remover `DROP DATABASE` do fluxo normal.
+- [x] Mover dados de demonstração para `db/seeds/development.sql`.
+- [x] Adotar Alembic com SQLAlchemy restrito à infraestrutura de migrations.
+- [x] Injetar configuração, engine e casos de uso no composition root.
+- [x] Adicionar `make db-migrate`, `make db-seed` e `make db-reset`.
+- [x] Restringir o reset ao ambiente local.
+- [x] Integrar migrações ao Compose antes do backend.
+- [x] Documentar criação, aplicação e rollback compensatório de migrations.
 
 ### Critérios de conclusão
 
@@ -527,16 +530,22 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 
 | Decisão | Recomendação inicial | Status |
 |---|---|---|
-| Identificador interno | `BIGINT AUTO_INCREMENT`; CPF permanece único | PENDENTE |
-| Dados existentes | Considerar dados atuais descartáveis | PENDENTE |
-| Migrações | SQL versionado e executor pequeno em Python | PENDENTE |
-| Papéis | Um papel principal por usuário inicialmente | PENDENTE |
-| Arquivos | Local em desenvolvimento; contrato compatível com S3 | PENDENTE |
-| OCR | Worker com jobs no MySQL, sem Redis inicialmente | PENDENTE |
-| Arquitetura | Monólito modular | PENDENTE |
+| Identificador interno | `BIGINT AUTO_INCREMENT`; CPF permanece único | APROVADA |
+| Dados existentes | Dados atuais são demonstrativos e recriáveis | APROVADA |
+| Migrações | Alembic; SQLAlchemy somente na infraestrutura | APROVADA |
+| Papéis | Um papel principal por usuário inicialmente | APROVADA |
+| Arquivos | Local em desenvolvimento; contrato compatível com S3 | APROVADA |
+| OCR | Worker com jobs no MySQL, sem Redis inicialmente | APROVADA |
+| Arquitetura | Monólito modular | APROVADA |
 
 ## Registro de evolução
 
 | Data | Step | Mudança de status | Referência | Observação |
 |---|---|---|---|---|
-| — | — | — | — | Preencher a cada avanço relevante. |
+| 2026-10-01 | 0 | PLANNED → SPEC REVIEW | `docs/specs/000` a `040` | Features importadas, decisões propostas e spec de migrations prontas para revisão. |
+| 2026-10-01 | 0 | SPEC REVIEW → IN PROGRESS | Specs `000` e `001` | Fundação e migrations aprovadas; primeiro ciclo TDD é a próxima atividade. |
+| 2026-10-01 | 0 | IN PROGRESS → DONE | `backend/test_migrations.py` | RED, GREEN e REFACTOR comprovados; 11 testes do backend passaram. |
+| 2026-10-01 | 1 | PLANNED → IN PROGRESS | Experimento local não versionado | Primeiro runner próprio criado por TDD; posteriormente removido em favor do Alembic. |
+| 2026-10-02 | 1 | IN PROGRESS | Experimento local não versionado | Runner próprio chegou a 24 testes verdes; evidência preservada apenas como histórico da decisão. |
+| 2026-10-02 | 1 | DECISÃO REVISADA | Specs `000` e `001` | Executor próprio substituído por Alembic; DI aplicada a configuração e conexões. |
+| 2026-10-02 | 1 | IN PROGRESS | Alembic `0001`, composition root e testes | Runner próprio removido; 21 testes passaram e 1 integração foi ignorada porque o Docker Desktop não está ativo. |

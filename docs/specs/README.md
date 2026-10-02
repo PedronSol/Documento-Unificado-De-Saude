@@ -12,6 +12,17 @@ NNN-nome-curto-da-feature.md
 
 Exemplo: `001-database-migrations.md`.
 
+## Índice atual
+
+| Spec | Assunto | Status |
+|---|---|---|
+| `000-foundation-decisions.md` | Decisões arquiteturais iniciais | SPEC APPROVED |
+| `001-database-migrations.md` | Migrações versionadas | SPEC APPROVED |
+| `010-health-markers.md` | Marcadores do paciente | SPEC REVIEW |
+| `020-health-documents-ocr.md` | Documentos e OCR | SPEC REVIEW |
+| `030-medical-panel.md` | Painel e autorização médica | SPEC REVIEW |
+| `040-health-summary-sharing.md` | Compartilhamento temporário | SPEC REVIEW |
+
 ## Template
 
 ```markdown
@@ -96,3 +107,19 @@ Então ...
 
 Se uma regra nova for descoberta durante a implementação, pare, atualize a spec
 e obtenha revisão antes de escrever o comportamento correspondente.
+
+## Evidência de strict TDD
+
+A descrição do PR, ou o registro de evolução quando não houver PR, deve informar:
+
+```text
+Spec: docs/specs/NNN-feature.md
+RED: teste criado, comando executado e motivo esperado da falha
+GREEN: implementação mínima e comando que passou
+REFACTOR: melhoria realizada ou justificativa para não haver refactor
+Regressão: suítes adicionais executadas
+```
+
+O estado RED precisa ser observado antes do código de produção, mas não precisa
+ser publicado como commit quebrado. A tabela `Evidência TDD` da spec recebe a
+referência do commit ou PR que contém o ciclo concluído.

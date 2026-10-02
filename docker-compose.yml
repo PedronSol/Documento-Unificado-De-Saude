@@ -10,12 +10,37 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - ./db:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  migrate:
+    build: ./backend
+    container_name: saude_migrate_container
+    command: >
+      sh -c "
+        python database_tasks.py migrate /db/alembic.ini &&
+        if [ \"$${LOAD_DEMO_DATA}\" = \"true\" ]; then
+          python database_tasks.py seed /db/seeds/development.sql;
+        fi
+      "
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOAD_DEMO_DATA: ${LOAD_DEMO_DATA:-true}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_NAME: ${DB_NAME:-passaporte_saude}
+    volumes:
+      - ./db:/db:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
 
   backend:
     build: ./backend
@@ -32,8 +57,8 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SESSION_DURATION_HOURS: ${SESSION_DURATION_HOURS:-8}
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   frontend:
     build: ./frontend
@@ -63,3 +88,6 @@ services:
       - frontend
     profiles:
       - test
+
+volumes:
+  db_data:

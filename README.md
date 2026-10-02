@@ -56,8 +56,15 @@ make front-dev  # inicia o frontend local
 make back-dev   # inicia o backend local
 make both       # inicia frontend e backend locais em paralelo
 make build      # constrói as imagens Docker
-make local-up   # sobe backend e banco via Docker em segundo plano
+make local-up   # sobe banco, aplica migrations/seeds e inicia o backend
+make db-migrate # aplica migrations pendentes via Docker
+make db-seed    # carrega dados demonstrativos em desenvolvimento
+make db-reset   # recria o banco local e reaplica migrations/seeds
 ```
+
+Os comandos `db-*` executam dentro do Compose. Para executar o backend
+diretamente no host, exporte `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e
+`DB_NAME` conforme o MySQL local; `.env.example` documenta os valores esperados.
 
 Para executar a aplicação como um todo, deve-se entrar no diretório no qual o projeto foi clonado e executar o comando:
 ```Docker
@@ -80,7 +87,12 @@ docker compose down -v
 ## Estrutura do Projeto
 
 ### Banco de Dados
-A primeira parte do projeto é o Banco de Dados, presente na pasta "db" que contém os scripts "01_tabelas.sql" que cria as tabelas utilizadas no projeto e "02_popular_bd.sql", que popula as tabelas criadas com dados fictícios de 10 pacientes gerados com auxílio de inteligência artificial.
+A primeira parte do projeto é o banco MySQL. O schema evolui por revisões
+Alembic versionadas em `db/migrations/versions/`, enquanto dados fictícios de desenvolvimento
+ficam separados em `db/seeds/`. O serviço `migrate` aplica alterações pendentes
+antes da inicialização do backend. Migrations aplicadas são imutáveis; correções
+devem ser feitas em uma nova migration. O SQLAlchemy é usado somente nessa
+infraestrutura; as regras da aplicação não dependem do ORM.
 
 ### Front End
 
