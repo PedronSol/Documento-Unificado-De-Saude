@@ -24,12 +24,12 @@ def add_vaccine(
             with transaction(connection):
                 cursor.execute(
                     """
-                    INSERT INTO vacinas
-                        (paciente_id, nome_vacina, dose, data_aplicacao, status_vacina)
+                    INSERT INTO vaccines
+                        (patient_id, nome_vacina, dose, data_aplicacao, status_vacina)
                     VALUES (%s, %s, %s, %s, %s)
                     """,
                     (
-                        patient["cpf_paciente"],
+                        patient["patient_id"],
                         vaccine.nome_vacina,
                         vaccine.dose,
                         vaccine.data_aplicacao,
@@ -53,9 +53,9 @@ def get_vaccines(
         cursor.execute(
             """
             SELECT id_vacina, nome_vacina, dose, data_aplicacao, status_vacina
-            FROM vacinas WHERE paciente_id = %s
+            FROM vaccines WHERE patient_id = %s
             """,
-            (patient["cpf_paciente"],),
+            (patient["patient_id"],),
         )
         return cursor.fetchall()
 
@@ -71,10 +71,10 @@ def update_vaccine(
         with transaction(connection):
             cursor.execute(
                 """
-                UPDATE vacinas
+                UPDATE vaccines
                 SET nome_vacina = %s, dose = %s, data_aplicacao = %s,
                     status_vacina = %s
-                WHERE id_vacina = %s AND paciente_id = %s
+                WHERE id_vacina = %s AND patient_id = %s
                 """,
                 (
                     vaccine.nome_vacina,
@@ -82,7 +82,7 @@ def update_vaccine(
                     vaccine.data_aplicacao,
                     vaccine.status_vacina,
                     id_vacina,
-                    patient["cpf_paciente"],
+                    patient["patient_id"],
                 ),
             )
         rowcount = cursor.rowcount
@@ -101,8 +101,8 @@ def delete_vaccine(
     with cursor_scope(connection) as cursor:
         with transaction(connection):
             cursor.execute(
-                "DELETE FROM vacinas WHERE id_vacina = %s AND paciente_id = %s",
-                (id_vacina, patient["cpf_paciente"]),
+                "DELETE FROM vaccines WHERE id_vacina = %s AND patient_id = %s",
+                (id_vacina, patient["patient_id"]),
             )
         rowcount = cursor.rowcount
 

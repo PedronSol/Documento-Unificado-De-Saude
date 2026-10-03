@@ -44,10 +44,8 @@ class Document(BaseModel):
 
 
 class PatientProfile(BaseModel):
-    cpf_paciente: str
     nome_paciente: str
     nome_completo: str
-    email: str
     avatar: Optional[str] = None
     status_saude: Literal["updated", "pending", "overdue"]
     tipo_sanguineo: str
@@ -56,9 +54,17 @@ class PatientProfile(BaseModel):
     idade: int
 
 
+class UserIdentity(BaseModel):
+    user_id: int
+    display_name: str
+    email: str
+    roles: List[Literal["patient", "doctor", "admin"]]
+
+
 class LoginResponse(BaseModel):
     message: str
-    patient_data: PatientProfile
+    user: UserIdentity
+    patient_data: Optional[PatientProfile]
     vaccines: List[Vaccine]
     alerts: List[Alert]
     documents: List[Document]

@@ -70,12 +70,20 @@ resolver.
 configuração e criação da engine ficam no composition root. Nenhuma regra clínica
 depende de Alembic ou SQLAlchemy.
 
-### D005 — Papéis de usuário
+### D005 — User roles
 
-**Proposta:** um papel principal por usuário: `patient`, `doctor` ou `admin`.
+**Decisão revisada:** uma identidade pode possuir uma ou mais `roles` entre
+`patient`, `doctor` e `admin`. As `roles` são concedidas pelo backend e nunca
+autodeclaradas pelo cliente.
 
-**Motivo:** atende aos cenários conhecidos. Múltiplos papéis somente serão
-introduzidos se uma spec exigir que a mesma conta atue em mais de um perfil.
+**Motivo:** o Step 3 confirmou um consumidor concreto para múltiplas `roles`: um
+`doctor` também pode usar a mesma identidade como `patient`. Perfis clínico e
+profissional permanecem separados, mas não exigem contas duplicadas.
+
+**Convenção:** models e classes usam inglês e singular (`User`, `Role`,
+`Patient`, `Doctor`, `Session`); tabelas e coleções usam inglês e plural
+(`users`, `user_roles`, `patients`, `doctors`, `sessions`). A interface continua
+em português do Brasil.
 
 ### D006 — Armazenamento de documentos
 
@@ -103,14 +111,15 @@ documentos e compartilhamentos possuem endpoints próprios.
 ## Segurança e autorização
 
 - CPF e CRM não serão usados como identificadores internos em URLs.
-- Autorização permanece no backend e combina usuário, papel, ownership e vínculo.
+- Autorização permanece no backend e combina identidade, `roles`, ownership e
+  vínculo.
 - Tokens de sessão e compartilhamento serão armazenados somente como hash.
 - Logs e auditoria não poderão armazenar senhas, tokens ou documentos integrais.
 
 ## Estratégia de testes
 
 Cada decisão será testada na spec que a consumir. As primeiras evidências serão
-os testes de migração e os testes de autenticação por papel.
+os testes de migração e os testes de autenticação por `role`.
 
 ## Critérios de conclusão
 
@@ -118,7 +127,8 @@ os testes de migração e os testes de autenticação por papel.
 - [x] D002 aprovada.
 - [x] D003 aprovada: dados atuais são demonstrativos e recriáveis.
 - [x] D004 revisada e aprovada: Alembic com SQLAlchemy apenas na infraestrutura.
-- [x] D005 aprovada: um papel principal por usuário inicialmente.
+- [x] D005 revisada: múltiplas `roles` por identidade quando existirem perfis
+      concretos.
 - [x] D006 aprovada: sem provedor obrigatório neste momento.
 - [x] D007 aprovada: sem provedor obrigatório neste momento.
 - [x] D008 aprovada.
@@ -127,11 +137,13 @@ os testes de migração e os testes de autenticação por papel.
 ## Questões para revisão
 
 1. Podemos descartar e recriar os dados atuais de demonstração? **Sim.**
-2. Uma mesma conta precisa atuar como paciente e médico na primeira versão?
-   **Não; um único papel por usuário foi aprovado.**
+2. Uma mesma conta pode atuar como `patient` e `doctor`?
+   **Sim; o Step 3 confirmou esse caso e D005 foi revisada.**
 3. Existe um provedor obrigatório para armazenamento ou OCR? **Não neste momento.**
 
 ## Registro de aprovação
 
 - Aprovada em 2026-10-01 após revisão das decisões principais.
 - D004 revisada em 2026-10-02 para substituir o executor próprio por Alembic.
+- D005 revisada em 2026-10-02 para permitir `roles` concedidas pelo servidor a
+  uma única identidade.
