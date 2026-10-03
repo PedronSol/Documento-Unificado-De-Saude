@@ -49,6 +49,23 @@ Clonar por este método criará uma cópia local deste repositório em sua máqu
 
 ## Como Executar?
 
+Os principais comandos de desenvolvimento estão disponíveis no `Makefile`:
+
+```bash
+make front-dev  # inicia o frontend local
+make back-dev   # inicia o backend local
+make both       # inicia frontend e backend locais em paralelo
+make build      # constrói as imagens Docker
+make local-up   # sobe banco, aplica migrations/seeds e inicia o backend
+make db-migrate # aplica migrations pendentes via Docker
+make db-seed    # carrega dados demonstrativos em desenvolvimento
+make db-reset   # recria o banco local e reaplica migrations/seeds
+```
+
+Os comandos `db-*` executam dentro do Compose. Para executar o backend
+diretamente no host, exporte `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e
+`DB_NAME` conforme o MySQL local; `.env.example` documenta os valores esperados.
+
 Para executar a aplicação como um todo, deve-se entrar no diretório no qual o projeto foi clonado e executar o comando:
 ```Docker
 docker compose up --build
@@ -59,7 +76,7 @@ Ao acessar a aplicação, será solicitado um login, e para fins de testes é po
 
 Uma vez que os contêineres estiverem completamente montados e a aplicação funcionando, para executar os testes unitários, deve-se abrir um outro terminal, também no diretório do projeto, e executar o comando:
 ```Docker
-docker exec -it saude_backend_container python -m pytest --cov=models test_main.py
+docker exec -it saude_backend_container python -m pytest
 ```
 
 Por fim, para finalizar a execução do projeto, basta utilizar o comando:
@@ -70,15 +87,21 @@ docker compose down -v
 ## Estrutura do Projeto
 
 ### Banco de Dados
-A primeira parte do projeto é o Banco de Dados, presente na pasta "db" que contém os scripts "01_tabelas.sql" que cria as tabelas utilizadas no projeto e "02_popular_bd.sql", que popula as tabelas criadas com dados fictícios de 10 pacientes gerados com auxílio de inteligência artificial.
+A primeira parte do projeto é o banco MySQL. O schema evolui por revisões
+Alembic versionadas em `db/migrations/versions/`, enquanto dados fictícios de desenvolvimento
+ficam separados em `db/seeds/`. O serviço `migrate` aplica alterações pendentes
+antes da inicialização do backend. Migrations aplicadas são imutáveis; correções
+devem ser feitas em uma nova migration. O SQLAlchemy é usado somente nessa
+infraestrutura; as regras da aplicação não dependem do ORM.
 
 ### Front End
 
-A segunda parte do Projeto é a sua interface, que, por hora, contém a página de login e a página principal além de seus componentes. A interface foi feita utilizando o framework NextJS e está presente na pasta "FrontEnd"
+A segunda parte do projeto é sua interface, que contém a página de login, a página principal e seus componentes. A interface foi feita com Next.js e está presente na pasta `frontend`.
 
 ### Back End
 
-A terceita parte é o BackEnd, responsável por todo o trabalho de criação de rotas e testes unitários. É dividido nos scripts "main.py" que rege toda a lógica da aplicação, e "main_test.py", que executa três testes unitários na classe "Pacientes"
+A terceira parte é o backend, responsável pelas rotas, autenticação e
+autorização. O código está em `backend/` e os testes em `backend/__tests__/`.
 
 ### Docker
 

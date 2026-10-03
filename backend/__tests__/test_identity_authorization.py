@@ -1,0 +1,103 @@
+from copy import deepcopy
+
+import pytest
+from fastapi import HTTPException
+
+from auth.dependencies import get_current_user, require_roles
+from security import hash_session_token
+
+
+class ScriptedCursor:
+    def __init__(self, database):
+        self.database = database
+        self.result = None
+
+    def execute(self, statement, parameters=None):
+        sql = " ".join(statement.split())
+        self.database.executed.append((sql, parameters or ()))
+        self.result = deepcopy(self.database.results.pop(0))
+
+    def fetchone(self):
+        return self.result
+
+    def fetchall(self):
+        return self.result
+
+    def close(self):
+        pass
+
+
+class ScriptedConnection:
+    def __init__(self, *results):
+        self.results = list(results)
+        self.executed = []
+
+    def cursor(self, dictionary=False):
+        return ScriptedCursor(self)
+
+
+def test_get_current_user_resolve_sessao_e_roles_do_servidor():
+    connection = ScriptedConnection(
+        {
+            "user_id": 42,
+            "display_name": "Dra. Helena Costa",
+            "email": "helena@example.com",
+        },
+        [{"role": "patient"}, {"role": "doctor"}],
+        {"verification_status": "verified"},
+    )
+
+    user = get_current_user("raw-session", connection)
+
+    assert user == {
+        "user_id": 42,
+        "display_name": "Dra. Helena Costa",
+        "email": "helena@example.com",
+        "roles": ["patient", "doctor"],
+    }
+    assert connection.executed[0][1] == (hash_session_token("raw-session"),)
+    assert all("cpf" not in statement.lower() for statement, _ in connection.executed)
+
+
+def test_doctor_pendente_nao_recebe_role_profissional():
+    connection = ScriptedConnection(
+        {
+            "user_id": 7,
+            "display_name": "Dra. Paula Reis",
+            "email": "paula@example.com",
+        },
+        [{"role": "patient"}, {"role": "doctor"}],
+        {"verification_status": "pending"},
+    )
+
+    user = get_current_user("raw-session", connection)
+
+    assert user["roles"] == ["patient"]
+
+
+def test_role_incorreta_retorna_403():
+    require_patient = require_roles("patient")
+    doctor = {
+        "user_id": 9,
+        "display_name": "Dr. Marcos Nunes",
+        "email": "marcos@example.com",
+        "roles": ["doctor"],
+    }
+
+    with pytest.raises(HTTPException) as error:
+        require_patient(doctor)
+
+    assert error.value.status_code == 403
+    assert error.value.detail == "Acesso não permitido para este perfil."
+
+
+def test_role_permitida_preserva_identidade():
+    require_patient = require_roles("patient")
+    user = {
+        "user_id": 42,
+        "display_name": "Dra. Helena Costa",
+        "email": "helena@example.com",
+        "roles": ["patient", "doctor"],
+    }
+
+    assert require_patient(user) is user

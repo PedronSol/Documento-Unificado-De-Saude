@@ -5,40 +5,76 @@ services:
     restart: always
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
-      MYSQL_ROOT_PASSWORD: 'root'
-      MYSQL_DATABASE: 'passaporte_saude'
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-passaporte_saude}
     ports:
       - "3307:3306"
     volumes:
-      - ./db:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  backend:
-    build: ./BackEnd
-    container_name: saude_backend_container
-    ports:
-      - "8000:8000"
+  migrate:
+    build: ./backend
+    container_name: saude_migrate_container
+    command: >
+      sh -c "
+        python database_tasks.py migrate /db/alembic.ini &&
+        if [ \"$${LOAD_DEMO_DATA}\" = \"true\" ]; then
+          python database_tasks.py seed /db/seeds/development.sql;
+        fi
+      "
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOAD_DEMO_DATA: ${LOAD_DEMO_DATA:-true}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_NAME: ${DB_NAME:-passaporte_saude}
+    volumes:
+      - ./db:/db:ro
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  backend:
+    build: ./backend
+    container_name: saude_backend_container
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_NAME: ${DB_NAME:-passaporte_saude}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_DURATION_HOURS: ${SESSION_DURATION_HOURS:-8}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   frontend:
-    build: ./FrontEnd
+    build: ./frontend
     container_name: saude_frontend_container
     ports:
       - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     depends_on:
       - backend
 
   playwright:
-    build: ./FrontEnd
+    build: ./frontend
     container_name: saude_playwright_container
     volumes:
-      - ./FrontEnd/tests:/app/tests
+      - ./frontend/tests:/app/tests
     command: >
       sh -c "
         echo 'Aguardando frontend iniciar...' &&
@@ -52,3 +88,6 @@ services:
       - frontend
     profiles:
       - test
+
+volumes:
+  db_data:

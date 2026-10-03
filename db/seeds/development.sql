@@ -1,0 +1,133 @@
+-- Dados fictícios exclusivos de desenvolvimento.
+-- Todas as contas usam a senha: senha123
+
+INSERT IGNORE INTO users (
+    cpf, display_name, email, password_hash, active
+)
+VALUES
+    (
+        '00011122222', 'Carlos Eduardo Silva', 'carlos.silva@email.com',
+        'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
+    ),
+    (
+        '11122233344', 'Mariana Costa Souza', 'mariana.souza@email.com',
+        'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
+    ),
+    (
+        '22233344455', 'Dra. Helena Costa', 'helena.costa@email.com',
+        'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
+    ),
+    (
+        '33344455566', 'Dr. Marcos Nunes', 'marcos.nunes@email.com',
+        'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
+    ),
+    (
+        '44455566677', 'Dra. Paula Reis', 'paula.reis@email.com',
+        'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
+    ),
+    (
+        '55566677788', 'Alex Ferreira', 'admin@email.com',
+        'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
+    ),
+    (
+        '66677788899', 'Conta Inativa', 'inativo@email.com',
+        'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', FALSE
+    );
+
+INSERT IGNORE INTO user_roles (user_id, role)
+SELECT user_id, 'patient'
+FROM users
+WHERE email IN (
+    'carlos.silva@email.com',
+    'mariana.souza@email.com',
+    'helena.costa@email.com',
+    'paula.reis@email.com',
+    'inativo@email.com'
+);
+
+INSERT IGNORE INTO user_roles (user_id, role)
+SELECT user_id, 'doctor'
+FROM users
+WHERE email IN ('helena.costa@email.com', 'marcos.nunes@email.com');
+
+INSERT IGNORE INTO user_roles (user_id, role)
+SELECT user_id, 'admin'
+FROM users
+WHERE email = 'admin@email.com';
+
+INSERT IGNORE INTO patients (
+    user_id, nome_paciente, nome_completo, avatar, status_saude,
+    tipo_sanguineo, valor_qr, data_nascimento
+)
+SELECT
+    user_id, 'Carlos Silva', 'Carlos Eduardo Silva', NULL, 'updated',
+    'A+', 'QR-CARLOS-DEMO', '1985-04-12'
+FROM users WHERE email = 'carlos.silva@email.com'
+UNION ALL
+SELECT
+    user_id, 'Mariana Souza', 'Mariana Costa Souza', NULL, 'pending',
+    'O-', 'QR-MARIANA-DEMO', '2021-07-11'
+FROM users WHERE email = 'mariana.souza@email.com'
+UNION ALL
+SELECT
+    user_id, 'Helena Costa', 'Dra. Helena Costa', NULL, 'updated',
+    'A-', 'QR-HELENA-DEMO', '1988-03-18'
+FROM users WHERE email = 'helena.costa@email.com'
+UNION ALL
+SELECT
+    user_id, 'Paula Reis', 'Dra. Paula Reis', NULL, 'updated',
+    'B+', 'QR-PAULA-DEMO', '1990-06-24'
+FROM users WHERE email = 'paula.reis@email.com'
+UNION ALL
+SELECT
+    user_id, 'Conta Inativa', 'Conta Inativa', NULL, 'pending',
+    'O+', NULL, '1992-01-01'
+FROM users WHERE email = 'inativo@email.com';
+
+INSERT IGNORE INTO doctors (
+    user_id, crm_number, crm_state, verification_status, verified_at
+)
+SELECT user_id, '100001', 'RN', 'verified', UTC_TIMESTAMP()
+FROM users WHERE email = 'helena.costa@email.com'
+UNION ALL
+SELECT user_id, '100002', 'RN', 'verified', UTC_TIMESTAMP()
+FROM users WHERE email = 'marcos.nunes@email.com'
+UNION ALL
+SELECT user_id, '100003', 'RN', 'pending', NULL
+FROM users WHERE email = 'paula.reis@email.com';
+
+INSERT IGNORE INTO vaccines (
+    id_vacina, patient_id, nome_vacina, dose, data_aplicacao, status_vacina
+)
+SELECT
+    1, patient_id, 'COVID-19 (Pfizer)', '3ª Dose - Reforço',
+    '2024-02-10', 'applied'
+FROM patients
+WHERE user_id = (SELECT user_id FROM users WHERE email = 'carlos.silva@email.com')
+UNION ALL
+SELECT 2, patient_id, 'Influenza', 'Dose Anual', '2024-04-15', 'applied'
+FROM patients
+WHERE user_id = (SELECT user_id FROM users WHERE email = 'carlos.silva@email.com')
+UNION ALL
+SELECT 1, patient_id, 'Influenza', 'Dose Anual', NULL, 'pending'
+FROM patients
+WHERE user_id = (SELECT user_id FROM users WHERE email = 'mariana.souza@email.com');
+
+INSERT IGNORE INTO alerts (
+    id_alerta, patient_id, tipo_alerta, titulo_alerta,
+    descricao_alerta, severidade_alerta
+)
+SELECT
+    1, patient_id, 'condition', 'Hipertensão',
+    'Acompanhamento regular recomendado.', 'medium'
+FROM patients
+WHERE user_id = (SELECT user_id FROM users WHERE email = 'carlos.silva@email.com');
+
+INSERT IGNORE INTO documents (
+    id_documento, patient_id, titulo_documento, tipo_documento,
+    data_criacao_documento, status_documento
+)
+SELECT
+    1, patient_id, 'Hemograma Completo', 'exam', '2025-03-01', 'new'
+FROM patients
+WHERE user_id = (SELECT user_id FROM users WHERE email = 'carlos.silva@email.com');
