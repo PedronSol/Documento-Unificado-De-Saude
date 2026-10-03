@@ -43,7 +43,7 @@ export function DigitalDocuments({ documents }) {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, delay: 0.4 }}
     >
-      <Card className="border shadow-sm">
+      <Card className="patient-module patient-documents border shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base lg:text-lg font-semibold">

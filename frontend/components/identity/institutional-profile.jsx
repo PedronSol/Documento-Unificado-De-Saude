@@ -3,6 +3,8 @@ import Building2 from "lucide-react/dist/esm/icons/building-2";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import ShieldX from "lucide-react/dist/esm/icons/shield-x";
 
+import { UserAvatar } from "@/components/identity/user-avatar";
+
 
 const COPY = {
   doctor: {
@@ -42,13 +44,7 @@ export function InstitutionalProfile({ user, context }) {
         </div>
 
         <div className="credential-person">
-          <div className="credential-avatar" aria-hidden="true">
-            {user.display_name
-              .split(" ")
-              .map((part) => part[0])
-              .join("")
-              .slice(0, 2)}
-          </div>
+          <UserAvatar name={user.display_name} className="credential-avatar" />
           <div>
             <p className="eyebrow">{content.eyebrow}</p>
             <h1>{content.title}</h1>

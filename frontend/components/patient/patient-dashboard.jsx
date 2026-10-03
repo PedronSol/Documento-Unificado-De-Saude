@@ -118,8 +118,8 @@ export default function PatientDashboard({ envelope }) {
     <main className="patient-main">
       <section className="patient-identity" aria-labelledby="patient-name">
         <div>
-          <p className="eyebrow">Minha saúde</p>
-          <h1 id="patient-name">Olá, {patient.nome_paciente}</h1>
+          <p className="eyebrow">Meu perfil</p>
+          <h1 id="patient-name">{patient.nome_paciente}</h1>
           <p>{patient.nome_completo}</p>
         </div>
         <dl className="patient-facts">
@@ -130,10 +130,6 @@ export default function PatientDashboard({ envelope }) {
           <div>
             <dt>Tipo sanguíneo</dt>
             <dd>{patient.tipo_sanguineo}</dd>
-          </div>
-          <div>
-            <dt>Permissão</dt>
-            <dd>{patient.maior_de_idade ? "Acesso completo" : "Acesso restrito"}</dd>
           </div>
         </dl>
       </section>

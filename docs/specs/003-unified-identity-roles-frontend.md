@@ -243,7 +243,11 @@ E erros do servidor são anunciados sem remover os dados digitados.
 
 Dado que `/me` retorna `roles` contendo `patient` e dashboard
 Quando a home termina de carregar
-Então exibe identidade, perfil e recursos do próprio paciente
+Então exibe avatar do paciente no cabeçalho, usando iniciais como fallback
+E mantém a seção de perfil com nome completo, idade, tipo sanguíneo e nível de
+acesso
+E não exibe CPF no perfil ou como identificador técnico
+E exibe recursos do próprio paciente
 E preserva as operações atuais de vacina.
 
 ### Cenário: frontend de médico ou administrador
@@ -251,8 +255,16 @@ E preserva as operações atuais de vacina.
 Dado que `/me` retorna `roles` contendo `doctor` ou `admin`
 Quando a home termina de carregar
 Então exibe uma credencial institucional com nome e contexto atual
+E mantém o avatar de iniciais com a mesma identidade visual do perfil de paciente
 E informa que recursos clínicos dependem da área autorizada futura
 E não renderiza vacinas, alertas, documentos ou dados de paciente.
+
+### Cenário: identidade visual consistente entre contextos
+
+Dado que a pessoa acessa login, dashboard de paciente ou área profissional
+Quando cada página é renderizada em desktop ou mobile
+Então usa a mesma moldura lateral responsiva, superfícies claras e acentos azuis
+E adapta a disposição do conteúdo sem overflow horizontal.
 
 ### Cenário: sessão ausente no frontend
 

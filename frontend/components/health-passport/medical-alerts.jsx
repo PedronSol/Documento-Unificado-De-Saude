@@ -60,7 +60,7 @@ export function MedicalAlerts({ alerts }) {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, delay: 0.3 }}
     >
-      <Card className="border shadow-sm border-destructive/20 bg-destructive/5">
+      <Card className="patient-module patient-alerts border shadow-sm border-destructive/20 bg-destructive/5">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base lg:text-lg font-semibold">
             <AlertTriangle className="h-5 w-5 text-destructive" />

@@ -6,6 +6,7 @@ import LogOut from "lucide-react/dist/esm/icons/log-out";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 
 import { InstitutionalProfile } from "@/components/identity/institutional-profile";
+import { UserAvatar } from "@/components/identity/user-avatar";
 import { apiFetch } from "@/lib/api";
 
 
@@ -99,6 +100,12 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
   const context = selectedContext && roles.includes(selectedContext)
     ? selectedContext
     : defaultContext;
+  const avatarName = context === "patient" && envelope.patient_data
+    ? envelope.patient_data.nome_paciente
+    : envelope.user.display_name;
+  const avatarSrc = context === "patient"
+    ? envelope.patient_data?.avatar
+    : null;
 
   async function logout() {
     await apiFetch("/logout", { method: "POST" });
@@ -132,10 +139,23 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
           </p>
         )}
 
-        <button className="logout-action" type="button" onClick={logout}>
-          <LogOut aria-hidden="true" size={16} />
-          Sair
-        </button>
+        <div className="identity-actions">
+          <div className="identity-account">
+            <UserAvatar
+              name={avatarName}
+              src={avatarSrc}
+              className="identity-avatar"
+            />
+            <div className="identity-account-copy">
+              <span>{avatarName}</span>
+              <small>{context ? CONTEXT_LABEL[context] : "Identidade autenticada"}</small>
+            </div>
+          </div>
+          <button className="logout-action" type="button" onClick={logout}>
+            <LogOut aria-hidden="true" size={16} />
+            Sair
+          </button>
+        </div>
       </header>
 
       {context === "patient" ? (

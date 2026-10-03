@@ -49,6 +49,25 @@ async function waitForHydration(page) {
 }
 
 test.describe('Página de Login', () => {
+  test('mantém a moldura lateral alinhada ao dashboard em desktop e mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto('/');
+    await waitForHydration(page);
+
+    const desktopIntro = await page.locator('.login-intro').boundingBox();
+    const desktopAccess = await page.locator('.login-access').boundingBox();
+    expect(desktopIntro?.x).toBeGreaterThanOrEqual(24);
+    expect(desktopIntro?.x).toBeLessThanOrEqual(36);
+    expect((desktopAccess?.x ?? 0) + (desktopAccess?.width ?? 0)).toBeLessThanOrEqual(1896);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileIntro = await page.locator('.login-intro').boundingBox();
+    const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(mobileIntro?.x).toBeGreaterThanOrEqual(8);
+    expect(mobileIntro?.x).toBeLessThanOrEqual(12);
+    expect(pageWidth).toBeLessThanOrEqual(390);
+  });
+
   test('exibe os elementos da página corretamente', async ({ page }) => {
     await page.goto('/');
     await waitForHydration(page);
@@ -132,8 +151,77 @@ test.describe('Página Home', () => {
     await expect(page.getByText('Carlos Silva')).toBeVisible({ timeout: 10000 });
   });
 
+  test('preserva avatar e resumo do perfil sem expor CPF', async ({ page }) => {
+    const avatar = page.getByRole('img', { name: 'Avatar de Carlos Silva' });
+    await expect(avatar).toBeVisible();
+    await expect(avatar).toContainText('CS');
+    await expect(page.getByText('Meu perfil')).toBeVisible();
+    await expect(page.getByText('Carlos Eduardo Silva')).toBeVisible();
+    await expect(page.getByText('41 anos')).toBeVisible();
+    await expect(page.getByText('A+')).toBeVisible();
+    await expect(page.locator('.patient-main')).not.toContainText(/CPF/i);
+  });
+
   test('exibe vacinas do paciente', async ({ page }) => {
     await expect(page.getByText('COVID-19 (Pfizer)')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('mantém o dashboard amplo e os cards alinhados em desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.unroute('**/me');
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...MOCK_PACIENTE_RESPONSE,
+          vaccines: [
+            ...MOCK_PACIENTE_RESPONSE.vaccines,
+            {
+              id_vacina: 2,
+              nome_vacina: 'Influenza',
+              dose: 'Dose Anual',
+              data_aplicacao: null,
+              status_vacina: 'pending',
+            },
+            {
+              id_vacina: 3,
+              nome_vacina: 'Hepatite B',
+              dose: '3ª Dose',
+              data_aplicacao: '2024-01-05',
+              status_vacina: 'applied',
+            },
+          ],
+        }),
+      })
+    );
+    await page.goto('/home');
+    await waitForHydration(page);
+
+    const dashboard = await page.locator('.patient-main').boundingBox();
+    expect(dashboard?.x).toBeGreaterThanOrEqual(24);
+    expect(dashboard?.x).toBeLessThanOrEqual(48);
+    expect(dashboard?.width).toBeGreaterThan(1800);
+
+    const vaccineCards = await page.locator('.vaccine-entry').all();
+    const cardBounds = await Promise.all(vaccineCards.map((card) => card.boundingBox()));
+    expect(cardBounds).toHaveLength(3);
+    expect(cardBounds[0]?.y).toBeCloseTo(cardBounds[1]?.y ?? 0, 0);
+    expect(cardBounds[1]?.y).toBeCloseTo(cardBounds[2]?.y ?? 0, 0);
+    expect(cardBounds.every((bounds) => (bounds?.width ?? 0) > 500)).toBe(true);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileDashboard = await page.locator('.patient-main').boundingBox();
+    const mobileCards = await Promise.all(
+      vaccineCards.map((card) => card.boundingBox())
+    );
+    const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(mobileDashboard?.x).toBeGreaterThanOrEqual(8);
+    expect(mobileDashboard?.x).toBeLessThanOrEqual(12);
+    expect(mobileDashboard?.width).toBeLessThan(390);
+    expect(pageWidth).toBeLessThanOrEqual(390);
+    expect(mobileCards[1]?.y).toBeGreaterThan(mobileCards[0]?.y ?? 0);
+    expect(mobileCards[2]?.y).toBeGreaterThan(mobileCards[1]?.y ?? 0);
   });
 
   test('exibe estado institucional para doctor sem dados clínicos', async ({ page }) => {
@@ -160,7 +248,14 @@ test.describe('Página Home', () => {
     await page.reload();
 
     await expect(page.getByRole('heading', { name: 'Área profissional' })).toBeVisible();
-    await expect(page.getByText('Dr. Rui Lima')).toBeVisible();
+    await expect(page.locator('.credential-name')).toHaveText('Dr. Rui Lima');
+    await expect(page.locator('.credential-avatar')).toContainText('DR');
+    const credentialStyle = await page.locator('.institutional-credential').evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, radius: style.borderRadius };
+    });
+    expect(credentialStyle.background).toBe('rgb(255, 255, 255)');
+    expect(credentialStyle.radius).not.toBe('0px');
     await expect(page.getByText('Histórico de Vacinação')).toHaveCount(0);
     await expect(page.getByText('COVID-19 (Pfizer)')).toHaveCount(0);
   });
