@@ -4,7 +4,7 @@ BACKEND_PORT ?= 8000
 BACKEND_PYTHON := $(abspath $(VENV)/bin/python)
 BACKEND_READY := $(VENV)/.backend-ready
 
-.PHONY: front-dev back-setup back-dev both build local-up db-migrate db-seed db-reset
+.PHONY: front-dev back-setup back-dev both build local-up local-down db-migrate db-seed db-reset
 
 front-dev:
 	cd frontend && npm run dev
@@ -27,6 +27,9 @@ build:
 
 local-up:
 	docker compose up --build -d db backend
+
+local-down:
+	docker compose down
 
 db-migrate:
 	docker compose run --rm migrate python database_tasks.py migrate /db/alembic.ini

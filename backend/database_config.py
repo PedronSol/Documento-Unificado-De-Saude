@@ -1,28 +1,14 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, URL
 
+from config import DatabaseSettings as BaseDatabaseSettings
+
 
 @dataclass(frozen=True)
-class DatabaseSettings:
-    host: str
-    port: int
-    user: str
-    password: str
-    database: str
-
-    @classmethod
-    def from_mapping(cls, values: Mapping[str, str]) -> "DatabaseSettings":
-        return cls(
-            host=values.get("DB_HOST", "db"),
-            port=int(values.get("DB_PORT", "3306")),
-            user=values.get("DB_USER", "root"),
-            password=values.get("DB_PASSWORD", "root"),
-            database=values.get("DB_NAME", "passaporte_saude"),
-        )
-
+class DatabaseSettings(BaseDatabaseSettings):
     def to_url(self, *, include_database: bool = True) -> URL:
         return URL.create(
             drivername="mysql+mysqlconnector",

@@ -1,0 +1,53 @@
+from collections.abc import Mapping
+from dataclasses import dataclass
+
+from fastapi import Request
+
+SESSION_COOKIE = "dus_session"
+
+
+@dataclass(frozen=True)
+class DatabaseSettings:
+    host: str
+    port: int
+    user: str
+    password: str
+    database: str
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, str]) -> "DatabaseSettings":
+        return cls(
+            host=values.get("DB_HOST", "db"),
+            port=int(values.get("DB_PORT", "3306")),
+            user=values.get("DB_USER", "root"),
+            password=values.get("DB_PASSWORD", "root"),
+            database=values.get("DB_NAME", "passaporte_saude"),
+        )
+
+
+@dataclass(frozen=True)
+class AppSettings:
+    database: DatabaseSettings
+    cors_origins: tuple[str, ...]
+    cookie_secure: bool
+    session_cookie: str
+    session_duration_hours: int
+
+    @classmethod
+    def from_mapping(cls, values: Mapping[str, str]) -> "AppSettings":
+        cors_origins = tuple(
+            origin.strip()
+            for origin in values.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+            if origin.strip()
+        )
+        return cls(
+            database=DatabaseSettings.from_mapping(values),
+            cors_origins=cors_origins,
+            cookie_secure=values.get("COOKIE_SECURE", "false").lower() == "true",
+            session_cookie=SESSION_COOKIE,
+            session_duration_hours=int(values.get("SESSION_DURATION_HOURS", "8")),
+        )
+
+
+def get_settings(request: Request):
+    return request.app.state.settings

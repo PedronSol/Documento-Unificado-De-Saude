@@ -3,12 +3,12 @@ from datetime import date
 import pytest
 from fastapi import HTTPException
 
-from main import get_current_patient, require_adult
+from auth.dependencies import get_current_user, require_adult
 
 
 def test_missing_session_is_rejected_before_database_access():
     with pytest.raises(HTTPException) as error:
-        get_current_patient(None)
+        get_current_user(None)
 
     assert error.value.status_code == 401
 

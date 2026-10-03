@@ -1,4 +1,5 @@
 from pathlib import Path
+import importlib.util
 
 import pytest
 
@@ -156,6 +157,26 @@ def test_estrutura_alembic_e_seed_estao_separados():
         / "0001_initial_schema.py"
     ).is_file()
     assert (PROJECT_ROOT / "db" / "seeds" / "development.sql").is_file()
+
+
+def test_migration_de_identidade_e_a_proxima_revisao_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0002_unified_identity_roles.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("identity_migration", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    assert migration.revision == "0002"
+    assert migration.down_revision == "0001"
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
 
 
 def test_makefile_compose_e_ci_usam_executor_alembic():
