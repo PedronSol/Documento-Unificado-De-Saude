@@ -90,7 +90,7 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
 
   const envelope = result.data;
   const roles = envelope.user.roles;
-  const defaultContext = roles.includes("patient") && envelope.patient_data
+  const defaultContext = roles.includes("patient") && envelope.patient_profile
     ? "patient"
     : roles.includes("doctor")
       ? "doctor"
@@ -100,11 +100,11 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
   const context = selectedContext && roles.includes(selectedContext)
     ? selectedContext
     : defaultContext;
-  const avatarName = context === "patient" && envelope.patient_data
-    ? envelope.patient_data.nome_paciente
+  const avatarName = context === "patient" && envelope.patient_profile
+    ? envelope.patient_profile.preferred_name
     : envelope.user.display_name;
   const avatarSrc = context === "patient"
-    ? envelope.patient_data?.avatar
+    ? envelope.patient_profile?.avatar_url
     : null;
 
   async function logout() {
@@ -159,7 +159,10 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
       </header>
 
       {context === "patient" ? (
-        <PatientDashboard envelope={envelope} />
+        <PatientDashboard
+          profile={envelope.patient_profile}
+          onUnauthenticated={onUnauthenticated}
+        />
       ) : (
         <InstitutionalProfile user={envelope.user} context={context} />
       )}

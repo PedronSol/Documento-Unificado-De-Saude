@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Check from "lucide-react/dist/esm/icons/check";
 import Pencil from "lucide-react/dist/esm/icons/pencil";
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -13,10 +13,10 @@ import { apiFetch } from "@/lib/api";
 
 
 const EMPTY_FORM = {
-  nome_vacina: "",
+  name: "",
   dose: "",
-  data_aplicacao: "",
-  status_vacina: "applied",
+  administered_on: "",
+  status: "applied",
 };
 
 const STATUS_LABEL = {
@@ -26,14 +26,102 @@ const STATUS_LABEL = {
 };
 
 
-export default function PatientDashboard({ envelope }) {
-  const patient = envelope.patient_data;
-  const [vaccines, setVaccines] = useState(envelope.vaccines);
+function usePatientResource(path, errorMessage, onUnauthenticated) {
+  const [requestVersion, setRequestVersion] = useState(0);
+  const [resource, setResource] = useState({ status: "loading", data: [] });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadResource() {
+      setResource((current) => ({ ...current, status: "loading" }));
+      try {
+        const response = await apiFetch(path);
+        if (response.status === 401) {
+          onUnauthenticated();
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        if (active) {
+          setResource({ status: "ready", data });
+        }
+      } catch (error) {
+        if (active) {
+          setResource({ status: "error", data: [], error: error.message });
+        }
+      }
+    }
+
+    loadResource();
+    return () => {
+      active = false;
+    };
+  }, [errorMessage, onUnauthenticated, path, requestVersion]);
+
+  return {
+    ...resource,
+    retry: () => setRequestVersion((value) => value + 1),
+    updateData: (update) => setResource((current) => ({
+      status: "ready",
+      data: typeof update === "function" ? update(current.data) : update,
+    })),
+  };
+}
+
+
+function ResourceError({ message, retryLabel, onRetry }) {
+  return (
+    <div className="form-error" role="alert" aria-label={message}>
+      <p>{message}</p>
+      <button type="button" onClick={onRetry} aria-label={retryLabel}>
+        Tentar novamente
+      </button>
+    </div>
+  );
+}
+
+
+function ResourceNotice({ title, message, loading = false }) {
+  return (
+    <section className="clinical-section" aria-label={title}>
+      <header>
+        <h2>{title}</h2>
+      </header>
+      <p role={loading ? "status" : undefined}>{message}</p>
+    </section>
+  );
+}
+
+
+export default function PatientDashboard({ profile, onUnauthenticated }) {
+  const vaccinesResource = usePatientResource(
+    "/me/vaccines",
+    "Não foi possível carregar suas vacinas.",
+    onUnauthenticated,
+  );
+  const alertsResource = usePatientResource(
+    "/me/alerts",
+    "Não foi possível carregar seus alertas.",
+    onUnauthenticated,
+  );
+  const documentsResource = usePatientResource(
+    "/me/documents",
+    "Não foi possível carregar seus documentos.",
+    onUnauthenticated,
+  );
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  const vaccines = vaccinesResource.data;
+  const alerts = alertsResource.data;
+  const documents = documentsResource.data;
 
   function openNewVaccine() {
     setEditingId(null);
@@ -43,12 +131,12 @@ export default function PatientDashboard({ envelope }) {
   }
 
   function openEditVaccine(vaccine) {
-    setEditingId(vaccine.id_vacina);
+    setEditingId(vaccine.vaccine_id);
     setForm({
-      nome_vacina: vaccine.nome_vacina,
+      name: vaccine.name,
       dose: vaccine.dose,
-      data_aplicacao: vaccine.data_aplicacao || "",
-      status_vacina: vaccine.status_vacina,
+      administered_on: vaccine.administered_on || "",
+      status: vaccine.status,
     });
     setActionError("");
     setIsModalOpen(true);
@@ -73,7 +161,7 @@ export default function PatientDashboard({ envelope }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          data_aplicacao: form.data_aplicacao || null,
+          administered_on: form.administered_on || null,
         }),
       });
       if (!response.ok) {
@@ -84,7 +172,8 @@ export default function PatientDashboard({ envelope }) {
       if (!refreshed.ok) {
         throw new Error("A vacina foi salva, mas a lista não pôde ser atualizada.");
       }
-      setVaccines(await refreshed.json());
+      const refreshedVaccines = await refreshed.json();
+      vaccinesResource.updateData(refreshedVaccines);
       setIsModalOpen(false);
     } catch (error) {
       setActionError(error.message);
@@ -94,20 +183,20 @@ export default function PatientDashboard({ envelope }) {
   }
 
   async function deleteVaccine(vaccine) {
-    if (!window.confirm(`Remover ${vaccine.nome_vacina} do prontuário?`)) {
+    if (!window.confirm(`Remover ${vaccine.name} do prontuário?`)) {
       return;
     }
 
     setActionError("");
     try {
-      const response = await apiFetch(`/me/vaccines/${vaccine.id_vacina}`, {
+      const response = await apiFetch(`/me/vaccines/${vaccine.vaccine_id}`, {
         method: "DELETE",
       });
       if (!response.ok) {
         throw new Error("Não foi possível remover a vacina.");
       }
-      setVaccines((current) =>
-        current.filter((item) => item.id_vacina !== vaccine.id_vacina),
+      vaccinesResource.updateData((current) =>
+        current.filter((item) => item.vaccine_id !== vaccine.vaccine_id),
       );
     } catch (error) {
       setActionError(error.message);
@@ -119,28 +208,62 @@ export default function PatientDashboard({ envelope }) {
       <section className="patient-identity" aria-labelledby="patient-name">
         <div>
           <p className="eyebrow">Meu perfil</p>
-          <h1 id="patient-name">{patient.nome_paciente}</h1>
-          <p>{patient.nome_completo}</p>
+          <h1 id="patient-name">{profile.preferred_name}</h1>
+          <p>{profile.full_name}</p>
         </div>
         <dl className="patient-facts">
           <div>
             <dt>Idade</dt>
-            <dd>{patient.idade} anos</dd>
+            <dd>{profile.age} anos</dd>
           </div>
           <div>
             <dt>Tipo sanguíneo</dt>
-            <dd>{patient.tipo_sanguineo}</dd>
+            <dd>{profile.blood_type}</dd>
           </div>
         </dl>
       </section>
 
       <div className="patient-sections">
-        {envelope.alerts.length > 0 ? (
-          <MedicalAlerts alerts={envelope.alerts} />
-        ) : null}
-        {envelope.documents.length > 0 ? (
-          <DigitalDocuments documents={envelope.documents} />
-        ) : null}
+        {alertsResource.status === "loading" ? (
+          <ResourceNotice
+            title="Alertas médicos"
+            message="Carregando alertas…"
+            loading
+          />
+        ) : alertsResource.status === "error" ? (
+          <ResourceError
+            message={alertsResource.error}
+            retryLabel="Recarregar alertas"
+            onRetry={alertsResource.retry}
+          />
+        ) : alerts.length > 0 ? (
+          <MedicalAlerts alerts={alerts} />
+        ) : (
+          <ResourceNotice
+            title="Alertas médicos"
+            message="Nenhum alerta médico."
+          />
+        )}
+        {documentsResource.status === "loading" ? (
+          <ResourceNotice
+            title="Documentos digitais"
+            message="Carregando documentos…"
+            loading
+          />
+        ) : documentsResource.status === "error" ? (
+          <ResourceError
+            message={documentsResource.error}
+            retryLabel="Recarregar documentos"
+            onRetry={documentsResource.retry}
+          />
+        ) : documents.length > 0 ? (
+          <DigitalDocuments documents={documents} />
+        ) : (
+          <ResourceNotice
+            title="Documentos digitais"
+            message="Nenhum documento disponível."
+          />
+        )}
 
         <section className="clinical-section" aria-labelledby="vaccines-title">
           <header>
@@ -148,7 +271,7 @@ export default function PatientDashboard({ envelope }) {
               <p className="eyebrow">Linha do tempo clínica</p>
               <h2 id="vaccines-title">Histórico de Vacinação</h2>
             </div>
-            {patient.maior_de_idade ? (
+            {profile.is_adult ? (
               <button className="compact-action" type="button" onClick={openNewVaccine}>
                 <Plus aria-hidden="true" size={16} />
                 Adicionar vacina
@@ -158,33 +281,47 @@ export default function PatientDashboard({ envelope }) {
 
           {actionError ? <p className="form-error" role="alert">{actionError}</p> : null}
 
+          {vaccinesResource.status === "loading" ? (
+            <p role="status">Carregando vacinas…</p>
+          ) : null}
+          {vaccinesResource.status === "error" ? (
+            <ResourceError
+              message={vaccinesResource.error}
+              retryLabel="Recarregar vacinas"
+              onRetry={vaccinesResource.retry}
+            />
+          ) : null}
+          {vaccinesResource.status === "ready" && vaccines.length === 0 ? (
+            <p>Nenhuma vacina registrada.</p>
+          ) : null}
+
           <div className="vaccine-grid">
             {vaccines.map((vaccine) => (
-              <article className="vaccine-entry" key={vaccine.id_vacina}>
-                <div className="vaccine-status" data-status={vaccine.status_vacina}>
+              <article className="vaccine-entry" key={vaccine.vaccine_id}>
+                <div className="vaccine-status" data-status={vaccine.status}>
                   <Check aria-hidden="true" size={14} />
-                  {STATUS_LABEL[vaccine.status_vacina]}
+                  {STATUS_LABEL[vaccine.status]}
                 </div>
-                <h3>{vaccine.nome_vacina}</h3>
+                <h3>{vaccine.name}</h3>
                 <p>{vaccine.dose}</p>
                 <small>
-                  {vaccine.data_aplicacao
-                    ? `Aplicada em ${vaccine.data_aplicacao}`
+                  {vaccine.administered_on
+                    ? `Aplicada em ${vaccine.administered_on}`
                     : "Sem data de aplicação"}
                 </small>
-                {patient.maior_de_idade ? (
+                {profile.is_adult ? (
                   <div className="vaccine-actions">
                     <button
                       type="button"
                       onClick={() => openEditVaccine(vaccine)}
-                      aria-label={`Editar ${vaccine.nome_vacina}`}
+                      aria-label={`Editar ${vaccine.name}`}
                     >
                       <Pencil aria-hidden="true" size={15} />
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteVaccine(vaccine)}
-                      aria-label={`Excluir ${vaccine.nome_vacina}`}
+                      aria-label={`Excluir ${vaccine.name}`}
                     >
                       <Trash2 aria-hidden="true" size={15} />
                     </button>
@@ -215,13 +352,13 @@ export default function PatientDashboard({ envelope }) {
             </header>
             <form onSubmit={saveVaccine}>
               <label htmlFor="vaccine-name">Nome da vacina</label>
-              <input id="vaccine-name" name="nome_vacina" value={form.nome_vacina} onChange={updateField} required />
+              <input id="vaccine-name" name="name" value={form.name} onChange={updateField} required />
               <label htmlFor="vaccine-dose">Dose</label>
               <input id="vaccine-dose" name="dose" value={form.dose} onChange={updateField} required />
               <div className="dialog-row">
                 <div>
                   <label htmlFor="vaccine-status">Status</label>
-                  <select id="vaccine-status" name="status_vacina" value={form.status_vacina} onChange={updateField}>
+                  <select id="vaccine-status" name="status" value={form.status} onChange={updateField}>
                     <option value="applied">Aplicada</option>
                     <option value="pending">Pendente</option>
                     <option value="overdue">Atrasada</option>
@@ -229,7 +366,7 @@ export default function PatientDashboard({ envelope }) {
                 </div>
                 <div>
                   <label htmlFor="vaccine-date">Data de aplicação</label>
-                  <input id="vaccine-date" name="data_aplicacao" type="date" value={form.data_aplicacao} onChange={updateField} disabled={form.status_vacina !== "applied"} required={form.status_vacina === "applied"} />
+                  <input id="vaccine-date" name="administered_on" type="date" value={form.administered_on} onChange={updateField} disabled={form.status !== "applied"} required={form.status === "applied"} />
                 </div>
               </div>
               {actionError ? <p className="form-error" role="alert">{actionError}</p> : null}

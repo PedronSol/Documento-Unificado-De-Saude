@@ -1,43 +1,50 @@
 import { test, expect } from '@playwright/test';
 
-const MOCK_PACIENTE_RESPONSE = {
-  message: 'Login efetuado com sucesso!',
-  user: {
-    user_id: 1,
-    display_name: 'Carlos Eduardo Silva',
-    email: 'carlos.silva@email.com',
-    roles: ['patient'],
-  },
-  patient_data: {
-    nome_paciente: 'Carlos Silva',
-    nome_completo: 'Carlos Eduardo Silva',
-    avatar: null,
-    status_saude: 'updated',
-    tipo_sanguineo: 'A+',
-    valor_qr: 'QR_Carlos',
-    maior_de_idade: true,
-    idade: 41,
-  },
-  vaccines: [
-    {
-      id_vacina: 1,
-      nome_vacina: 'COVID-19 (Pfizer)',
-      dose: '3ª Dose - Reforço',
-      data_aplicacao: '2024-02-10',
-      status_vacina: 'applied',
-    },
-  ],
-  alerts: [
-    {
-      id_alerta: 1,
-      tipo_alerta: 'condition',
-      titulo_alerta: 'Hipertensão',
-      descricao_alerta: 'Controlada.',
-      severidade_alerta: 'high',
-    },
-  ],
-  documents: [],
+const MOCK_USER = {
+  user_id: 1,
+  display_name: 'Carlos Eduardo Silva',
+  email: 'carlos.silva@email.com',
+  roles: ['patient'],
 };
+
+const MOCK_LOGIN_RESPONSE = {
+  user: MOCK_USER,
+};
+
+const MOCK_PROFILE_RESPONSE = {
+  user: MOCK_USER,
+  patient_profile: {
+    preferred_name: 'Carlos Silva',
+    full_name: 'Carlos Eduardo Silva',
+    avatar_url: null,
+    health_status: 'updated',
+    blood_type: 'A+',
+    is_adult: true,
+    age: 41,
+  },
+};
+
+const MOCK_VACCINES = [
+  {
+    vaccine_id: 1,
+    name: 'COVID-19 (Pfizer)',
+    dose: '3ª Dose - Reforço',
+    administered_on: '2024-02-10',
+    status: 'applied',
+  },
+];
+
+const MOCK_ALERTS = [
+  {
+    alert_id: 1,
+    type: 'condition',
+    title: 'Hipertensão',
+    description: 'Controlada.',
+    severity: 'high',
+  },
+];
+
+const MOCK_DOCUMENTS = [];
 
 
 async function waitForHydration(page) {
@@ -113,14 +120,14 @@ test.describe('Página de Login', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_PACIENTE_RESPONSE),
+        body: JSON.stringify(MOCK_LOGIN_RESPONSE),
       })
     );
     await page.route('**/me', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_PACIENTE_RESPONSE),
+        body: JSON.stringify(MOCK_PROFILE_RESPONSE),
       })
     );
 
@@ -140,7 +147,28 @@ test.describe('Página Home', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_PACIENTE_RESPONSE),
+        body: JSON.stringify(MOCK_PROFILE_RESPONSE),
+      })
+    );
+    await page.route('**/me/vaccines', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_VACCINES),
+      })
+    );
+    await page.route('**/me/alerts', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_ALERTS),
+      })
+    );
+    await page.route('**/me/documents', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_DOCUMENTS),
       })
     );
     await page.goto('/home');
@@ -148,7 +176,9 @@ test.describe('Página Home', () => {
   });
 
   test('exibe o nome do paciente logado', async ({ page }) => {
-    await expect(page.getByText('Carlos Silva')).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole('heading', { name: 'Carlos Silva' })
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test('preserva avatar e resumo do perfil sem expor CPF', async ({ page }) => {
@@ -168,31 +198,28 @@ test.describe('Página Home', () => {
 
   test('mantém o dashboard amplo e os cards alinhados em desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.unroute('**/me');
-    await page.route('**/me', (route) =>
+    await page.unroute('**/me/vaccines');
+    await page.route('**/me/vaccines', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          ...MOCK_PACIENTE_RESPONSE,
-          vaccines: [
-            ...MOCK_PACIENTE_RESPONSE.vaccines,
-            {
-              id_vacina: 2,
-              nome_vacina: 'Influenza',
-              dose: 'Dose Anual',
-              data_aplicacao: null,
-              status_vacina: 'pending',
-            },
-            {
-              id_vacina: 3,
-              nome_vacina: 'Hepatite B',
-              dose: '3ª Dose',
-              data_aplicacao: '2024-01-05',
-              status_vacina: 'applied',
-            },
-          ],
-        }),
+        body: JSON.stringify([
+          ...MOCK_VACCINES,
+          {
+            vaccine_id: 2,
+            name: 'Influenza',
+            dose: 'Dose Anual',
+            administered_on: null,
+            status: 'pending',
+          },
+          {
+            vaccine_id: 3,
+            name: 'Hepatite B',
+            dose: '3ª Dose',
+            administered_on: '2024-01-05',
+            status: 'applied',
+          },
+        ]),
       })
     );
     await page.goto('/home');
@@ -231,17 +258,13 @@ test.describe('Página Home', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          message: 'Sessão válida.',
           user: {
             user_id: 7,
             display_name: 'Dr. Rui Lima',
             email: 'rui@example.com',
             roles: ['doctor'],
           },
-          patient_data: null,
-          vaccines: [],
-          alerts: [],
-          documents: [],
+          patient_profile: null,
         }),
       })
     );

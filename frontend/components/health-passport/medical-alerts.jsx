@@ -75,13 +75,13 @@ export function MedicalAlerts({ alerts }) {
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"
           >
             {alerts.map((alert) => {
-              const type = typeConfig[alert.tipo_alerta];
-              const severity = severityConfig[alert.severidade_alerta];
+              const type = typeConfig[alert.type];
+              const severity = severityConfig[alert.severity];
               const TypeIcon = type.icon;
 
               return (
                 <motion.div
-                  key={alert.id_alerta}
+                  key={alert.alert_id}
                   variants={item}
                   className="p-3 lg:p-4 rounded-xl bg-card border border-destructive/10 shadow-sm hover:shadow-md transition-shadow"
                 >
@@ -94,7 +94,7 @@ export function MedicalAlerts({ alerts }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <p className="font-medium text-sm lg:text-base text-foreground truncate">
-                          {alert.titulo_alerta}
+                          {alert.title}
                         </p>
                         <Badge
                           className={`text-xs shrink-0 ${severity.className}`}
@@ -103,7 +103,7 @@ export function MedicalAlerts({ alerts }) {
                         </Badge>
                       </div>
                       <p className="text-xs lg:text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                        {alert.descricao_alerta}
+                        {alert.description}
                       </p>
                     </div>
                   </div>
