@@ -6,7 +6,7 @@ import mysql.connector
 
 from auth.dependencies import get_current_patient, require_adult
 from database import cursor_scope, get_connection, transaction
-from models import Vaccine, VaccineCreateUpdate
+from models import VaccineCreateUpdate, VaccineResponse
 
 
 logger = logging.getLogger(__name__)
@@ -30,21 +30,22 @@ def add_vaccine(
                     """,
                     (
                         patient["patient_id"],
-                        vaccine.nome_vacina,
+                        vaccine.name,
                         vaccine.dose,
-                        vaccine.data_aplicacao,
-                        vaccine.status_vacina,
+                        vaccine.administered_on,
+                        vaccine.status,
                     ),
                 )
         return {"message": "Vacina registrada com sucesso!"}
     except mysql.connector.Error as error:
         logger.exception("Falha ao registrar vacina")
         raise HTTPException(
-            status_code=400, detail="Não foi possível registrar a vacina."
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados indisponível.",
         ) from error
 
 
-@router.get("", response_model=list[Vaccine])
+@router.get("", response_model=list[VaccineResponse])
 def get_vaccines(
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
@@ -52,7 +53,8 @@ def get_vaccines(
     with cursor_scope(connection, dictionary=True) as cursor:
         cursor.execute(
             """
-            SELECT id_vacina, nome_vacina, dose, data_aplicacao, status_vacina
+            SELECT id_vacina AS vaccine_id, nome_vacina AS name, dose,
+                   data_aplicacao AS administered_on, status_vacina AS status
             FROM vaccines WHERE patient_id = %s
             """,
             (patient["patient_id"],),
@@ -60,9 +62,9 @@ def get_vaccines(
         return cursor.fetchall()
 
 
-@router.put("/{id_vacina}")
+@router.put("/{vaccine_id}")
 def update_vaccine(
-    id_vacina: int,
+    vaccine_id: int,
     vaccine: VaccineCreateUpdate,
     patient: dict = Depends(require_adult),
     connection: Any = Depends(get_connection),
@@ -77,11 +79,11 @@ def update_vaccine(
                 WHERE id_vacina = %s AND patient_id = %s
                 """,
                 (
-                    vaccine.nome_vacina,
+                    vaccine.name,
                     vaccine.dose,
-                    vaccine.data_aplicacao,
-                    vaccine.status_vacina,
-                    id_vacina,
+                    vaccine.administered_on,
+                    vaccine.status,
+                    vaccine_id,
                     patient["patient_id"],
                 ),
             )
@@ -92,9 +94,9 @@ def update_vaccine(
     return {"message": "Vacina atualizada com sucesso!"}
 
 
-@router.delete("/{id_vacina}")
+@router.delete("/{vaccine_id}")
 def delete_vaccine(
-    id_vacina: int,
+    vaccine_id: int,
     patient: dict = Depends(require_adult),
     connection: Any = Depends(get_connection),
 ):
@@ -102,7 +104,7 @@ def delete_vaccine(
         with transaction(connection):
             cursor.execute(
                 "DELETE FROM vaccines WHERE id_vacina = %s AND patient_id = %s",
-                (id_vacina, patient["patient_id"]),
+                (vaccine_id, patient["patient_id"]),
             )
         rowcount = cursor.rowcount
 

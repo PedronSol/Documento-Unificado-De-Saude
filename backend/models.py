@@ -5,12 +5,12 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class VaccineBase(BaseModel):
-    nome_vacina: str = Field(max_length=100)
+    name: str = Field(max_length=100)
     dose: str = Field(max_length=50)
-    data_aplicacao: Optional[date] = None
-    status_vacina: Literal["pending", "applied", "overdue"]
+    administered_on: Optional[date] = None
+    status: Literal["pending", "applied", "overdue"]
 
-    @field_validator("nome_vacina", "dose")
+    @field_validator("name", "dose")
     @classmethod
     def texto_nao_vazio(cls, value: str) -> str:
         value = value.strip()
@@ -19,39 +19,28 @@ class VaccineBase(BaseModel):
         return value
 
 
-class Vaccine(VaccineBase):
-    id_vacina: int
-
-
 class VaccineCreateUpdate(VaccineBase):
     pass
 
 
-class Alert(BaseModel):
-    id_alerta: int
-    tipo_alerta: Literal["condition", "medication", "allergy"]
-    titulo_alerta: str
-    descricao_alerta: str
-    severidade_alerta: Literal["low", "medium", "high"]
+class VaccineResponse(VaccineBase):
+    vaccine_id: int
 
 
-class Document(BaseModel):
-    id_documento: int
-    titulo_documento: str
-    tipo_documento: str
-    data_criacao_documento: date
-    status_documento: Literal["viewed", "new"]
+class AlertResponse(BaseModel):
+    alert_id: int
+    type: Literal["condition", "medication", "allergy"]
+    title: str
+    description: str
+    severity: Literal["low", "medium", "high"]
 
 
-class PatientProfile(BaseModel):
-    nome_paciente: str
-    nome_completo: str
-    avatar: Optional[str] = None
-    status_saude: Literal["updated", "pending", "overdue"]
-    tipo_sanguineo: str
-    valor_qr: Optional[str] = None
-    maior_de_idade: bool
-    idade: int
+class DocumentSummary(BaseModel):
+    document_id: int
+    title: str
+    type: str
+    created_on: date
+    status: Literal["viewed", "new"]
 
 
 class UserIdentity(BaseModel):
@@ -61,10 +50,20 @@ class UserIdentity(BaseModel):
     roles: List[Literal["patient", "doctor", "admin"]]
 
 
-class LoginResponse(BaseModel):
-    message: str
+class AuthenticationResponse(BaseModel):
     user: UserIdentity
-    patient_data: Optional[PatientProfile]
-    vaccines: List[Vaccine]
-    alerts: List[Alert]
-    documents: List[Document]
+
+
+class PatientProfileResponse(BaseModel):
+    preferred_name: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    health_status: Literal["updated", "pending", "overdue"]
+    blood_type: str
+    is_adult: bool
+    age: int
+
+
+class CurrentUserProfileResponse(BaseModel):
+    user: UserIdentity
+    patient_profile: Optional[PatientProfileResponse]

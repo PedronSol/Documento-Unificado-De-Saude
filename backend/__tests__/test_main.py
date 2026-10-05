@@ -1,44 +1,44 @@
 import pytest
 from pydantic import ValidationError
-from models import Vaccine, Alert
+from models import AlertResponse, VaccineResponse
 from datetime import date
 
 def test_criar_vacina_valida():
     dados = {
-        "id_vacina": 10,
-        "nome_vacina": "Tríplice Viral",
+        "vaccine_id": 10,
+        "name": "Tríplice Viral",
         "dose": "Reforço",
-        "data_aplicacao": date(2026, 5, 31),
-        "status_vacina": "applied"
+        "administered_on": date(2026, 5, 31),
+        "status": "applied"
     }
-    vacina = Vaccine(**dados)
-    assert vacina.nome_vacina == "Tríplice Viral"
-    assert vacina.status_vacina == "applied"
+    vacina = VaccineResponse(**dados)
+    assert vacina.name == "Tríplice Viral"
+    assert vacina.status == "applied"
 
 def test_erro_nome_vacina_vazio():
     with pytest.raises(ValidationError):
-        Vaccine(
-            id_vacina=11,
-            nome_vacina="   ",
+        VaccineResponse(
+            vaccine_id=11,
+            name="   ",
             dose="1ª Dose",
-            status_vacina="pending"
+            status="pending"
         )
 
 def test_erro_id_vacina_invalido():
     with pytest.raises(ValidationError):
-        Vaccine(
-            id_vacina="texto_invalido",
-            nome_vacina="BCG",
+        VaccineResponse(
+            vaccine_id="texto_invalido",
+            name="BCG",
             dose="Dose Única",
-            status_vacina="applied"
+            status="applied"
         )
 
 def test_criar_alerta_valido():
-    alerta = Alert(
-        id_alerta=1,
-        tipo_alerta="allergy",
-        titulo_alerta="Alergia a Sulfa",
-        descricao_alerta="Erupções cutâneas graves.",
-        severidade_alerta="high"
+    alerta = AlertResponse(
+        alert_id=1,
+        type="allergy",
+        title="Alergia a Sulfa",
+        description="Erupções cutâneas graves.",
+        severity="high"
     )
-    assert alerta.titulo_alerta == "Alergia a Sulfa"
+    assert alerta.title == "Alergia a Sulfa"

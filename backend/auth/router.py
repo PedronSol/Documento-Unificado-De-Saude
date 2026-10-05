@@ -7,15 +7,15 @@ from fastapi.security import OAuth2PasswordRequestForm
 from auth.dependencies import _load_authorized_roles
 from config import AppSettings, SESSION_COOKIE, get_settings
 from database import connection_scope, cursor_scope, get_connection, transaction
-from models import LoginResponse
-from patients.service import fetch_dashboard, find_patient_by_user_id
+from models import AuthenticationResponse
+from patients.service import find_patient_by_user_id
 from security import create_session_token, hash_session_token, verify_password
 
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=AuthenticationResponse)
 def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -72,22 +72,7 @@ def login(
         samesite="lax",
         path="/",
     )
-    if patient:
-        return fetch_dashboard(
-            connection,
-            patient["patient_id"],
-            identity,
-            "Login efetuado com sucesso!",
-            patient=patient,
-        )
-    return {
-        "message": "Login efetuado com sucesso!",
-        "user": identity,
-        "patient_data": None,
-        "vaccines": [],
-        "alerts": [],
-        "documents": [],
-    }
+    return {"user": identity}
 
 
 @router.post("/logout", status_code=204)
