@@ -20,6 +20,7 @@ Exemplo: `001-database-migrations.md`.
 | `001-database-migrations.md` | Migrações versionadas | IMPLEMENTED |
 | `002-backend-modularization.md` | Modularização mínima do backend | IMPLEMENTED |
 | `003-unified-identity-roles-frontend.md` | Identidade, roles e experiência de acesso | SPEC APPROVED |
+| `004-resource-contracts-authorization.md` | Contratos e autorização por recurso | SPEC APPROVED |
 | `010-health-markers.md` | Marcadores do paciente | SPEC REVIEW |
 | `020-health-documents-ocr.md` | Documentos e OCR | SPEC REVIEW |
 | `030-medical-panel.md` | Painel e autorização médica | SPEC REVIEW |
