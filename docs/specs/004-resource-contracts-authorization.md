@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -388,26 +388,26 @@ de vacina, alerta ou documento ocorreu. O teste deve falhar contra o
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| contratos mínimos | — | — | — | — |
-| recursos separados | — | — | — | — |
-| ownership e erros | — | — | — | — |
-| frontend desacoplado | — | — | — | — |
+| contratos mínimos | Login e `/me` ainda expunham o dashboard legado. | Respostas reduzidas a identidade e perfil sanitizado. | Serialização de perfil concentrada no módulo de pacientes. | `ec4c614` |
+| recursos separados | Alertas e documentos não possuíam rotas próprias; vacinas usavam campos legados. | Routers e schemas em inglês implementados por recurso. | Queries mantidas próximas aos routers, sem nova camada prematura. | `ec4c614` |
+| ownership e erros | Payload novo falhou na validação; erro de banco ainda retornava `400`; ID alheio precisava ser indistinguível. | Ownership derivado da sessão, ID alheio e ausente em `404`, infraestrutura em `503`. | Dependência de paciente autenticado reutilizada pelas três coleções. | `ec4c614` |
+| frontend desacoplado | Falha de documentos removia vacinas e estados vazios não eram explícitos. | Recursos carregados independentemente, com loading, vazio, erro e retry locais. | Hook local reutilizado nas três seções, preservando o carregamento concorrente. | `96a3360` |
 
 ## Critérios de conclusão
 
-- [ ] Spec aprovada antes do primeiro teste RED.
-- [ ] Login não retorna nem consulta recursos clínicos.
-- [ ] `/me` retorna apenas identidade e perfil sanitizado.
-- [ ] Vacinas, alertas e documentos são carregados por endpoints próprios.
-- [ ] Contratos HTTP afetados usam campos em inglês.
-- [ ] Toda rota `/me/*` deriva ownership da sessão.
-- [ ] Matriz possui casos positivos e negativos automatizados.
-- [ ] ID alheio e inexistente são indistinguíveis nas rotas próprias.
-- [ ] Nenhuma rota ou abstração médica sem consumidor foi criada.
-- [ ] Frontend possui estados independentes por recurso.
-- [ ] Testes afetados, regressão e build passam.
-- [ ] Evidência RED, GREEN e REFACTOR registrada.
-- [ ] Roadmap e referência de commit ou PR atualizados.
+- [x] Spec aprovada antes do primeiro teste RED.
+- [x] Login não retorna nem consulta recursos clínicos.
+- [x] `/me` retorna apenas identidade e perfil sanitizado.
+- [x] Vacinas, alertas e documentos são carregados por endpoints próprios.
+- [x] Contratos HTTP afetados usam campos em inglês.
+- [x] Toda rota `/me/*` deriva ownership da sessão.
+- [x] Matriz possui casos positivos e negativos automatizados.
+- [x] ID alheio e inexistente são indistinguíveis nas rotas próprias.
+- [x] Nenhuma rota ou abstração médica sem consumidor foi criada.
+- [x] Frontend possui estados independentes por recurso.
+- [x] Testes afetados, regressão e build passam.
+- [x] Evidência RED, GREEN e REFACTOR registrada.
+- [x] Roadmap e referência de commit ou PR atualizados.
 
 ## Decisões propostas para revisão
 
@@ -427,3 +427,4 @@ de vacina, alerta ou documento ocorreu. O teste deve falhar contra o
 - Spec aprovada pelo usuário em 2026-10-05.
 - A proposta de postergar o verificador médico executável evita uma abstração sem
   dados ou consumidor e mantém o sistema fechado por padrão.
+- Implementação concluída nos commits `ec4c614` (API) e `96a3360` (frontend).
