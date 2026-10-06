@@ -196,6 +196,37 @@ test.describe('Página Home', () => {
     await expect(page.getByText('COVID-19 (Pfizer)')).toBeVisible({ timeout: 10000 });
   });
 
+  test('usa diálogo responsivo para registrar vacina', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const trigger = page.getByRole('button', { name: 'Adicionar vacina' });
+
+    await trigger.click();
+
+    const dialog = page.getByRole('dialog', { name: 'Registrar vacina' });
+    await expect(dialog).toBeVisible();
+    await expect(page.getByLabel('Nome da vacina')).toBeFocused();
+
+    const bounds = await dialog.boundingBox();
+    const style = await dialog.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return {
+        background: computed.backgroundColor,
+        radius: computed.borderRadius,
+      };
+    });
+    expect(bounds?.x).toBe(0);
+    expect(bounds?.width).toBeLessThanOrEqual(390);
+    expect(style.background).toBe('rgb(251, 251, 247)');
+    expect(style.radius).not.toBe('0px');
+    await page.getByLabel('Nome da vacina').fill('Influenza tetravalente');
+    await page.getByLabel('Dose').fill('Dose anual');
+    await page.getByLabel('Data de aplicação').fill('2026-04-15');
+    await page.getByRole('button', { name: 'Registrar vacina' }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
   test('mantém o dashboard amplo e os cards alinhados em desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.unroute('**/me/vaccines');

@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Close as DialogClose,
+  Content as DialogContent,
+  Description as DialogDescription,
+  Overlay as DialogOverlay,
+  Portal as DialogPortal,
+  Root as DialogRoot,
+  Title as DialogTitle,
+} from "@radix-ui/react-dialog";
 import Check from "lucide-react/dist/esm/icons/check";
 import Pencil from "lucide-react/dist/esm/icons/pencil";
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -10,7 +19,6 @@ import X from "lucide-react/dist/esm/icons/x";
 import { DigitalDocuments } from "@/components/health-passport/digital-documents";
 import { MedicalAlerts } from "@/components/health-passport/medical-alerts";
 import { apiFetch } from "@/lib/api";
-
 
 const EMPTY_FORM = {
   name: "",
@@ -24,7 +32,6 @@ const STATUS_LABEL = {
   pending: "Pendente",
   overdue: "Atrasada",
 };
-
 
 function usePatientResource(path, errorMessage, onUnauthenticated) {
   const [requestVersion, setRequestVersion] = useState(0);
@@ -72,7 +79,6 @@ function usePatientResource(path, errorMessage, onUnauthenticated) {
   };
 }
 
-
 function ResourceError({ message, retryLabel, onRetry }) {
   return (
     <div className="form-error" role="alert" aria-label={message}>
@@ -83,7 +89,6 @@ function ResourceError({ message, retryLabel, onRetry }) {
     </div>
   );
 }
-
 
 function ResourceNotice({ title, message, loading = false }) {
   return (
@@ -96,6 +101,150 @@ function ResourceNotice({ title, message, loading = false }) {
   );
 }
 
+function VaccineDialog({
+  actionError,
+  editingId,
+  form,
+  isOpen,
+  isSaving,
+  onFieldChange,
+  onOpenChange,
+  onSubmit,
+  returnFocusRef,
+}) {
+  const nameFieldRef = useRef(null);
+
+  return (
+    <DialogRoot open={isOpen} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        <DialogOverlay className="modal-backdrop" />
+        <DialogContent
+          className="vaccine-dialog"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            nameFieldRef.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            returnFocusRef.current?.focus();
+          }}
+        >
+          <header className="vaccine-dialog-heading">
+            <div>
+              <p className="dialog-kicker">Prontuário · Imunização</p>
+              <DialogTitle asChild>
+                <h2>{editingId ? "Editar vacina" : "Registrar vacina"}</h2>
+              </DialogTitle>
+              <DialogDescription asChild>
+                <p className="dialog-description">
+                  {editingId
+                    ? "Revise os dados registrados na sua linha do tempo clínica."
+                    : "Inclua uma dose recebida ou acompanhe uma aplicação pendente."}
+                </p>
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <button
+                className="dialog-close"
+                type="button"
+                aria-label="Fechar formulário de vacina"
+                disabled={isSaving}
+              >
+                <X aria-hidden="true" size={18} />
+              </button>
+            </DialogClose>
+          </header>
+
+          <form onSubmit={onSubmit}>
+            <div className="dialog-field">
+              <label htmlFor="vaccine-name">Nome da vacina</label>
+              <input
+                ref={nameFieldRef}
+                id="vaccine-name"
+                name="name"
+                value={form.name}
+                onChange={onFieldChange}
+                placeholder="Ex.: Influenza tetravalente"
+                autoComplete="off"
+                required
+              />
+            </div>
+
+            <div className="dialog-field">
+              <label htmlFor="vaccine-dose">Dose</label>
+              <input
+                id="vaccine-dose"
+                name="dose"
+                value={form.dose}
+                onChange={onFieldChange}
+                placeholder="Ex.: Dose anual"
+                autoComplete="off"
+                required
+              />
+            </div>
+
+            <div className="dialog-row">
+              <div className="dialog-field">
+                <label htmlFor="vaccine-status">Status</label>
+                <select
+                  id="vaccine-status"
+                  name="status"
+                  value={form.status}
+                  onChange={onFieldChange}
+                >
+                  <option value="applied">Aplicada</option>
+                  <option value="pending">Pendente</option>
+                  <option value="overdue">Atrasada</option>
+                </select>
+              </div>
+              <div className="dialog-field">
+                <label htmlFor="vaccine-date">Data de aplicação</label>
+                <input
+                  id="vaccine-date"
+                  name="administered_on"
+                  type="date"
+                  value={form.administered_on}
+                  onChange={onFieldChange}
+                  disabled={form.status !== "applied"}
+                  required={form.status === "applied"}
+                />
+              </div>
+            </div>
+
+            {actionError ? (
+              <p className="form-error dialog-error" role="alert">
+                {actionError}
+              </p>
+            ) : null}
+
+            <div className="dialog-actions">
+              <DialogClose asChild>
+                <button
+                  className="dialog-secondary"
+                  type="button"
+                  disabled={isSaving}
+                >
+                  Cancelar
+                </button>
+              </DialogClose>
+              <button
+                className="dialog-primary"
+                type="submit"
+                disabled={isSaving}
+              >
+                {isSaving
+                  ? "Salvando…"
+                  : editingId
+                    ? "Salvar alterações"
+                    : "Registrar vacina"}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+  );
+}
 
 export default function PatientDashboard({ profile, onUnauthenticated }) {
   const vaccinesResource = usePatientResource(
@@ -118,19 +267,22 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const dialogTriggerRef = useRef(null);
 
   const vaccines = vaccinesResource.data;
   const alerts = alertsResource.data;
   const documents = documentsResource.data;
 
-  function openNewVaccine() {
+  function openNewVaccine(event) {
+    dialogTriggerRef.current = event.currentTarget;
     setEditingId(null);
     setForm(EMPTY_FORM);
     setActionError("");
     setIsModalOpen(true);
   }
 
-  function openEditVaccine(vaccine) {
+  function openEditVaccine(vaccine, trigger) {
+    dialogTriggerRef.current = trigger;
     setEditingId(vaccine.vaccine_id);
     setForm({
       name: vaccine.name,
@@ -272,14 +424,22 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
               <h2 id="vaccines-title">Histórico de Vacinação</h2>
             </div>
             {profile.is_adult ? (
-              <button className="compact-action" type="button" onClick={openNewVaccine}>
+              <button
+                className="compact-action"
+                type="button"
+                onClick={openNewVaccine}
+              >
                 <Plus aria-hidden="true" size={16} />
                 Adicionar vacina
               </button>
             ) : null}
           </header>
 
-          {actionError ? <p className="form-error" role="alert">{actionError}</p> : null}
+          {actionError ? (
+            <p className="form-error" role="alert">
+              {actionError}
+            </p>
+          ) : null}
 
           {vaccinesResource.status === "loading" ? (
             <p role="status">Carregando vacinas…</p>
@@ -313,7 +473,9 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
                   <div className="vaccine-actions">
                     <button
                       type="button"
-                      onClick={() => openEditVaccine(vaccine)}
+                      onClick={(event) =>
+                        openEditVaccine(vaccine, event.currentTarget)
+                      }
                       aria-label={`Editar ${vaccine.name}`}
                     >
                       <Pencil aria-hidden="true" size={15} />
@@ -333,51 +495,17 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
         </section>
       </div>
 
-      {isModalOpen ? (
-        <div className="modal-layer" role="presentation">
-          <button
-            className="modal-backdrop"
-            type="button"
-            onClick={() => setIsModalOpen(false)}
-            aria-label="Fechar formulário de vacina"
-          />
-          <section className="vaccine-dialog" role="dialog" aria-modal="true" aria-labelledby="vaccine-dialog-title">
-            <header>
-              <h2 id="vaccine-dialog-title">
-                {editingId ? "Editar vacina" : "Registrar vacina"}
-              </h2>
-              <button type="button" onClick={() => setIsModalOpen(false)} aria-label="Fechar">
-                <X aria-hidden="true" size={18} />
-              </button>
-            </header>
-            <form onSubmit={saveVaccine}>
-              <label htmlFor="vaccine-name">Nome da vacina</label>
-              <input id="vaccine-name" name="name" value={form.name} onChange={updateField} required />
-              <label htmlFor="vaccine-dose">Dose</label>
-              <input id="vaccine-dose" name="dose" value={form.dose} onChange={updateField} required />
-              <div className="dialog-row">
-                <div>
-                  <label htmlFor="vaccine-status">Status</label>
-                  <select id="vaccine-status" name="status" value={form.status} onChange={updateField}>
-                    <option value="applied">Aplicada</option>
-                    <option value="pending">Pendente</option>
-                    <option value="overdue">Atrasada</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="vaccine-date">Data de aplicação</label>
-                  <input id="vaccine-date" name="administered_on" type="date" value={form.administered_on} onChange={updateField} disabled={form.status !== "applied"} required={form.status === "applied"} />
-                </div>
-              </div>
-              {actionError ? <p className="form-error" role="alert">{actionError}</p> : null}
-              <div className="dialog-actions">
-                <button type="button" onClick={() => setIsModalOpen(false)}>Cancelar</button>
-                <button type="submit" disabled={isSaving}>{isSaving ? "Salvando…" : "Salvar registro"}</button>
-              </div>
-            </form>
-          </section>
-        </div>
-      ) : null}
+      <VaccineDialog
+        actionError={actionError}
+        editingId={editingId}
+        form={form}
+        isOpen={isModalOpen}
+        isSaving={isSaving}
+        onFieldChange={updateField}
+        onOpenChange={setIsModalOpen}
+        onSubmit={saveVaccine}
+        returnFocusRef={dialogTriggerRef}
+      />
     </main>
   );
 }
