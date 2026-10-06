@@ -2,6 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Action as AlertDialogAction,
+  Cancel as AlertDialogCancel,
+  Content as AlertDialogContent,
+  Description as AlertDialogDescription,
+  Overlay as AlertDialogOverlay,
+  Portal as AlertDialogPortal,
+  Root as AlertDialogRoot,
+  Title as AlertDialogTitle,
+} from "@radix-ui/react-alert-dialog";
+import {
   Close as DialogClose,
   Content as DialogContent,
   Description as DialogDescription,
@@ -18,6 +28,7 @@ import X from "lucide-react/dist/esm/icons/x";
 
 import { DigitalDocuments } from "@/components/health-passport/digital-documents";
 import { MedicalAlerts } from "@/components/health-passport/medical-alerts";
+import { HealthMarkers } from "@/components/patient/health-markers";
 import { apiFetch } from "@/lib/api";
 
 const EMPTY_FORM = {
@@ -119,7 +130,7 @@ function VaccineDialog({
       <DialogPortal>
         <DialogOverlay className="modal-backdrop" />
         <DialogContent
-          className="vaccine-dialog"
+          className="clinical-dialog vaccine-dialog"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             nameFieldRef.current?.focus();
@@ -129,7 +140,7 @@ function VaccineDialog({
             returnFocusRef.current?.focus();
           }}
         >
-          <header className="vaccine-dialog-heading">
+          <header className="clinical-dialog-heading vaccine-dialog-heading">
             <div>
               <p className="dialog-kicker">Prontuário · Imunização</p>
               <DialogTitle asChild>
@@ -246,6 +257,75 @@ function VaccineDialog({
   );
 }
 
+function VaccineRemoveDialog({
+  error,
+  isOpen,
+  isRemoving,
+  onConfirm,
+  onOpenChange,
+  returnFocusRef,
+  vaccine,
+}) {
+  const cancelRef = useRef(null);
+
+  return (
+    <AlertDialogRoot open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogPortal>
+        <AlertDialogOverlay className="modal-backdrop" />
+        <AlertDialogContent
+          className="clinical-confirm-dialog"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            cancelRef.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            returnFocusRef.current?.focus();
+          }}
+        >
+          <p className="dialog-kicker">Prontuário · Imunização</p>
+          <AlertDialogTitle>Remover vacina</AlertDialogTitle>
+          <AlertDialogDescription className="dialog-description">
+            {vaccine
+              ? `${vaccine.name} será removida do histórico de vacinação.`
+              : "A vacina será removida do histórico de vacinação."}
+          </AlertDialogDescription>
+          {error ? (
+            <p className="form-error dialog-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="dialog-actions">
+            <AlertDialogCancel asChild>
+              <button
+                ref={cancelRef}
+                className="dialog-secondary"
+                type="button"
+                disabled={isRemoving}
+              >
+                Cancelar remoção da vacina
+              </button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <button
+                className="dialog-danger"
+                type="button"
+                disabled={isRemoving}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onConfirm();
+                }}
+              >
+                {isRemoving ? "Removendo…" : "Remover vacina"}
+              </button>
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialogPortal>
+    </AlertDialogRoot>
+  );
+}
+
 export default function PatientDashboard({ profile, onUnauthenticated }) {
   const vaccinesResource = usePatientResource(
     "/me/vaccines",
@@ -267,7 +347,11 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [vaccineToDelete, setVaccineToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const dialogTriggerRef = useRef(null);
+  const deleteTriggerRef = useRef(null);
 
   const vaccines = vaccinesResource.data;
   const alerts = alertsResource.data;
@@ -334,24 +418,37 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
     }
   }
 
-  async function deleteVaccine(vaccine) {
-    if (!window.confirm(`Remover ${vaccine.name} do prontuário?`)) {
+  function openDeleteVaccine(vaccine, trigger) {
+    deleteTriggerRef.current = trigger;
+    setVaccineToDelete(vaccine);
+    setDeleteError("");
+  }
+
+  async function deleteVaccine() {
+    if (!vaccineToDelete) {
       return;
     }
 
-    setActionError("");
+    setIsDeleting(true);
+    setDeleteError("");
     try {
-      const response = await apiFetch(`/me/vaccines/${vaccine.vaccine_id}`, {
-        method: "DELETE",
-      });
+      const response = await apiFetch(
+        `/me/vaccines/${vaccineToDelete.vaccine_id}`,
+        { method: "DELETE" },
+      );
       if (!response.ok) {
         throw new Error("Não foi possível remover a vacina.");
       }
       vaccinesResource.updateData((current) =>
-        current.filter((item) => item.vaccine_id !== vaccine.vaccine_id),
+        current.filter(
+          (item) => item.vaccine_id !== vaccineToDelete.vaccine_id,
+        ),
       );
+      setVaccineToDelete(null);
     } catch (error) {
-      setActionError(error.message);
+      setDeleteError(error.message);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -396,6 +493,10 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
             message="Nenhum alerta médico."
           />
         )}
+        <HealthMarkers
+          isAdult={profile.is_adult}
+          onUnauthenticated={onUnauthenticated}
+        />
         {documentsResource.status === "loading" ? (
           <ResourceNotice
             title="Documentos digitais"
@@ -482,7 +583,9 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteVaccine(vaccine)}
+                      onClick={(event) =>
+                        openDeleteVaccine(vaccine, event.currentTarget)
+                      }
                       aria-label={`Excluir ${vaccine.name}`}
                     >
                       <Trash2 aria-hidden="true" size={15} />
@@ -505,6 +608,19 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
         onOpenChange={setIsModalOpen}
         onSubmit={saveVaccine}
         returnFocusRef={dialogTriggerRef}
+      />
+      <VaccineRemoveDialog
+        error={deleteError}
+        isOpen={vaccineToDelete !== null}
+        isRemoving={isDeleting}
+        onConfirm={deleteVaccine}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setVaccineToDelete(null);
+          }
+        }}
+        returnFocusRef={deleteTriggerRef}
+        vaccine={vaccineToDelete}
       />
     </main>
   );

@@ -415,7 +415,7 @@ select:focus-visible {
 }
 
 .field-group label,
-.vaccine-dialog label {
+.clinical-dialog label {
   color: var(--ink);
   font-size: 0.76rem;
   font-weight: 650;
@@ -932,6 +932,314 @@ select:focus-visible {
   background: #e1eaff;
 }
 
+.marker-section {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(120deg, rgb(245 250 247 / 86%), transparent 34%),
+    #fff;
+}
+
+.marker-section::after {
+  position: absolute;
+  top: -5rem;
+  right: -4rem;
+  width: 13rem;
+  height: 13rem;
+  border: 1px solid rgb(23 103 83 / 8%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.8rem rgb(23 103 83 / 3%),
+    0 0 0 3.6rem rgb(23 103 83 / 2%);
+  content: "";
+  pointer-events: none;
+}
+
+.marker-section-header {
+  position: relative;
+  z-index: 1;
+}
+
+.section-intro {
+  max-width: 44rem;
+  margin: 0.65rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.marker-view-switch {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  gap: 0.3rem;
+  border: 1px solid #dce4df;
+  border-radius: 999px;
+  background: #f3f6f3;
+  padding: 0.25rem;
+}
+
+.marker-view-switch button {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.42rem 0.8rem;
+  color: #65766f;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.marker-view-switch button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--green-dark);
+  box-shadow: 0 2px 9px rgb(24 51 41 / 9%);
+}
+
+.marker-view-switch button:focus-visible {
+  outline: 3px solid rgb(23 103 83 / 18%);
+  outline-offset: 2px;
+}
+
+.marker-view-switch span {
+  min-width: 1.25rem;
+  border-radius: 999px;
+  background: var(--green-wash);
+  padding: 0.1rem 0.3rem;
+  font-size: 0.58rem;
+  text-align: center;
+}
+
+.marker-groups,
+.marker-history-list {
+  display: grid;
+  gap: 1.3rem;
+  margin-top: 1.4rem;
+}
+
+.marker-group {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid #e2e8e4;
+  padding-top: 1rem;
+}
+
+.marker-group h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+
+.marker-group h3 span {
+  color: #8a9891;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+}
+
+.marker-card-grid,
+.marker-history-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+.marker-card-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.marker-card {
+  position: relative;
+  min-height: 11rem;
+  overflow: hidden;
+  border: 1px solid #dfe6e1;
+  border-radius: 0.9rem;
+  background: rgb(255 255 255 / 88%);
+  padding: 1.1rem 1.1rem 1rem;
+  box-shadow: 0 3px 12px rgb(25 48 39 / 4%);
+}
+
+.marker-card::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0.22rem;
+  background: #417c68;
+  content: "";
+}
+
+.marker-card[data-marker-type="allergy"]::before {
+  background: #b95c4e;
+}
+
+.marker-card[data-marker-type="medication"]::before {
+  background: #356f9e;
+}
+
+.marker-card[data-marker-type="diagnosis"]::before {
+  background: #886b37;
+}
+
+.marker-card-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #60746c;
+  font-size: 0.61rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.marker-card h4 {
+  max-width: calc(100% - 4rem);
+  margin: 0.75rem 0 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.marker-card>p {
+  margin: 0.45rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.marker-card>small {
+  display: block;
+  margin-top: 0.85rem;
+  color: #7c8983;
+  font-size: 0.62rem;
+}
+
+.marker-medication-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.1rem;
+  margin: 0.8rem 0 0;
+}
+
+.marker-medication-details div {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.marker-medication-details dt {
+  color: #83918b;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.marker-medication-details dd {
+  margin: 0;
+  color: #30443c;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.marker-card-actions {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.75rem;
+  display: flex;
+  gap: 0.15rem;
+}
+
+.marker-card-actions button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #71847d;
+}
+
+.marker-card-actions button:hover {
+  background: var(--green-wash);
+  color: var(--green-dark);
+}
+
+.marker-card-actions button:last-child:hover {
+  background: #f8eae6;
+  color: var(--danger);
+}
+
+.marker-card-actions button:focus-visible {
+  outline: 3px solid rgb(23 103 83 / 18%);
+  outline-offset: 1px;
+}
+
+.marker-history-list .marker-card {
+  min-height: 9rem;
+  opacity: 0.82;
+}
+
+.marker-history-list .marker-card::before {
+  background: #9aa49f;
+}
+
+.marker-empty,
+.marker-resource-state {
+  margin-top: 1.35rem;
+  border: 1px dashed #cad5cf;
+  border-radius: 0.9rem;
+  background: rgb(247 249 247 / 82%);
+  padding: 2rem 1rem;
+  color: #6f7e77;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.marker-empty span {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin: 0 auto 0.55rem;
+  place-items: center;
+  border: 1px solid #d3ddd7;
+  border-radius: 50%;
+  color: var(--green-dark);
+  font-family: var(--serif);
+  font-size: 1.25rem;
+}
+
+.marker-empty p,
+.marker-resource-state {
+  margin-bottom: 0;
+}
+
+.marker-resource-error {
+  margin-top: 1.25rem;
+}
+
+.marker-resource-error p {
+  margin: 0 0 0.65rem;
+}
+
+.marker-resource-error button {
+  border: 1px solid currentColor;
+  border-radius: 0.45rem;
+  background: transparent;
+  padding: 0.4rem 0.65rem;
+  color: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .vaccine-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
@@ -995,7 +1303,7 @@ select:focus-visible {
 }
 
 .vaccine-actions button,
-.vaccine-dialog header button {
+.clinical-dialog header button {
   display: grid;
   width: 1.8rem;
   height: 1.8rem;
@@ -1025,7 +1333,7 @@ select:focus-visible {
   animation: dialog-overlay-in 180ms ease-out;
 }
 
-.vaccine-dialog {
+.clinical-dialog {
   position: fixed;
   z-index: 51;
   top: 50%;
@@ -1044,7 +1352,7 @@ select:focus-visible {
   animation: dialog-content-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.vaccine-dialog::before {
+.clinical-dialog::before {
   position: absolute;
   top: 0;
   right: 0;
@@ -1054,7 +1362,7 @@ select:focus-visible {
   content: "";
 }
 
-.vaccine-dialog-heading {
+.clinical-dialog-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1063,7 +1371,7 @@ select:focus-visible {
   padding: 2rem 2rem 1.45rem;
 }
 
-.vaccine-dialog-heading>div {
+.clinical-dialog-heading>div {
   min-width: 0;
 }
 
@@ -1076,7 +1384,7 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
-.vaccine-dialog h2 {
+.clinical-dialog h2 {
   margin: 0;
   font-family: var(--serif);
   font-size: clamp(1.85rem, 5vw, 2.35rem);
@@ -1117,7 +1425,7 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-.vaccine-dialog form {
+.clinical-dialog form {
   display: grid;
   gap: 1.15rem;
   padding: 1.55rem 2rem 1.8rem;
@@ -1132,8 +1440,9 @@ select:focus-visible {
   letter-spacing: 0.015em;
 }
 
-.vaccine-dialog input,
-.vaccine-dialog select {
+.clinical-dialog input,
+.clinical-dialog select,
+.clinical-dialog textarea {
   width: 100%;
   min-height: 3.15rem;
   margin: 0;
@@ -1147,16 +1456,27 @@ select:focus-visible {
   transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
 
-.vaccine-dialog input:focus,
-.vaccine-dialog select:focus {
+.clinical-dialog input:focus,
+.clinical-dialog select:focus,
+.clinical-dialog textarea:focus {
   border-color: var(--green-dark);
   box-shadow: 0 0 0 3px rgb(23 103 83 / 12%);
 }
 
-.vaccine-dialog input:disabled {
+.clinical-dialog input:disabled {
   border-color: #e1e3dc;
   background: #f0f0e9;
   color: #84918a;
+}
+
+.clinical-dialog textarea {
+  min-height: 6.2rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.marker-dialog {
+  width: min(calc(100vw - 2rem), 42rem);
 }
 
 .dialog-row {
@@ -1200,6 +1520,13 @@ select:focus-visible {
   box-shadow: 0 7px 18px rgb(23 103 83 / 16%);
 }
 
+.dialog-danger {
+  border: 1px solid #a84639;
+  background: #a84639;
+  color: #fff;
+  box-shadow: 0 7px 18px rgb(145 54 43 / 15%);
+}
+
 .dialog-actions button:focus-visible {
   outline: 3px solid rgb(23 103 83 / 20%);
   outline-offset: 2px;
@@ -1213,6 +1540,38 @@ select:focus-visible {
 
 .dialog-error {
   margin: 0;
+}
+
+.clinical-confirm-dialog {
+  position: fixed;
+  z-index: 51;
+  top: 50%;
+  left: 50%;
+  width: min(calc(100vw - 2rem), 30rem);
+  transform: translate(-50%, -50%);
+  border: 1px solid #dfd6d1;
+  border-radius: 1rem;
+  outline: none;
+  background: #fbfaf6;
+  padding: 1.8rem;
+  box-shadow: 0 28px 90px rgb(5 24 31 / 32%);
+  animation: dialog-content-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.clinical-confirm-dialog h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.clinical-confirm-dialog>.dialog-description {
+  margin: 0.75rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.6;
 }
 
 @keyframes dialog-overlay-in {
@@ -1310,7 +1669,7 @@ select:focus-visible {
 }
 
 @media (max-width: 600px) {
-  .vaccine-dialog {
+  .clinical-dialog {
     top: auto;
     bottom: 0;
     left: 0;
@@ -1324,13 +1683,41 @@ select:focus-visible {
     animation-name: dialog-content-in-mobile;
   }
 
-  .vaccine-dialog-heading {
+  .clinical-dialog-heading {
     gap: 1rem;
     padding: 1.7rem 1.2rem 1.2rem;
   }
 
-  .vaccine-dialog form {
+  .clinical-dialog form {
     padding: 1.3rem 1.2rem max(1.4rem, env(safe-area-inset-bottom));
+  }
+
+  .clinical-confirm-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    transform: none;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 1.15rem 1.15rem 0 0;
+    padding: 1.6rem 1.2rem max(1.4rem, env(safe-area-inset-bottom));
+    animation-name: dialog-content-in-mobile;
+  }
+
+  .marker-section-header {
+    align-items: flex-start;
+  }
+
+  .marker-view-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .marker-view-switch button {
+    justify-content: center;
   }
 
   .dialog-actions {

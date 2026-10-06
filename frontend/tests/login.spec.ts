@@ -46,6 +46,21 @@ const MOCK_ALERTS = [
 
 const MOCK_DOCUMENTS = [];
 
+const MOCK_MARKERS = [
+  {
+    marker_id: 21,
+    type: 'medication',
+    name: 'Losartana',
+    description: 'Uso contínuo',
+    dosage: '50 mg',
+    frequency: '1 vez ao dia',
+    status: 'active',
+    created_at: '2026-10-06T18:30:00.123456',
+    updated_at: '2026-10-06T18:30:00.123456',
+    removed_at: null,
+  },
+];
+
 
 async function waitForHydration(page) {
   await page.waitForLoadState('networkidle');
@@ -143,6 +158,10 @@ test.describe('Página de Login', () => {
 
 test.describe('Página Home', () => {
   test.beforeEach(async ({ page }) => {
+    let nextMarkerId = 22;
+    let activeMarkers = MOCK_MARKERS.map((marker) => ({ ...marker }));
+    let removedMarkers = [];
+
     await page.route('**/me', (route) =>
       route.fulfill({
         status: 200,
@@ -171,6 +190,79 @@ test.describe('Página Home', () => {
         body: JSON.stringify(MOCK_DOCUMENTS),
       })
     );
+    await page.route('**/me/markers**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const markerId = Number(url.pathname.split('/').at(-1));
+
+      if (request.method() === 'GET') {
+        const body = url.searchParams.get('status') === 'removed'
+          ? removedMarkers
+          : activeMarkers;
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(body),
+        });
+      }
+
+      if (request.method() === 'POST') {
+        const payload = request.postDataJSON();
+        const created = {
+          marker_id: nextMarkerId++,
+          ...payload,
+          status: 'active',
+          created_at: '2026-10-06T18:30:00.123456',
+          updated_at: '2026-10-06T18:30:00.123456',
+          removed_at: null,
+        };
+        activeMarkers = [...activeMarkers, created];
+        return route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(created),
+        });
+      }
+
+      if (request.method() === 'PUT') {
+        const payload = request.postDataJSON();
+        const current = activeMarkers.find((marker) => marker.marker_id === markerId);
+        const updated = {
+          ...current,
+          ...payload,
+          updated_at: '2026-10-06T18:35:00.123456',
+        };
+        activeMarkers = activeMarkers.map((marker) =>
+          marker.marker_id === markerId ? updated : marker
+        );
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(updated),
+        });
+      }
+
+      if (request.method() === 'DELETE') {
+        const current = activeMarkers.find((marker) => marker.marker_id === markerId);
+        activeMarkers = activeMarkers.filter((marker) => marker.marker_id !== markerId);
+        removedMarkers = [
+          {
+            ...current,
+            status: 'removed',
+            updated_at: '2026-10-06T18:40:00.123456',
+            removed_at: '2026-10-06T18:40:00.123456',
+          },
+          ...removedMarkers,
+        ];
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Marcador removido com sucesso!' }),
+        });
+      }
+
+      return route.abort();
+    });
     await page.goto('/home');
     await waitForHydration(page);
   });
@@ -225,6 +317,55 @@ test.describe('Página Home', () => {
 
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
+  });
+
+  test('gerencia marcador em diálogos acessíveis e preserva o histórico', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const addTrigger = page.getByRole('button', { name: 'Adicionar marcador' });
+
+    await addTrigger.click();
+
+    const formDialog = page.getByRole('dialog', { name: 'Adicionar marcador' });
+    await expect(formDialog).toBeVisible();
+    await expect(page.getByLabel('Nome do marcador')).toBeFocused();
+    const formBounds = await formDialog.boundingBox();
+    expect(formBounds?.x).toBe(0);
+    expect(formBounds?.width).toBeLessThanOrEqual(390);
+
+    await page.getByLabel('Nome do marcador').fill('Metformina');
+    await page.getByLabel('Tipo').selectOption('medication');
+    await page.getByLabel('Dosagem').fill('500 mg');
+    await page.getByLabel('Frequência').fill('2 vezes ao dia');
+    await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+
+    await expect(formDialog).toBeHidden();
+    await expect(addTrigger).toBeFocused();
+    await expect(page.getByText('Metformina')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Editar Metformina' }).click();
+    const editDialog = page.getByRole('dialog', { name: 'Editar marcador' });
+    await expect(editDialog).toBeVisible();
+    await page.getByLabel('Nome do marcador').fill('Metformina XR');
+    await page.getByRole('button', { name: 'Salvar alterações' }).click();
+    await expect(editDialog).toBeHidden();
+    await expect(page.getByText('Metformina XR')).toBeVisible();
+
+    const removeTrigger = page.getByRole('button', { name: 'Remover Metformina XR' });
+    await removeTrigger.click();
+    const confirmation = page.getByRole('alertdialog', { name: 'Remover marcador' });
+    await expect(confirmation).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cancelar remoção' })).toBeFocused();
+    await page.getByRole('button', { name: 'Cancelar remoção' }).click();
+    await expect(confirmation).toBeHidden();
+    await expect(removeTrigger).toBeFocused();
+
+    await removeTrigger.click();
+    await page.getByRole('button', { name: 'Remover do resumo' }).click();
+    await expect(page.getByText('Metformina XR')).toBeHidden();
+
+    await page.getByRole('button', { name: 'Histórico' }).click();
+    await expect(page.getByText('Metformina XR')).toBeVisible();
+    await expect(page.getByText('Removido em 06/10/2026')).toBeVisible();
   });
 
   test('mantém o dashboard amplo e os cards alinhados em desktop', async ({ page }) => {
