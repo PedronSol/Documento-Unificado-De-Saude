@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -358,6 +358,9 @@ Regras estruturais:
   inicial seguro no cancelamento e retorno de foco ao acionador.
 - Não se usa `window.confirm`, modal manual sem focus trap nem componente visual
   legado na superfície criada.
+- Como a integração toca `PatientDashboard`, a confirmação nativa ainda usada
+  pela remoção de vacina é substituída pelo mesmo padrão acessível nesta entrega;
+  o contrato HTTP e o restante do fluxo de vacina não mudam.
 - Em viewport móvel, os diálogos funcionam como bottom sheet sem overflow
   horizontal; teclado, `Escape`, foco visível e reduced motion são preservados.
 - Após uma mutação, apenas os recursos de marcadores afetados são atualizados;
@@ -404,6 +407,8 @@ porque a revisão ainda não existe.
     campos condicionais, conflito e diálogos acessíveis.
 12. Playwright cobre criação, edição, cancelamento da remoção, confirmação,
     histórico e viewport móvel.
+13. Teste React entra em RED para remover `window.confirm` da vacina e comprova
+    cancelamento, confirmação e retorno de foco com `AlertDialog`.
 
 ### Regressão e alinhamento
 
@@ -414,6 +419,42 @@ porque a revisão ainda não existe.
   frontend e direção visual antes de encerrar a entrega.
 - Conferência de OpenAPI para confirmar ausência de rotas `/medical`.
 - `git diff --check`, `git status` e ausência de artefatos gerados.
+
+## Evidência TDD
+
+| Ciclo | Teste RED observado | Implementação GREEN | Refactor |
+|---|---|---|---|
+| Migration | revisão `0004` ausente; depois tabela ausente no upgrade | migration forward-only, constraints, FKs e índices | nomes e assertions estruturais alinhados ao MySQL real |
+| Contratos | `MarkerCreateUpdate` inexistente | schemas, normalização e campos condicionais | normalização textual compartilhada sem nova camada |
+| API | módulo e rotas de marcadores inexistentes | listagens, mutações, ownership, conflito e auditoria atômica | router isolado e snapshots por allowlist |
+| Composição | aplicação sem as rotas `/me/markers` | router registrado no composition root | registro explícito preservado |
+| Frontend | quatro cenários falharam sem carregamento, seção, diálogo e histórico | seção independente, formulários e confirmação acessível | loaders estáveis, componente próprio e ordenação isolada |
+| Vacina | teste falhou no `window.confirm` e não encontrou `alertdialog` | confirmação nativa substituída por `AlertDialog` | padrão de diálogo compartilhado por CSS sem abstração prematura |
+
+Referência atual: branch `feat/health-markers`; o commit ou PR definitivo será
+registrado no roadmap ao publicar a entrega.
+
+## Verificações executadas
+
+- Backend completo no MySQL 8 real via Compose: `88 passed`.
+- Frontend unitário: `18 passed`.
+- Playwright: `13 passed`.
+- Build de produção do Next.js 16.3.8: aprovado.
+- Revisão visual móvel: diálogo em bottom sheet, hierarquia da seção e ausência
+  de overflow horizontal conferidas.
+- `git diff --check`: aprovado.
+- `npm run lint`: não executável porque o binário `eslint` não está instalado
+  nas dependências atuais; nenhuma dependência fora da spec foi adicionada.
+
+## Checkpoint de alinhamento do frontend
+
+O backend verde exigiu uma nova superfície no dashboard: carregamento ativo e
+histórico independentes, estados de loading/vazio/erro, formulário condicional,
+conflito no próprio diálogo e remoção acessível. A revisão do componente tocado
+também encontrou a confirmação nativa da remoção de vacina. A regra foi
+incorporada à spec antes da mudança e os dois fluxos agora usam diálogos Radix,
+com foco inicial seguro e retorno ao acionador. Nenhum endpoint de vacina nem
+outra seção do dashboard foi redesenhado.
 
 ## Plano de execução
 
@@ -455,20 +496,21 @@ porque a revisão ainda não existe.
 
 ## Critérios de conclusão
 
-- [ ] Spec aprovada antes do primeiro teste RED.
-- [ ] Migration `0004` validada no MySQL 8 real.
-- [ ] Tipos, campos condicionais e normalização possuem testes.
-- [ ] Listagens ativa e removida derivam ownership da sessão.
-- [ ] Criação, edição e remoção lógica são atômicas com auditoria.
-- [ ] Duplicidade ativa retorna `409`, inclusive sob concorrência.
-- [ ] Marcadores removidos permanecem no histórico e não bloqueiam recriação.
-- [ ] IDs alheios, removidos e inexistentes são indistinguíveis nas mutações.
-- [ ] Nenhuma rota médica ou conversão de alertas foi antecipada.
-- [ ] Revisão de impacto no frontend registrada depois do backend verde.
-- [ ] Interface possui estados isolados e não introduz padrão visual legado.
-- [ ] Diálogos são responsivos, navegáveis por teclado e restauram foco.
-- [ ] Suítes afetadas, regressão e build passam.
-- [ ] Evidência RED, GREEN e REFACTOR registrada.
+- [x] Spec aprovada antes do primeiro teste RED.
+- [x] Migration `0004` validada no MySQL 8 real.
+- [x] Tipos, campos condicionais e normalização possuem testes.
+- [x] Listagens ativa e removida derivam ownership da sessão.
+- [x] Criação, edição e remoção lógica são atômicas com auditoria.
+- [x] Duplicidade ativa retorna `409`, inclusive sob concorrência.
+- [x] Marcadores removidos permanecem no histórico e não bloqueiam recriação.
+- [x] IDs alheios, removidos e inexistentes são indistinguíveis nas mutações.
+- [x] Nenhuma rota médica ou conversão de alertas foi antecipada.
+- [x] Revisão de impacto no frontend registrada depois do backend verde.
+- [x] Interface possui estados isolados e não introduz padrão visual legado.
+- [x] Diálogos são responsivos, navegáveis por teclado e restauram foco.
+- [x] A superfície tocada não mantém confirmação nativa de remoção de vacina.
+- [x] Suítes afetadas, regressão e build passam.
+- [x] Evidência RED, GREEN e REFACTOR registrada.
 - [ ] Roadmap e referência de commit ou PR atualizados.
 
 ## Decisões propostas para revisão
@@ -496,3 +538,7 @@ porque a revisão ainda não existe.
 - O modelo de dados foi alinhado à convenção em inglês da decisão D005.
 - A revisão do frontend foi incorporada desde a spec e deverá ser repetida após
   o backend ficar verde, conforme a Definition of Done.
+- O checkpoint pós-backend identificou `window.confirm` na remoção de vacina
+  dentro de `PatientDashboard`; a correção foi incorporada à spec antes do código.
+- Implementação e checkpoint de frontend concluídos em 2026-10-06; a entrega
+  aguarda somente commits e referência do PR para encerrar o tracker.
