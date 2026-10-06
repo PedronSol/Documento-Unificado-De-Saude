@@ -14,17 +14,31 @@ class ResourceCursor:
         self.connection = connection
         self.result = result
         self.rowcount = 0
+        self.fetchone_result = None
 
     def execute(self, statement, parameters=None):
         sql = " ".join(statement.split())
         parameters = parameters or ()
         self.connection.executed.append((sql, parameters))
-        if sql.startswith("DELETE FROM vaccines"):
+        if sql.startswith("SELECT id_vacina AS vaccine_id"):
+            vaccine_id, patient_id = parameters
+            if (vaccine_id, patient_id) in self.connection.owned:
+                self.fetchone_result = {
+                    "vaccine_id": vaccine_id,
+                    "name": "Influenza",
+                    "dose": "Dose anual",
+                    "administered_on": date(2026, 4, 15),
+                    "status": "applied",
+                }
+        elif sql.startswith("DELETE FROM vaccines"):
             vaccine_id, patient_id = parameters
             self.rowcount = int((vaccine_id, patient_id) in self.connection.owned)
 
     def fetchall(self):
         return self.result
+
+    def fetchone(self):
+        return self.fetchone_result
 
     def close(self):
         pass
@@ -102,3 +116,9 @@ def test_foreign_and_missing_vaccine_have_the_same_not_found_response(vaccine_id
     assert error.value.status_code == 404
     assert error.value.detail == "Vacina não encontrada."
     assert connection.executed[0][1] == (vaccine_id, 10)
+    assert not any(
+        statement.startswith("INSERT INTO clinical_audit_events")
+        for statement, _parameters in connection.executed
+    )
+    assert connection.commits == 0
+    assert connection.rollbacks == 1

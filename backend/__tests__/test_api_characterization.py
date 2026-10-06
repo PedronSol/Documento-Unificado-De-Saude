@@ -21,6 +21,7 @@ class FakeCursor:
         self.dictionary = dictionary
         self.result = None
         self.rowcount = 0
+        self.lastrowid = None
 
     def execute(self, statement, parameters=None):
         sql = " ".join(statement.split())
@@ -73,6 +74,28 @@ class FakeCursor:
             )
         elif sql.startswith("SELECT * FROM patients WHERE patient_id"):
             self.result = deepcopy(self.database.patients.get(parameters[0]))
+        elif sql.startswith("SELECT id_vacina AS vaccine_id") and "FOR UPDATE" in sql:
+            vaccine_id, patient_id = parameters
+            vaccine = next(
+                (
+                    deepcopy(item)
+                    for item in self.database.vaccines
+                    if item["id_vacina"] == vaccine_id
+                    and item["patient_id"] == patient_id
+                ),
+                None,
+            )
+            self.result = (
+                {
+                    "vaccine_id": vaccine["id_vacina"],
+                    "name": vaccine["nome_vacina"],
+                    "dose": vaccine["dose"],
+                    "administered_on": vaccine["data_aplicacao"],
+                    "status": vaccine["status_vacina"],
+                }
+                if vaccine
+                else None
+            )
         elif "FROM vaccines WHERE patient_id" in sql:
             vaccines = [
                 deepcopy(vaccine)
@@ -140,6 +163,10 @@ class FakeCursor:
                     "status_vacina": vaccine_status,
                 }
             )
+            self.rowcount = 1
+            self.lastrowid = next_id
+        elif sql.startswith("INSERT INTO clinical_audit_events"):
+            self.database.audit_events.append(parameters)
             self.rowcount = 1
         elif sql.startswith("UPDATE vaccines"):
             name, dose, applied_at, vaccine_status, vaccine_id, patient_id = parameters
@@ -266,6 +293,7 @@ class FakeDatabase:
                 "status_documento": "new",
             }
         ]
+        self.audit_events = []
         self.executed = []
         self.commits = 0
         self.rollbacks = 0
@@ -465,6 +493,12 @@ async def test_vaccine_crud_preserves_routes_messages_and_ownership(
     assert other_patient_response.status_code == 404
     assert other_patient_response.json() == {"detail": "Vacina não encontrada."}
     assert any(vaccine["id_vacina"] == 2 for vaccine in fake_database.vaccines)
+    assert [event[3] for event in fake_database.audit_events] == [
+        "vaccine.created",
+        "vaccine.updated",
+        "vaccine.deleted",
+    ]
+    assert all(event[0:3] == ("user", 1, PATIENT_ID) for event in fake_database.audit_events)
 
 
 async def test_minor_cannot_mutate_vaccines(client, fake_database):
@@ -480,6 +514,7 @@ async def test_minor_cannot_mutate_vaccines(client, fake_database):
         "detail": "Menores de idade não podem alterar o prontuário."
     }
     assert any(vaccine["id_vacina"] == 1 for vaccine in fake_database.vaccines)
+    assert fake_database.audit_events == []
 
 
 async def test_login_keeps_sql_injection_payload_out_of_statement(
