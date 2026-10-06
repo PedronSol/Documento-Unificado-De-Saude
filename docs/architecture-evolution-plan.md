@@ -167,7 +167,7 @@ flowchart TD
 | 1 | Migrações de banco | 0 | DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) |
 | 2 | Modularização do backend | 0 | DONE | [PR #2](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/2) |
 | 3 | Identidade, roles e IDs internos | 1, 2 | DONE | [PR #3](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/3) |
-| 4 | Contratos e autorização por recurso | 3 | PLANNED | — |
+| 4 | Contratos e autorização por recurso | 3 | DONE | `ec4c614`, `96a3360` |
 | 5 | Auditoria clínica | 4 | PLANNED | — |
 | 6 | Marcadores de saúde | 5 | PLANNED | — |
 | 7 | Área médica e grupos | 4, 6 | PLANNED | — |
@@ -302,14 +302,17 @@ frontend.
 
 ### Tarefas
 
-- [ ] Escrever matriz de autorização por endpoint.
-- [ ] Reduzir a resposta de login ao usuário autenticado.
-- [ ] Fazer `/me` retornar somente o perfil.
-- [ ] Manter endpoints separados para vacinas, marcadores e documentos.
-- [ ] Reservar rotas médicas sob `/medical`.
-- [ ] Criar verificação central de acesso médico ao paciente.
-- [ ] Padronizar respostas `401`, `403`, `404`, `409` e `422`.
-- [ ] Criar testes contra acesso por ID manipulado.
+- [x] Escrever matriz de autorização por endpoint.
+- [x] Reduzir a resposta de login ao usuário autenticado.
+- [x] Fazer `/me` retornar somente identidade e perfil, sem coleções clínicas.
+- [x] Manter endpoints separados para vacinas, alertas e documentos; marcadores
+      permanecem reservados para o Step 6.
+- [x] Reservar rotas médicas sob `/medical`.
+- [x] Centralizar ownership dos recursos atuais e definir a política de acesso
+      médico por vínculo; a verificação executável entra no Step 7 com seu
+      primeiro consumidor.
+- [x] Padronizar respostas `401`, `403`, `404`, `409` e `422`.
+- [x] Criar testes contra acesso por ID manipulado.
 
 ### Critérios de conclusão
 
@@ -565,3 +568,7 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-02 | 1 | DECISÃO REVISADA | Specs `000` e `001` | Executor próprio substituído por Alembic; DI aplicada a configuração e conexões. |
 | 2026-10-02 | 1 | IN PROGRESS | Alembic `0001`, composition root e testes | Runner próprio removido; 21 testes passaram e 1 integração foi ignorada porque o Docker Desktop não está ativo. |
 | 2026-10-02 | 1 | IN PROGRESS → DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) | Testes automatizados passaram no MySQL 8 real via Docker; idempotência, preservação de dados, falha ordenada, volume persistente e inicialização do backend foram validados. |
+| 2026-10-05 | 4 | PLANNED → SPEC REVIEW | `docs/specs/004-resource-contracts-authorization.md` | Matriz e contratos propostos; implementação aguarda revisão. O verificador de vínculo médico foi alinhado ao Step 7, onde terá dados e consumidor concretos. |
+| 2026-10-05 | 4 | SPEC REVIEW → SPEC APPROVED | `docs/specs/004-resource-contracts-authorization.md` | Contratos, matriz, erros e fronteira com o Step 7 aprovados; próximo passo é o primeiro teste RED. |
+| 2026-10-05 | 4 | SPEC APPROVED → IN PROGRESS | `backend/__tests__/test_identity_api.py` | Primeiro RED confirmou que o login ainda retornava o dashboard; implementação iniciou após a falha esperada. |
+| 2026-10-05 | 4 | IN PROGRESS → DONE | `ec4c614`, `96a3360` | Contratos separados e autorização por ownership implementados; backend com 63 testes aprovados, frontend com 12 testes unitários e 11 E2E aprovados, e build Webpack concluído. |

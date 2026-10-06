@@ -64,15 +64,15 @@ export function DigitalDocuments({ documents }) {
             className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"
           >
             {documents.map((doc) => {
-              const type = typeConfig[doc.tipo_documento];
+              const type = typeConfig[doc.type];
 
               return (
                 <motion.div
-                  key={doc.id_documento}
+                  key={doc.document_id}
                   variants={item}
                   className="group relative p-4 rounded-xl bg-secondary/50 hover:bg-secondary border border-transparent hover:border-border transition-all cursor-pointer"
                 >
-                  {doc.status_documento === "new" && (
+                  {doc.status === "new" && (
                     <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-accent animate-pulse" />
                   )}
                   <div className="flex items-start gap-3">
@@ -81,7 +81,7 @@ export function DigitalDocuments({ documents }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm lg:text-base text-foreground truncate">
-                        {doc.titulo_documento}
+                        {doc.title}
                       </p>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         <Badge className={`text-xs border-0 ${type.className}`}>
@@ -89,7 +89,7 @@ export function DigitalDocuments({ documents }) {
                         </Badge>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          {doc.data_criacao_documento}
+                          {doc.created_on}
                         </span>
                       </div>
                     </div>

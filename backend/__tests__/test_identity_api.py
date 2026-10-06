@@ -1,12 +1,18 @@
 from copy import deepcopy
 from datetime import date, datetime
+from types import SimpleNamespace
 
+from fastapi import Response
 from httpx import ASGITransport, AsyncClient
 import pytest
 
+from auth.router import login
 from config import AppSettings, SESSION_COOKIE
 from main import create_app
+from models import VaccineCreateUpdate
+from patients.router import get_me
 from security import hash_password, hash_session_token
+from vaccines.router import get_vaccines
 
 
 VALID_PASSWORD = "senha-forte"
@@ -72,11 +78,24 @@ class FakeCursor:
         elif sql.startswith("SELECT * FROM patients WHERE patient_id"):
             self.result = deepcopy(self.database.patients.get(parameters[0]))
         elif "FROM vaccines WHERE patient_id" in sql:
-            self.result = [
+            vaccines = [
                 deepcopy(vaccine)
                 for vaccine in self.database.vaccines
                 if vaccine["patient_id"] == parameters[0]
             ]
+            if "AS vaccine_id" in sql:
+                self.result = [
+                    {
+                        "vaccine_id": vaccine["id_vacina"],
+                        "name": vaccine["nome_vacina"],
+                        "dose": vaccine["dose"],
+                        "administered_on": vaccine["data_aplicacao"],
+                        "status": vaccine["status_vacina"],
+                    }
+                    for vaccine in vaccines
+                ]
+            else:
+                self.result = vaccines
         elif "FROM alerts WHERE patient_id" in sql:
             self.result = []
         elif "FROM documents WHERE patient_id" in sql:
@@ -239,7 +258,7 @@ async def client(identity_database):
         yield test_client
 
 
-async def test_login_de_paciente_retorna_identidade_roles_e_dashboard(
+async def test_login_de_paciente_retorna_somente_identidade_sem_dashboard(
     client, identity_database
 ):
     response = await client.post(
@@ -248,15 +267,112 @@ async def test_login_de_paciente_retorna_identidade_roles_e_dashboard(
     )
 
     assert response.status_code == 200
-    assert response.json()["user"] == {
-        "user_id": 1,
-        "display_name": "Ana da Silva",
-        "email": "ana@example.com",
-        "roles": ["patient"],
+    assert response.json() == {
+        "user": {
+            "user_id": 1,
+            "display_name": "Ana da Silva",
+            "email": "ana@example.com",
+            "roles": ["patient"],
+        }
     }
-    assert response.json()["patient_data"]["nome_paciente"] == "Ana"
-    assert response.json()["vaccines"][0]["id_vacina"] == 1
     assert list(identity_database.sessions.values()) == [1]
+    assert not any(
+        "FROM vaccines" in statement
+        or "FROM alerts" in statement
+        or "FROM documents" in statement
+        for statement, _ in identity_database.executed
+    )
+
+
+def test_contrato_de_login_minimo_nao_retorna_dashboard(identity_database):
+    response = Response()
+    result = login(
+        response=response,
+        form_data=SimpleNamespace(
+            username="ana@example.com",
+            password=VALID_PASSWORD,
+        ),
+        settings=AppSettings.from_mapping({}),
+        connection=identity_database.connect(),
+    )
+
+    assert result == {
+        "user": {
+            "user_id": 1,
+            "display_name": "Ana da Silva",
+            "email": "ana@example.com",
+            "roles": ["patient"],
+        }
+    }
+
+
+def test_me_retorna_somente_identidade_e_perfil_normalizado(identity_database):
+    result = get_me(
+        user={
+            "user_id": 1,
+            "display_name": "Ana da Silva",
+            "email": "ana@example.com",
+            "roles": ["patient"],
+        },
+        connection=identity_database.connect(),
+    )
+
+    assert result == {
+        "user": {
+            "user_id": 1,
+            "display_name": "Ana da Silva",
+            "email": "ana@example.com",
+            "roles": ["patient"],
+        },
+        "patient_profile": {
+            "preferred_name": "Ana",
+            "full_name": "Ana da Silva",
+            "avatar_url": None,
+            "health_status": "updated",
+            "blood_type": "O+",
+            "is_adult": True,
+            "age": 36,
+        },
+    }
+    assert not any(
+        "FROM vaccines" in statement
+        or "FROM alerts" in statement
+        or "FROM documents" in statement
+        for statement, _ in identity_database.executed
+    )
+
+
+def test_listagem_de_vacinas_usa_contrato_em_ingles(identity_database):
+    result = get_vaccines(
+        patient=identity_database.patients[10],
+        connection=identity_database.connect(),
+    )
+
+    assert result == [
+        {
+            "vaccine_id": 1,
+            "name": "BCG",
+            "dose": "Dose única",
+            "administered_on": date(2025, 1, 15),
+            "status": "applied",
+        }
+    ]
+
+
+def test_payload_de_vacina_usa_campos_em_ingles():
+    payload = VaccineCreateUpdate(
+        name="Tríplice viral",
+        dose="Reforço",
+        administered_on=date(2026, 8, 20),
+        status="applied",
+    )
+
+    assert payload.model_dump() == {
+        "name": "Tríplice viral",
+        "dose": "Reforço",
+        "administered_on": date(2026, 8, 20),
+        "status": "applied",
+    }
 
 
 async def test_login_profissional_nao_consulta_nem_retorna_dados_clinicos(
@@ -268,11 +384,14 @@ async def test_login_profissional_nao_consulta_nem_retorna_dados_clinicos(
     )
 
     assert response.status_code == 200
-    assert response.json()["user"]["roles"] == ["doctor"]
-    assert response.json()["patient_data"] is None
-    assert response.json()["vaccines"] == []
-    assert response.json()["alerts"] == []
-    assert response.json()["documents"] == []
+    assert response.json() == {
+        "user": {
+            "user_id": 2,
+            "display_name": "Dr. Rui Lima",
+            "email": "rui@example.com",
+            "roles": ["doctor"],
+        }
+    }
     assert not any(
         "FROM patients" in statement
         or "FROM vaccines" in statement

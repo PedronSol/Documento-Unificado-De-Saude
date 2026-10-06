@@ -74,15 +74,48 @@ class FakeCursor:
         elif sql.startswith("SELECT * FROM patients WHERE patient_id"):
             self.result = deepcopy(self.database.patients.get(parameters[0]))
         elif "FROM vaccines WHERE patient_id" in sql:
-            self.result = [
+            vaccines = [
                 deepcopy(vaccine)
                 for vaccine in self.database.vaccines
                 if vaccine["patient_id"] == parameters[0]
             ]
+            if "AS vaccine_id" in sql:
+                self.result = [
+                    {
+                        "vaccine_id": vaccine["id_vacina"],
+                        "name": vaccine["nome_vacina"],
+                        "dose": vaccine["dose"],
+                        "administered_on": vaccine["data_aplicacao"],
+                        "status": vaccine["status_vacina"],
+                    }
+                    for vaccine in vaccines
+                ]
+            else:
+                self.result = vaccines
         elif "FROM alerts WHERE patient_id" in sql:
-            self.result = deepcopy(self.database.alerts)
+            self.result = [
+                {
+                    "alert_id": alert["id_alerta"],
+                    "type": alert["tipo_alerta"],
+                    "title": alert["titulo_alerta"],
+                    "description": alert["descricao_alerta"],
+                    "severity": alert["severidade_alerta"],
+                }
+                for alert in self.database.alerts
+                if alert["patient_id"] == parameters[0]
+            ]
         elif "FROM documents WHERE patient_id" in sql:
-            self.result = deepcopy(self.database.documents)
+            self.result = [
+                {
+                    "document_id": document["id_documento"],
+                    "title": document["titulo_documento"],
+                    "type": document["tipo_documento"],
+                    "created_on": document["data_criacao_documento"],
+                    "status": document["status_documento"],
+                }
+                for document in self.database.documents
+                if document["patient_id"] == parameters[0]
+            ]
         elif sql.startswith("DELETE FROM sessions WHERE expires_at"):
             self.rowcount = 0
         elif sql.startswith("INSERT INTO sessions"):
@@ -216,6 +249,7 @@ class FakeDatabase:
         self.alerts = [
             {
                 "id_alerta": 1,
+                "patient_id": PATIENT_ID,
                 "tipo_alerta": "allergy",
                 "titulo_alerta": "Alergia",
                 "descricao_alerta": "Alergia a sulfa",
@@ -225,6 +259,7 @@ class FakeDatabase:
         self.documents = [
             {
                 "id_documento": 1,
+                "patient_id": PATIENT_ID,
                 "titulo_documento": "Hemograma",
                 "tipo_documento": "exam",
                 "data_criacao_documento": date(2025, 3, 1),
@@ -273,7 +308,7 @@ def authenticate(client, database):
     client.cookies.set(SESSION_COOKIE, raw_token)
 
 
-async def test_login_preserves_dashboard_and_cookie_contract(client, fake_database):
+async def test_login_returns_only_identity_and_cookie(client, fake_database):
     response = await client.post(
         "/login",
         data={"username": "ana@example.com", "password": VALID_PASSWORD},
@@ -281,39 +316,12 @@ async def test_login_preserves_dashboard_and_cookie_contract(client, fake_databa
 
     assert response.status_code == 200
     assert response.json() == {
-        "message": "Login efetuado com sucesso!",
         "user": {
             "user_id": 1,
             "display_name": "Ana da Silva",
             "email": "ana@example.com",
             "roles": ["patient"],
         },
-        "patient_data": {
-            "nome_paciente": "Ana",
-            "nome_completo": "Ana da Silva",
-            "avatar": None,
-            "status_saude": "updated",
-            "tipo_sanguineo": "O+",
-            "valor_qr": None,
-            "maior_de_idade": True,
-            "idade": date.today().year - 1990,
-        },
-        "vaccines": [
-            {
-                "id_vacina": 1,
-                "nome_vacina": "Hepatite B",
-                "dose": "1ª dose",
-                "data_aplicacao": "2025-01-15",
-                "status_vacina": "applied",
-            }
-        ],
-        "alerts": fake_database.alerts,
-        "documents": [
-            {
-                **fake_database.documents[0],
-                "data_criacao_documento": "2025-03-01",
-            }
-        ],
     }
     cookie = response.headers["set-cookie"]
     assert f"{SESSION_COOKIE}=" in cookie
@@ -354,16 +362,67 @@ async def test_logout_without_cookie_does_not_access_database(
     assert fake_database.executed == []
 
 
-async def test_me_preserves_sanitized_dashboard_contract(client, fake_database):
+async def test_me_returns_only_sanitized_profile(client, fake_database):
     authenticate(client, fake_database)
 
     response = await client.get("/me")
 
     assert response.status_code == 200
-    assert response.json()["message"] == "Sessão válida."
-    assert "patient_id" not in response.json()["patient_data"]
-    assert "data_nascimento" not in response.json()["patient_data"]
-    assert response.json()["vaccines"][0]["id_vacina"] == 1
+    assert response.json() == {
+        "user": {
+            "user_id": 1,
+            "display_name": "Ana da Silva",
+            "email": "ana@example.com",
+            "roles": ["patient"],
+        },
+        "patient_profile": {
+            "preferred_name": "Ana",
+            "full_name": "Ana da Silva",
+            "avatar_url": None,
+            "health_status": "updated",
+            "blood_type": "O+",
+            "is_adult": True,
+            "age": date.today().year - 1990,
+        },
+    }
+
+
+async def test_patient_resources_are_loaded_from_separate_endpoints(
+    client, fake_database
+):
+    authenticate(client, fake_database)
+
+    vaccines = await client.get("/me/vaccines")
+    alerts = await client.get("/me/alerts")
+    documents = await client.get("/me/documents")
+
+    assert vaccines.json() == [
+        {
+            "vaccine_id": 1,
+            "name": "Hepatite B",
+            "dose": "1ª dose",
+            "administered_on": "2025-01-15",
+            "status": "applied",
+        }
+    ]
+    assert alerts.json() == [
+        {
+            "alert_id": 1,
+            "type": "allergy",
+            "title": "Alergia",
+            "description": "Alergia a sulfa",
+            "severity": "high",
+        }
+    ]
+    assert documents.json() == [
+        {
+            "document_id": 1,
+            "title": "Hemograma",
+            "type": "exam",
+            "created_on": "2025-03-01",
+            "status": "new",
+        }
+    ]
 
 
 async def test_missing_session_preserves_unauthorized_contract(client, fake_database):
@@ -379,10 +438,10 @@ async def test_vaccine_crud_preserves_routes_messages_and_ownership(
 ):
     authenticate(client, fake_database)
     create_payload = {
-        "nome_vacina": "Tríplice viral",
+        "name": "Tríplice viral",
         "dose": "Reforço",
-        "data_aplicacao": "2026-08-20",
-        "status_vacina": "applied",
+        "administered_on": "2026-08-20",
+        "status": "applied",
     }
 
     list_response = await client.get("/me/vaccines")
@@ -396,7 +455,7 @@ async def test_vaccine_crud_preserves_routes_messages_and_ownership(
     other_patient_response = await client.delete("/me/vaccines/2")
 
     assert list_response.status_code == 200
-    assert [vaccine["id_vacina"] for vaccine in list_response.json()] == [1]
+    assert [vaccine["vaccine_id"] for vaccine in list_response.json()] == [1]
     assert create_response.status_code == 201
     assert create_response.json() == {"message": "Vacina registrada com sucesso!"}
     assert update_response.status_code == 200
@@ -461,10 +520,10 @@ async def test_vaccine_payload_is_sent_as_query_parameters(client, fake_database
     response = await client.post(
         "/me/vaccines",
         json={
-            "nome_vacina": malicious_name,
+            "name": malicious_name,
             "dose": "Dose única; DROP TABLE vacinas",
-            "data_aplicacao": "2026-08-20",
-            "status_vacina": "applied",
+            "administered_on": "2026-08-20",
+            "status": "applied",
         },
     )
 
