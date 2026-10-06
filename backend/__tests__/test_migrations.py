@@ -2,6 +2,7 @@ from pathlib import Path
 import importlib.util
 
 import pytest
+import sqlalchemy as sa
 
 import database_tasks
 from database_admin import UnsafeEnvironmentError, reset_database, seed_database
@@ -177,6 +178,108 @@ def test_migration_de_identidade_e_a_proxima_revisao_forward_only():
     assert migration.down_revision == "0001"
     with pytest.raises(NotImplementedError, match="forward-only"):
         migration.downgrade()
+
+
+def test_migration_de_auditoria_clinica_e_a_revisao_0003_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0003_clinical_audit.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("clinical_audit_migration", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    assert migration.revision == "0003"
+    assert migration.down_revision == "0002"
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_migration_0003_cria_eventos_de_auditoria_com_indices_e_constraints():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0003_clinical_audit.py"
+    )
+    spec = importlib.util.spec_from_file_location("clinical_audit_schema", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.table = None
+            self.elements = ()
+            self.indexes = []
+
+        def create_table(self, table, *elements):
+            self.table = table
+            self.elements = elements
+
+        def create_index(self, name, table, columns):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    columns = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Column)
+    }
+    constraints = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Constraint)
+    }
+
+    assert operations.table == "clinical_audit_events"
+    assert set(columns) == {
+        "audit_event_id",
+        "actor_type",
+        "actor_user_id",
+        "patient_id",
+        "action",
+        "resource_type",
+        "resource_id",
+        "before_snapshot",
+        "after_snapshot",
+        "occurred_at",
+    }
+    assert columns["actor_type"].type.enums == ["user", "public_share", "system"]
+    assert columns["actor_user_id"].nullable is True
+    assert columns["patient_id"].nullable is False
+    assert columns["occurred_at"].nullable is False
+    assert {
+        "ck_clinical_audit_actor",
+        "fk_clinical_audit_actor",
+        "fk_clinical_audit_patient",
+    } <= set(constraints)
+    assert operations.indexes == [
+        (
+            "idx_clinical_audit_patient_occurred",
+            "clinical_audit_events",
+            ["patient_id", "occurred_at"],
+        ),
+        (
+            "idx_clinical_audit_actor_occurred",
+            "clinical_audit_events",
+            ["actor_user_id", "occurred_at"],
+        ),
+        (
+            "idx_clinical_audit_resource",
+            "clinical_audit_events",
+            ["resource_type", "resource_id"],
+        ),
+    ]
 
 
 def test_makefile_compose_e_ci_usam_executor_alembic():

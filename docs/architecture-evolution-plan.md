@@ -84,6 +84,22 @@ o comportamento, incluindo autorização, migrações e tratamento de erros.
 - Não preparar infraestrutura sem consumidor imediato.
 - Toda nova dependência deve resolver um problema atual e documentado.
 
+### Entrega vertical e coerência do frontend
+
+- Uma entrega de backend não é considerada encerrada sem uma revisão explícita
+  do impacto nos fluxos e contratos consumidos pelo frontend.
+- A revisão ocorre depois que o backend está verde e antes da Definition of Done;
+  seu resultado é registrado na spec ou na descrição do PR, inclusive quando a
+  conclusão for "sem alteração de frontend".
+- Quando houver impacto, a mesma entrega atualiza estados, contratos, testes e a
+  experiência da interface antes de ser marcada como `DONE`.
+- Componentes tocados não podem manter ou reproduzir padrões visuais legados.
+  Devem seguir a direção visual vigente em
+  `docs/specs/003-unified-identity-roles-frontend.md`, incluindo modais,
+  formulários, feedback, loading, vazio e erro.
+- A modernização fica limitada ao fluxo afetado; superfícies sem relação com a
+  entrega permanecem no Step 11 para evitar redesign não planejado.
+
 ## Workflow de cada entrega
 
 1. Selecionar uma tarefa desbloqueada neste plano.
@@ -91,9 +107,12 @@ o comportamento, incluindo autorização, migrações e tratamento de erros.
 3. Revisar a spec, contratos, riscos e não objetivos.
 4. Marcar a tarefa como `SPEC APPROVED` neste documento.
 5. Executar o ciclo RED, GREEN e REFACTOR em incrementos pequenos.
-6. Atualizar documentação e exemplos de ambiente.
-7. Executar a Definition of Done.
-8. Atualizar status, PR/commit e observações neste tracker.
+6. Ao concluir o backend, revisar e registrar o impacto no frontend.
+7. Se houver impacto, atualizar a spec antes do comportamento correspondente e
+   executar o ciclo RED, GREEN e REFACTOR do frontend.
+8. Atualizar documentação e exemplos de ambiente.
+9. Executar a Definition of Done.
+10. Atualizar status, PR/commit e observações neste tracker.
 
 ## Status utilizados
 
@@ -167,8 +186,8 @@ flowchart TD
 | 1 | Migrações de banco | 0 | DONE | [PR #1](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/1) |
 | 2 | Modularização do backend | 0 | DONE | [PR #2](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/2) |
 | 3 | Identidade, roles e IDs internos | 1, 2 | DONE | [PR #3](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/3) |
-| 4 | Contratos e autorização por recurso | 3 | DONE | `ec4c614`, `96a3360` |
-| 5 | Auditoria clínica | 4 | PLANNED | — |
+| 4 | Contratos e autorização por recurso | 3 | DONE | [PR #4](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/4) |
+| 5 | Auditoria clínica | 4 | DONE | `850e2ad`, `fe56d2a` |
 | 6 | Marcadores de saúde | 5 | PLANNED | — |
 | 7 | Área médica e grupos | 4, 6 | PLANNED | — |
 | 8 | Compartilhamento e QR-Code | 6 | PLANNED | — |
@@ -329,19 +348,22 @@ features clínicas.
 
 ### Tarefas
 
-- [ ] Escrever testes para auditoria atômica e sanitização.
-- [ ] Criar tabela `auditoria`.
-- [ ] Registrar ator, paciente, ação, recurso e data.
-- [ ] Suportar snapshots JSON anteriores e posteriores quando necessários.
-- [ ] Participar da mesma transação da mudança clínica.
-- [ ] Proibir senha, token e conteúdo integral de documentos nos logs.
-- [ ] Preparar ações para marcadores, documentos, QR e acesso médico.
+- [x] Escrever testes para auditoria atômica e sanitização.
+- [x] Criar tabela `clinical_audit_events`.
+- [x] Registrar ator, paciente, ação, recurso e data.
+- [x] Suportar snapshots JSON anteriores e posteriores quando necessários.
+- [x] Participar da mesma transação da mudança clínica.
+- [x] Proibir senha, token e conteúdo integral de documentos nos logs.
+- [x] Definir o padrão de ações para os próximos recursos sem implementá-los.
+- [x] Revisar o impacto no frontend após o backend ficar verde.
+- [x] Alinhar o modal de criação e edição de vacina ao padrão visual vigente.
 
 ### Critérios de conclusão
 
 - Operação que falha não deixa auditoria inconsistente.
 - Toda mudança clínica identifica responsável e momento.
 - Dados secretos não aparecem na auditoria.
+- O fluxo de vacina tocado não preserva padrões visuais legados.
 
 ## Step 6 — Marcadores de saúde
 
@@ -485,6 +507,8 @@ inseri-los no histórico.
 - [ ] Padronizar tratamento de `401`, `403`, `409` e `422`.
 - [ ] Redirecionar o login conforme papel.
 - [ ] Remover mocks conforme cada integração real entrar.
+- [ ] Substituir padrões visuais legados nos fluxos tocados por cada entrega,
+      incluindo modais e formulários.
 - [ ] Não introduzir Redux enquanto estado local e hooks forem suficientes.
 
 ### Critérios de conclusão
@@ -525,6 +549,8 @@ Uma tarefa só pode entrar em implementação quando:
 - [ ] a spec está versionada e em `SPEC APPROVED`;
 - [ ] critérios de aceitação e não objetivos estão claros;
 - [ ] contratos de API e dados afetados foram identificados;
+- [ ] fluxos do frontend potencialmente afetados foram identificados, ou a spec
+      registrou por que não existe superfície de interface relacionada;
 - [ ] riscos de segurança e autorização foram avaliados;
 - [ ] o primeiro teste RED foi identificado.
 
@@ -536,6 +562,11 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 - [ ] há evidência do ciclo RED, GREEN e REFACTOR;
 - [ ] testes unitários e de integração afetados passam;
 - [ ] build relevante passa;
+- [ ] a revisão de impacto no frontend foi registrada após o backend ficar verde;
+- [ ] quando um fluxo de interface foi afetado, contratos, estados, testes e
+      padrão visual vigente foram atualizados na mesma entrega;
+- [ ] nenhum padrão visual legado foi mantido ou introduzido nos componentes
+      tocados;
 - [ ] autorização possui casos positivos e negativos;
 - [ ] migrations foram testadas em banco limpo quando aplicável;
 - [ ] documentação e exemplos de ambiente foram atualizados;
@@ -555,6 +586,7 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | Arquivos | Local em desenvolvimento; contrato compatível com S3 | APROVADA |
 | OCR | Worker com jobs no MySQL, sem Redis inicialmente | APROVADA |
 | Arquitetura | Monólito modular | APROVADA |
+| Impacto no frontend | Revisão obrigatória após o backend; fluxo tocado segue o padrão visual vigente | APROVADA |
 
 ## Registro de evolução
 
@@ -572,3 +604,8 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-05 | 4 | SPEC REVIEW → SPEC APPROVED | `docs/specs/004-resource-contracts-authorization.md` | Contratos, matriz, erros e fronteira com o Step 7 aprovados; próximo passo é o primeiro teste RED. |
 | 2026-10-05 | 4 | SPEC APPROVED → IN PROGRESS | `backend/__tests__/test_identity_api.py` | Primeiro RED confirmou que o login ainda retornava o dashboard; implementação iniciou após a falha esperada. |
 | 2026-10-05 | 4 | IN PROGRESS → DONE | `ec4c614`, `96a3360` | Contratos separados e autorização por ownership implementados; backend com 63 testes aprovados, frontend com 12 testes unitários e 11 E2E aprovados, e build Webpack concluído. |
+| 2026-10-06 | 5 | PLANNED → SPEC REVIEW | `docs/specs/005-clinical-audit.md` | Proposta de auditoria append-only e atômica aplicada às mutações de vacina; implementação aguarda revisão. |
+| 2026-10-06 | Todos | DECISÃO APROVADA | Definition of Ready/Done | Toda entrega passa a registrar impacto no frontend após o backend verde; componentes tocados devem abandonar padrões visuais legados. |
+| 2026-10-06 | 5 | SPEC REVIEW → SPEC APPROVED | `docs/specs/005-clinical-audit.md` | Auditoria transacional, fronteiras de autorização e alinhamento do modal de vacina aprovados; próximo passo é a migration `0003` em RED. |
+| 2026-10-06 | 5 | SPEC APPROVED → IN PROGRESS | branch `feat/clinical-audit` | Auditoria atômica das mutações de vacina, migration `0003` e modal atualizado foram implementados por TDD. |
+| 2026-10-06 | 5 | IN PROGRESS → DONE | `850e2ad`, `fe56d2a` | Backend: 75 testes; frontend: 13 unitários e 12 E2E; migration e atomicidade aprovadas no MySQL 8 real; build aprovado. |

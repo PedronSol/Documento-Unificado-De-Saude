@@ -1,16 +1,22 @@
+import json
 import os
 import shutil
+from datetime import date
 from pathlib import Path
 from uuid import uuid4
 
+from fastapi import HTTPException
 import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy.exc import SQLAlchemyError
 
+from database import create_connection
 from database_admin import seed_database
 from database_config import DatabaseSettings, create_database_engine
 from migration_service import upgrade_database
+from models import VaccineCreateUpdate
+from vaccines.router import add_vaccine
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -67,6 +73,11 @@ def test_aplica_alembic_e_seed_em_mysql_real():
             doctor_count = connection.exec_driver_sql(
                 "SELECT COUNT(*) FROM doctors"
             ).scalar_one()
+            audit_table_count = connection.exec_driver_sql(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                f"WHERE table_schema='{database_name}' "
+                "AND table_name='clinical_audit_events'"
+            ).scalar_one()
             pending_doctor_roles = connection.exec_driver_sql(
                 """
                 SELECT COUNT(*)
@@ -86,12 +97,13 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 "SELECT COUNT(*) FROM patients"
             ).scalar_one()
 
-        assert revision == "0002"
+        assert revision == "0003"
         assert patient_count > 0
         assert user_counts["total"] == 7
         assert user_counts["unique_cpfs"] == 7
         assert user_counts["missing_cpfs"] == 0
         assert doctor_count == 3
+        assert audit_table_count == 1
         assert pending_doctor_roles == 0
         assert patient_count_after_second_upgrade == patient_count
     finally:
@@ -202,7 +214,7 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 """
             ).scalars().all()
 
-        assert revision == "0002"
+        assert revision == "0003"
         assert user["display_name"] == "Ana da Silva"
         assert user["email"] == "ana@example.com"
         assert user["password_hash"] == "hash-legado"
@@ -212,6 +224,130 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
         assert session_user_id == user["user_id"]
         assert set(related_patient_ids.values()) == {patient["patient_id"]}
         assert legacy_tables == []
+    finally:
+        database_engine.dispose()
+        with admin_engine.begin() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
+        admin_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="Requer MySQL real com RUN_DB_INTEGRATION=1",
+)
+def test_vaccine_and_clinical_audit_are_atomic_in_mysql():
+    database_name = f"dus_audit_test_{uuid4().hex[:12]}"
+    settings = DatabaseSettings(
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3307")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "root"),
+        database=database_name,
+    )
+    admin_engine = create_database_engine(settings, include_database=False)
+
+    with admin_engine.begin() as connection:
+        connection.exec_driver_sql(
+            f"CREATE DATABASE `{database_name}` "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+
+    database_engine = create_database_engine(settings)
+    try:
+        upgrade_database(database_engine, PROJECT_ROOT / "db" / "alembic.ini")
+        seed_database(
+            database_engine,
+            PROJECT_ROOT / "db" / "seeds" / "development.sql",
+            app_env="development",
+        )
+        with database_engine.connect() as connection:
+            patient = connection.exec_driver_sql(
+                """
+                SELECT p.patient_id, p.user_id
+                FROM patients p
+                JOIN users u ON u.user_id = p.user_id
+                WHERE u.email = 'carlos.silva@email.com'
+                """
+            ).mappings().one()
+
+        app_connection = create_connection(settings)
+        try:
+            add_vaccine(
+                vaccine=VaccineCreateUpdate(
+                    name="Febre amarela",
+                    dose="Dose única",
+                    administered_on=date(2026, 8, 20),
+                    status="applied",
+                ),
+                patient=dict(patient),
+                connection=app_connection,
+            )
+        finally:
+            app_connection.close()
+
+        with database_engine.connect() as connection:
+            created_vaccine = connection.exec_driver_sql(
+                """
+                SELECT id_vacina, patient_id
+                FROM vaccines
+                WHERE nome_vacina = 'Febre amarela'
+                """
+            ).mappings().one()
+            audit_event = connection.exec_driver_sql(
+                """
+                SELECT actor_type, actor_user_id, patient_id, action,
+                       resource_type, resource_id, before_snapshot,
+                       after_snapshot, occurred_at
+                FROM clinical_audit_events
+                WHERE action = 'vaccine.created'
+                """
+            ).mappings().one()
+
+        assert audit_event["actor_type"] == "user"
+        assert audit_event["actor_user_id"] == patient["user_id"]
+        assert audit_event["patient_id"] == patient["patient_id"]
+        assert audit_event["resource_type"] == "vaccine"
+        assert audit_event["resource_id"] == created_vaccine["id_vacina"]
+        assert audit_event["before_snapshot"] is None
+        assert json.loads(audit_event["after_snapshot"])["name"] == "Febre amarela"
+        assert audit_event["occurred_at"] is not None
+
+        with database_engine.begin() as connection:
+            vaccine_count_before_failure = connection.exec_driver_sql(
+                "SELECT COUNT(*) FROM vaccines"
+            ).scalar_one()
+            connection.exec_driver_sql("DROP TABLE clinical_audit_events")
+
+        failed_connection = create_connection(settings)
+        try:
+            with pytest.raises(HTTPException) as error:
+                add_vaccine(
+                    vaccine=VaccineCreateUpdate(
+                        name="Vacina sem auditoria",
+                        dose="Dose única",
+                        administered_on=None,
+                        status="pending",
+                    ),
+                    patient=dict(patient),
+                    connection=failed_connection,
+                )
+        finally:
+            failed_connection.close()
+
+        with database_engine.connect() as connection:
+            vaccine_count_after_failure = connection.exec_driver_sql(
+                "SELECT COUNT(*) FROM vaccines"
+            ).scalar_one()
+            failed_vaccine_count = connection.exec_driver_sql(
+                """
+                SELECT COUNT(*) FROM vaccines
+                WHERE nome_vacina = 'Vacina sem auditoria'
+                """
+            ).scalar_one()
+
+        assert error.value.status_code == 503
+        assert vaccine_count_after_failure == vaccine_count_before_failure
+        assert failed_vaccine_count == 0
     finally:
         database_engine.dispose()
         with admin_engine.begin() as connection:
@@ -244,6 +380,7 @@ def test_interrompe_sequencia_quando_migration_falha_no_mysql_real(tmp_path):
     shutil.copytree(PROJECT_ROOT / "db", temporary_db)
     versions = temporary_db / "migrations" / "versions"
     (versions / "0002_unified_identity_roles.py").unlink()
+    (versions / "0003_clinical_audit.py").unlink()
     (versions / "0002_invalid_sql.py").write_text(
         '''from alembic import op
 

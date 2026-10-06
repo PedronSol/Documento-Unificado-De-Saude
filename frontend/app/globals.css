@@ -1016,100 +1016,219 @@ select:focus-visible {
   color: var(--danger);
 }
 
-.modal-layer {
+.modal-backdrop {
   position: fixed;
   z-index: 50;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-}
-
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgb(16 39 43 / 55%);
+  background: rgb(10 29 38 / 62%);
+  backdrop-filter: blur(5px);
+  animation: dialog-overlay-in 180ms ease-out;
 }
 
 .vaccine-dialog {
-  position: relative;
-  width: min(100%, 31rem);
-  border: 1px solid var(--line);
-  background: var(--paper);
-  padding: 1.3rem;
-  box-shadow: 0 22px 80px rgb(8 28 31 / 22%);
+  position: fixed;
+  z-index: 51;
+  top: 50%;
+  left: 50%;
+  width: min(calc(100vw - 2rem), 39rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  border: 1px solid #d8ddd7;
+  border-radius: 1.15rem;
+  outline: none;
+  background: #fbfbf7;
+  box-shadow:
+    0 2px 0 rgb(255 255 255 / 80%) inset,
+    0 28px 90px rgb(5 24 31 / 32%);
+  animation: dialog-content-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.vaccine-dialog>header {
+.vaccine-dialog::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 0.3rem;
+  background: var(--green-dark);
+  content: "";
+}
+
+.vaccine-dialog-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 1.3rem;
+  gap: 2rem;
+  border-bottom: 1px solid #dde2dc;
+  padding: 2rem 2rem 1.45rem;
+}
+
+.vaccine-dialog-heading>div {
+  min-width: 0;
+}
+
+.dialog-kicker {
+  margin: 0 0 0.55rem;
+  color: var(--green-dark);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
 .vaccine-dialog h2 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 1.65rem;
+  font-size: clamp(1.85rem, 5vw, 2.35rem);
   font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
 }
 
-.vaccine-dialog form,
-.vaccine-dialog form>div:not(.dialog-row, .dialog-actions) {
+.dialog-description {
+  max-width: 31rem;
+  margin: 0.7rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.dialog-close {
   display: grid;
-  gap: 0.5rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #d8ddd7;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  transition: border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.dialog-close:hover {
+  border-color: #9baaa2;
+  color: var(--ink);
+  transform: rotate(4deg);
+}
+
+.dialog-close:focus-visible {
+  outline: 3px solid rgb(23 103 83 / 20%);
+  outline-offset: 2px;
+}
+
+.vaccine-dialog form {
+  display: grid;
+  gap: 1.15rem;
+  padding: 1.55rem 2rem 1.8rem;
+}
+
+.dialog-field {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.dialog-field label {
+  letter-spacing: 0.015em;
 }
 
 .vaccine-dialog input,
 .vaccine-dialog select {
   width: 100%;
-  min-height: 2.65rem;
-  margin-bottom: 0.65rem;
-  border: 1px solid #cbd5cf;
-  border-radius: 0.35rem;
+  min-height: 3.15rem;
+  margin: 0;
+  border: 1px solid #cbd4ce;
+  border-radius: 0.7rem;
+  outline: none;
   background: #fff;
-  padding: 0.5rem 0.65rem;
+  padding: 0.68rem 0.8rem;
   color: var(--ink);
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.vaccine-dialog input:focus,
+.vaccine-dialog select:focus {
+  border-color: var(--green-dark);
+  box-shadow: 0 0 0 3px rgb(23 103 83 / 12%);
 }
 
 .vaccine-dialog input:disabled {
-  background: #eeeee7;
+  border-color: #e1e3dc;
+  background: #f0f0e9;
+  color: #84918a;
 }
 
 .dialog-row {
   display: grid;
-  grid-template-columns: 0.75fr 1fr;
-  gap: 0.8rem;
-}
-
-.dialog-row>div {
-  display: grid;
-  gap: 0.5rem;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 1rem;
 }
 
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  padding-top: 0.3rem;
+  gap: 0.7rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid #e1e4df;
+  padding-top: 1.25rem;
 }
 
 .dialog-actions button {
-  min-height: 2.5rem;
-  border: 1px solid var(--line);
-  border-radius: 0.35rem;
-  background: transparent;
-  padding: 0.45rem 0.8rem;
-  color: var(--ink-soft);
-  font-size: 0.74rem;
+  min-height: 2.85rem;
+  border-radius: 0.65rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
 
-.dialog-actions button:last-child {
-  border-color: var(--green-dark);
+.dialog-actions button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.dialog-secondary {
+  border: 1px solid #cfd6d1;
+  background: #fff;
+  color: var(--ink-soft);
+}
+
+.dialog-primary {
+  border: 1px solid var(--green-dark);
   background: var(--green-dark);
   color: white;
+  box-shadow: 0 7px 18px rgb(23 103 83 / 16%);
+}
+
+.dialog-actions button:focus-visible {
+  outline: 3px solid rgb(23 103 83 / 20%);
+  outline-offset: 2px;
+}
+
+.dialog-actions button:disabled,
+.dialog-close:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.dialog-error {
+  margin: 0;
+}
+
+@keyframes dialog-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-content-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 0.75rem)) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .home-state {
@@ -1191,6 +1310,34 @@ select:focus-visible {
 }
 
 @media (max-width: 600px) {
+  .vaccine-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 92dvh;
+    transform: none;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 1.15rem 1.15rem 0 0;
+    animation-name: dialog-content-in-mobile;
+  }
+
+  .vaccine-dialog-heading {
+    gap: 1rem;
+    padding: 1.7rem 1.2rem 1.2rem;
+  }
+
+  .vaccine-dialog form {
+    padding: 1.3rem 1.2rem max(1.4rem, env(safe-area-inset-bottom));
+  }
+
+  .dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+  }
+
   .patient-main {
     width: min(calc(100% - var(--page-gutter) - var(--page-gutter)), 120rem);
     padding-top: 1.25rem;
@@ -1269,7 +1416,18 @@ select:focus-visible {
 
   .dialog-row {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 1.15rem;
+  }
+}
+
+@keyframes dialog-content-in-mobile {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

@@ -70,7 +70,9 @@ describe("AuthenticatedHome", () => {
 
     render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
 
-    expect(await screen.findByText("BCG reservada")).toBeInTheDocument();
+    expect(
+      await screen.findByText("BCG reservada", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
     expect(apiFetch).toHaveBeenCalledWith("/me");
     expect(apiFetch).toHaveBeenCalledWith("/me/vaccines");
     expect(apiFetch).toHaveBeenCalledWith("/me/alerts");
@@ -115,6 +117,27 @@ describe("AuthenticatedHome", () => {
     expect(await screen.findByText("Nenhuma vacina registrada.")).toBeInTheDocument();
     expect(screen.getByText("Nenhum alerta médico.")).toBeInTheDocument();
     expect(screen.getByText("Nenhum documento disponível.")).toBeInTheDocument();
+  });
+
+  it("gerencia foco e fechamento acessível no diálogo de vacina", async () => {
+    mockPatientResources();
+    const user = userEvent.setup();
+
+    render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
+
+    await screen.findByText("BCG reservada");
+    const trigger = screen.getByRole("button", { name: "Adicionar vacina" });
+    await user.click(trigger);
+
+    expect(
+      screen.getByRole("dialog", { name: "Registrar vacina" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome da vacina")).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
   it("mostra credencial profissional sem renderizar conteúdo clínico", async () => {

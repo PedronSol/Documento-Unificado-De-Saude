@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 import mysql.connector
 
+from audit.service import record_clinical_event, serialize_vaccine_snapshot
 from auth.dependencies import get_current_patient, require_adult
 from database import cursor_scope, get_connection, transaction
 from models import VaccineCreateUpdate, VaccineResponse
@@ -36,13 +37,18 @@ def add_vaccine(
                         vaccine.status,
                     ),
                 )
+                record_clinical_event(
+                    cursor,
+                    actor_user_id=patient["user_id"],
+                    patient_id=patient["patient_id"],
+                    action="vaccine.created",
+                    resource_type="vaccine",
+                    resource_id=cursor.lastrowid,
+                    after_snapshot=serialize_vaccine_snapshot(vaccine),
+                )
         return {"message": "Vacina registrada com sucesso!"}
     except mysql.connector.Error as error:
-        logger.exception("Falha ao registrar vacina")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Banco de dados indisponível.",
-        ) from error
+        _raise_database_unavailable("Falha ao registrar vacina", error)
 
 
 @router.get("", response_model=list[VaccineResponse])
@@ -69,29 +75,48 @@ def update_vaccine(
     patient: dict = Depends(require_adult),
     connection: Any = Depends(get_connection),
 ):
-    with cursor_scope(connection) as cursor:
-        with transaction(connection):
-            cursor.execute(
-                """
-                UPDATE vaccines
-                SET nome_vacina = %s, dose = %s, data_aplicacao = %s,
-                    status_vacina = %s
-                WHERE id_vacina = %s AND patient_id = %s
-                """,
-                (
-                    vaccine.name,
-                    vaccine.dose,
-                    vaccine.administered_on,
-                    vaccine.status,
-                    vaccine_id,
-                    patient["patient_id"],
-                ),
-            )
-        rowcount = cursor.rowcount
-
-    if rowcount == 0:
-        raise HTTPException(status_code=404, detail="Vacina não encontrada.")
-    return {"message": "Vacina atualizada com sucesso!"}
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                previous = _lock_owned_vaccine(
+                    cursor,
+                    vaccine_id=vaccine_id,
+                    patient_id=patient["patient_id"],
+                )
+                if not previous:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Vacina não encontrada.",
+                    )
+                cursor.execute(
+                    """
+                    UPDATE vaccines
+                    SET nome_vacina = %s, dose = %s, data_aplicacao = %s,
+                        status_vacina = %s
+                    WHERE id_vacina = %s AND patient_id = %s
+                    """,
+                    (
+                        vaccine.name,
+                        vaccine.dose,
+                        vaccine.administered_on,
+                        vaccine.status,
+                        vaccine_id,
+                        patient["patient_id"],
+                    ),
+                )
+                record_clinical_event(
+                    cursor,
+                    actor_user_id=patient["user_id"],
+                    patient_id=patient["patient_id"],
+                    action="vaccine.updated",
+                    resource_type="vaccine",
+                    resource_id=vaccine_id,
+                    before_snapshot=serialize_vaccine_snapshot(previous),
+                    after_snapshot=serialize_vaccine_snapshot(vaccine),
+                )
+        return {"message": "Vacina atualizada com sucesso!"}
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao atualizar vacina", error)
 
 
 @router.delete("/{vaccine_id}")
@@ -100,14 +125,55 @@ def delete_vaccine(
     patient: dict = Depends(require_adult),
     connection: Any = Depends(get_connection),
 ):
-    with cursor_scope(connection) as cursor:
-        with transaction(connection):
-            cursor.execute(
-                "DELETE FROM vaccines WHERE id_vacina = %s AND patient_id = %s",
-                (vaccine_id, patient["patient_id"]),
-            )
-        rowcount = cursor.rowcount
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                previous = _lock_owned_vaccine(
+                    cursor,
+                    vaccine_id=vaccine_id,
+                    patient_id=patient["patient_id"],
+                )
+                if not previous:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Vacina não encontrada.",
+                    )
+                cursor.execute(
+                    "DELETE FROM vaccines "
+                    "WHERE id_vacina = %s AND patient_id = %s",
+                    (vaccine_id, patient["patient_id"]),
+                )
+                record_clinical_event(
+                    cursor,
+                    actor_user_id=patient["user_id"],
+                    patient_id=patient["patient_id"],
+                    action="vaccine.deleted",
+                    resource_type="vaccine",
+                    resource_id=vaccine_id,
+                    before_snapshot=serialize_vaccine_snapshot(previous),
+                )
+        return {"message": "Vacina removida com sucesso!"}
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao remover vacina", error)
 
-    if rowcount == 0:
-        raise HTTPException(status_code=404, detail="Vacina não encontrada.")
-    return {"message": "Vacina removida com sucesso!"}
+
+def _lock_owned_vaccine(cursor: Any, *, vaccine_id: int, patient_id: int):
+    cursor.execute(
+        """
+        SELECT id_vacina AS vaccine_id, nome_vacina AS name, dose,
+               data_aplicacao AS administered_on, status_vacina AS status
+        FROM vaccines
+        WHERE id_vacina = %s AND patient_id = %s
+        FOR UPDATE
+        """,
+        (vaccine_id, patient_id),
+    )
+    return cursor.fetchone()
+
+
+def _raise_database_unavailable(message: str, error: mysql.connector.Error):
+    logger.exception(message)
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Banco de dados indisponível.",
+    ) from error
