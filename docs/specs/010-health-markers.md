@@ -431,8 +431,7 @@ porque a revisão ainda não existe.
 | Frontend | quatro cenários falharam sem carregamento, seção, diálogo e histórico | seção independente, formulários e confirmação acessível | loaders estáveis, componente próprio e ordenação isolada |
 | Vacina | teste falhou no `window.confirm` e não encontrou `alertdialog` | confirmação nativa substituída por `AlertDialog` | padrão de diálogo compartilhado por CSS sem abstração prematura |
 
-Referência atual: branch `feat/health-markers`; o commit ou PR definitivo será
-registrado no roadmap ao publicar a entrega.
+Referência da entrega: [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6).
 
 ## Verificações executadas
 
@@ -511,7 +510,7 @@ outra seção do dashboard foi redesenhado.
 - [x] A superfície tocada não mantém confirmação nativa de remoção de vacina.
 - [x] Suítes afetadas, regressão e build passam.
 - [x] Evidência RED, GREEN e REFACTOR registrada.
-- [ ] Roadmap e referência de commit ou PR atualizados.
+- [x] Roadmap e referência de commit ou PR atualizados.
 
 ## Decisões propostas para revisão
 
@@ -540,5 +539,5 @@ outra seção do dashboard foi redesenhado.
   o backend ficar verde, conforme a Definition of Done.
 - O checkpoint pós-backend identificou `window.confirm` na remoção de vacina
   dentro de `PatientDashboard`; a correção foi incorporada à spec antes do código.
-- Implementação e checkpoint de frontend concluídos em 2026-10-06; a entrega
-  aguarda somente commits e referência do PR para encerrar o tracker.
+- Implementação e checkpoint de frontend concluídos em 2026-10-06 e publicados
+  no [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6).
