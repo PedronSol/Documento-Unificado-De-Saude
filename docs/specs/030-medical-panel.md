@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -414,15 +414,37 @@ a revisão ainda não existe.
 
 | Ciclo | Teste RED observado | Implementação GREEN | Refactor |
 |---|---|---|---|
-| Migration | — | — | — |
-| Autorização | — | — | — |
-| Busca | — | — | — |
-| Prontuário | — | — | — |
-| Marcadores médicos | — | — | — |
-| Frontend | — | — | — |
-| E2E | — | — | — |
+| Migration | teste falhou porque `0005_care_groups.py` não existia | três tabelas, FKs, checks e índices criados | timestamps compartilhados sem camada adicional |
+| Autorização e busca | coleta falhou porque o módulo `medical` não existia | filtro SQL por grupo/vínculos vigentes, busca segura e `403` uniforme | allowlist e normalização isoladas em funções pequenas |
+| Prontuário | import falhou porque `get_medical_record` não existia | perfil, vacinas, marcadores e auditoria atômica entregues | carregadores com ordenação determinística |
+| Marcadores médicos | import falhou porque as três mutações médicas não existiam | criação, edição e remoção lógica com autoria médica | lógica comum extraída para `markers/service.py`, mantendo `/me` verde |
+| Composição | rotas `/medical` ausentes no `create_app` | router médico registrado no composition root | registro explícito preservado |
+| Frontend | Vitest falhou sem `DoctorDashboard`; integração ainda exibia o placeholder | busca, prontuário, mutações, estados e `403` implementados | painel carregado por `next/dynamic` e marcador parametrizado sem duplicação |
+| E2E | RED do frontend comprovou a superfície profissional ausente | Playwright cobriu busca, prontuário, suspensão, histórico e mobile | sem requisições em cascata; detalhe chega em um único contrato |
 
-Referência da entrega: a registrar no commit ou PR do Step 7.
+Referência da implementação: `fc2b12e`.
+
+## Verificações executadas
+
+- Backend completo com MySQL 8 real: `103 passed`.
+- Frontend unitário: `21 passed`.
+- Playwright Chromium: `13 passed`.
+- Build de produção do Next.js 16.3.8: aprovado.
+- Migration `0005`, seed idempotente, vínculo, negação e autoria/CRM validados no
+  banco real do Compose.
+- `git diff --check`: aprovado.
+- `npm run lint`: não executável porque o projeto não instala o binário
+  `eslint`; nenhuma dependência fora da spec foi adicionada.
+
+## Checkpoint de alinhamento do frontend
+
+O backend verde consolidou o prontuário em uma única resposta para evitar
+waterfalls no cliente. A interface profissional substituiu o placeholder do
+Step 3 e é carregada sob demanda apenas no contexto `doctor`. A direção visual
+adotada foi uma mesa clínica editorial, coerente com as fontes, cores e diálogos
+vigentes, mas com hierarquia própria para busca e leitura longitudinal. Estados
+de loading, vazio, erro, `403`, histórico e mobile foram cobertos; CPF não é
+renderizado nem persistido no navegador.
 
 ## Plano de execução
 
@@ -472,19 +494,19 @@ Referência da entrega: a registrar no commit ou PR do Step 7.
 ## Critérios de conclusão
 
 - [x] Spec aprovada antes do primeiro teste RED.
-- [ ] Migration `0005` e seed validados no MySQL 8 real.
-- [ ] Médico vê apenas pacientes de grupos ativos compartilhados e vigentes.
-- [ ] Busca por nome/CPF não expõe CPF nem pacientes não autorizados.
-- [ ] Acesso direto ausente ou sem vínculo retorna `403` sem vazamento.
-- [ ] Prontuário mínimo é somente leitura e sua abertura é auditada.
-- [ ] Mutações de marcadores reutilizam regras existentes e são atômicas.
-- [ ] Alterações médicas permitem resolver autoria para usuário, nome e CRM.
-- [ ] Papel inválido, vínculo inativo/expirado e paciente menor possuem testes.
-- [ ] Revisão de impacto no frontend registrada depois do backend verde.
-- [ ] Interface possui estados completos e diálogos acessíveis e responsivos.
-- [ ] Backend, MySQL real, frontend, Playwright e build passam.
-- [ ] Evidências RED, GREEN e REFACTOR registradas.
-- [ ] Roadmap e referência de commit ou PR atualizados.
+- [x] Migration `0005` e seed validados no MySQL 8 real.
+- [x] Médico vê apenas pacientes de grupos ativos compartilhados e vigentes.
+- [x] Busca por nome/CPF não expõe CPF nem pacientes não autorizados.
+- [x] Acesso direto ausente ou sem vínculo retorna `403` sem vazamento.
+- [x] Prontuário mínimo é somente leitura e sua abertura é auditada.
+- [x] Mutações de marcadores reutilizam regras existentes e são atômicas.
+- [x] Alterações médicas permitem resolver autoria para usuário, nome e CRM.
+- [x] Papel inválido, vínculo inativo/expirado e paciente menor possuem testes.
+- [x] Revisão de impacto no frontend registrada depois do backend verde.
+- [x] Interface possui estados completos e diálogos acessíveis e responsivos.
+- [x] Backend, MySQL real, frontend, Playwright e build passam.
+- [x] Evidências RED, GREEN e REFACTOR registradas.
+- [x] Roadmap e referência de commit ou PR atualizados.
 
 ## Decisões propostas para revisão
 
@@ -512,5 +534,6 @@ Referência da entrega: a registrar no commit ou PR do Step 7.
 - A dependência circular anterior do próprio Step 7 foi removida.
 - O modelo de dados proposto foi alinhado à convenção em inglês vigente nas
   migrations e no backend.
-- Nenhum código de produção do Step 7 deve ser escrito enquanto esta spec
-  permanecer em `SPEC REVIEW`.
+- O gate de revisão foi respeitado: o primeiro RED ocorreu somente depois da
+  aprovação explícita da spec.
+- Implementação concluída no commit `fc2b12e`.

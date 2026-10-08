@@ -189,7 +189,7 @@ flowchart TD
 | 4 | Contratos e autorização por recurso | 3 | DONE | [PR #4](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/4) |
 | 5 | Auditoria clínica | 4 | DONE | `850e2ad`, `fe56d2a` |
 | 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
-| 7 | Área médica e grupos | 4, 6 | IN PROGRESS | branch `feat/medical-panel` |
+| 7 | Área médica e grupos | 4, 6 | DONE | `fc2b12e` |
 | 8 | Compartilhamento e QR-Code | 6 | PLANNED | — |
 | 9 | Armazenamento de documentos | 5 | PLANNED | — |
 | 10 | OCR e revisão | 9 | PLANNED | — |
@@ -402,13 +402,13 @@ medicações com histórico.
 ### Tarefas
 
 - [x] Escrever cenários de vínculo válido, inválido e inativo.
-- [ ] Criar grupos, vínculos de médicos e vínculos de pacientes.
-- [ ] Implementar busca de pacientes autorizados por nome ou CPF.
-- [ ] Criar prontuário longitudinal médico somente leitura.
-- [ ] Reutilizar o módulo de marcadores para alterações médicas.
-- [ ] Registrar usuário e CRM nas alterações.
-- [ ] Bloquear acesso direto a paciente de outro grupo.
-- [ ] Criar interface médica e testes ponta a ponta.
+- [x] Criar grupos, vínculos de médicos e vínculos de pacientes.
+- [x] Implementar busca de pacientes autorizados por nome ou CPF.
+- [x] Criar prontuário longitudinal médico somente leitura.
+- [x] Reutilizar o módulo de marcadores para alterações médicas.
+- [x] Registrar usuário e CRM nas alterações.
+- [x] Bloquear acesso direto a paciente de outro grupo.
+- [x] Criar interface médica e testes ponta a ponta.
 
 ### Critérios de conclusão
 
@@ -619,3 +619,4 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-08 | 7 | PLANNED → SPEC REVIEW | `docs/specs/030-medical-panel.md` | Cenários, contratos, grupos, matriz de vínculo, segurança, prontuário mínimo e impacto no frontend detalhados; implementação aguarda aprovação. |
 | 2026-10-08 | 7 | SPEC REVIEW → SPEC APPROVED | `docs/specs/030-medical-panel.md` | Grupos, vigência, busca, prontuário mínimo, autoria médica, erros e direção do frontend aprovados; próximo passo é a migration `0005` em RED. |
 | 2026-10-08 | 7 | SPEC APPROVED → IN PROGRESS | branch `feat/medical-panel` | Migration `0005`, autorização por grupos, prontuário auditado, mutações médicas e interface profissional implementados por TDD; validação final e referência de commit pendentes. |
+| 2026-10-08 | 7 | IN PROGRESS → DONE | `fc2b12e` | Backend com 103 testes no MySQL 8 real, frontend com 21 unitários e 13 E2E, build aprovado; grupos, autorização, auditoria, autoria CRM e interface responsiva concluídos. |

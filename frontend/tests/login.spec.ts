@@ -434,6 +434,7 @@ test.describe('Página Home', () => {
     };
     let medicalActiveMarkers = MOCK_MARKERS.map((marker) => ({ ...marker }));
     let medicalRemovedMarkers = [];
+    let denyMedicalRecord = false;
 
     await page.unroute('**/me');
     await page.route('**/me', (route) =>
@@ -464,6 +465,13 @@ test.describe('Página Home', () => {
       }
 
       if (url.pathname === '/medical/patients/10') {
+        if (denyMedicalRecord) {
+          return route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({ detail: 'Paciente não autorizado.' }),
+          });
+        }
         return route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -475,6 +483,26 @@ test.describe('Página Home', () => {
               removed: medicalRemovedMarkers,
             },
           }),
+        });
+      }
+
+      if (
+        url.pathname === '/medical/patients/10/markers' &&
+        request.method() === 'POST'
+      ) {
+        const created = {
+          marker_id: 22,
+          ...request.postDataJSON(),
+          status: 'active',
+          created_at: '2026-10-08T17:50:00',
+          updated_at: '2026-10-08T17:50:00',
+          removed_at: null,
+        };
+        medicalActiveMarkers = [...medicalActiveMarkers, created];
+        return route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(created),
         });
       }
 
@@ -526,6 +554,12 @@ test.describe('Página Home', () => {
     await expect(page.getByText('COVID-19 (Pfizer)')).toBeVisible();
     await expect(page.getByText('Losartana')).toBeVisible();
 
+    await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+    await page.getByLabel('Nome do marcador').fill('Insuficiência renal leve');
+    await page.getByLabel('Tipo').selectOption('diagnosis');
+    await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+    await expect(page.getByText('Insuficiência renal leve')).toBeVisible();
+
     await page.setViewportSize({ width: 390, height: 844 });
     const suspendTrigger = page.getByRole('button', { name: 'Suspender Losartana' });
     await suspendTrigger.click();
@@ -543,6 +577,14 @@ test.describe('Página Home', () => {
     await expect(page.getByText('Losartana')).toBeVisible();
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(pageWidth).toBeLessThanOrEqual(390);
+
+    await page.getByRole('button', { name: 'Voltar para pacientes' }).click();
+    denyMedicalRecord = true;
+    await page.getByRole('button', {
+      name: 'Abrir prontuário de Carlos Silva',
+    }).click();
+    await expect(page.getByText('Acesso ao prontuário negado.')).toBeVisible();
+    await expect(page.getByText('Losartana')).toHaveCount(0);
   });
 
   test('redireciona para login se não há sessão', async ({ page }) => {
