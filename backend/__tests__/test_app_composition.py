@@ -4,6 +4,7 @@ from alerts.router import router as alerts_router
 from auth.router import router as auth_router
 from config import AppSettings
 from documents.router import router as documents_router
+from markers.router import router as markers_router
 from main import create_app
 from patients.router import router as patients_router
 from vaccines.router import router as vaccines_router
@@ -19,6 +20,10 @@ EXPECTED_API_ROUTES = {
     ("DELETE", "/me/vaccines/{vaccine_id}"),
     ("GET", "/me/alerts"),
     ("GET", "/me/documents"),
+    ("GET", "/me/markers"),
+    ("POST", "/me/markers"),
+    ("PUT", "/me/markers/{marker_id}"),
+    ("DELETE", "/me/markers/{marker_id}"),
 }
 
 
@@ -51,6 +56,7 @@ def test_domain_routers_own_the_current_routes():
             vaccines_router,
             alerts_router,
             documents_router,
+            markers_router,
         )
         for route in router.routes
     }
@@ -63,6 +69,8 @@ def test_domain_routers_own_the_current_routes():
         "/me/vaccines/{vaccine_id}",
         "/me/alerts",
         "/me/documents",
+        "/me/markers",
+        "/me/markers/{marker_id}",
     }
 
 

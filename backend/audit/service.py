@@ -2,7 +2,7 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-from models import VaccineBase
+from models import MarkerAuditSnapshot, VaccineBase
 
 
 def serialize_vaccine_snapshot(vaccine: VaccineBase | Mapping[str, Any]) -> dict:
@@ -10,6 +10,16 @@ def serialize_vaccine_snapshot(vaccine: VaccineBase | Mapping[str, Any]) -> dict
         validated = vaccine
     else:
         validated = VaccineBase.model_validate(vaccine)
+    return validated.model_dump(mode="json")
+
+
+def serialize_health_marker_snapshot(
+    marker: MarkerAuditSnapshot | Mapping[str, Any],
+) -> dict:
+    if isinstance(marker, MarkerAuditSnapshot):
+        validated = marker
+    else:
+        validated = MarkerAuditSnapshot.model_validate(marker)
     return validated.model_dump(mode="json")
 
 

@@ -9,6 +9,7 @@ from auth.router import router as auth_router
 from config import AppSettings
 from database import ConnectionFactory, create_connection
 from documents.router import router as documents_router
+from markers.router import router as markers_router
 from patients.router import router as patients_router
 from vaccines.router import router as vaccines_router
 
@@ -38,6 +39,7 @@ def create_app(
     application.include_router(vaccines_router)
     application.include_router(alerts_router)
     application.include_router(documents_router)
+    application.include_router(markers_router)
     return application
 
 

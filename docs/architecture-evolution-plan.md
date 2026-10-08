@@ -188,7 +188,7 @@ flowchart TD
 | 3 | Identidade, roles e IDs internos | 1, 2 | DONE | [PR #3](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/3) |
 | 4 | Contratos e autorização por recurso | 3 | DONE | [PR #4](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/4) |
 | 5 | Auditoria clínica | 4 | DONE | `850e2ad`, `fe56d2a` |
-| 6 | Marcadores de saúde | 5 | PLANNED | — |
+| 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
 | 7 | Área médica e grupos | 4, 6 | PLANNED | — |
 | 8 | Compartilhamento e QR-Code | 6 | PLANNED | — |
 | 9 | Armazenamento de documentos | 5 | PLANNED | — |
@@ -374,15 +374,18 @@ medicações com histórico.
 
 ### Tarefas
 
-- [ ] Converter os cenários de marcadores em testes de aceitação.
-- [ ] Criar `marcadores_saude` com tipo, nome, dados clínicos e status.
-- [ ] Registrar criador, atualizador e timestamps.
-- [ ] Impedir duplicidade ativa por paciente, tipo e nome normalizado.
-- [ ] Implementar criação, listagem, edição e desativação lógica.
-- [ ] Reutilizar a regra de maioridade.
-- [ ] Integrar auditoria na mesma transação.
-- [ ] Criar a interface do paciente seguindo os estados da spec.
-- [ ] Cobrir validação, duplicidade, ownership e desativação.
+- [x] Converter os cenários de marcadores em testes de aceitação.
+- [x] Criar `health_markers` com tipo, nome, dados clínicos e status.
+- [x] Registrar criador, atualizador e timestamps.
+- [x] Impedir duplicidade ativa por paciente, tipo e nome normalizado.
+- [x] Implementar criação, listagem, edição e desativação lógica.
+- [x] Reutilizar a regra de maioridade.
+- [x] Integrar auditoria na mesma transação.
+- [x] Criar a interface do paciente seguindo os estados da spec.
+- [x] Exibir ativos e histórico removido sem misturar seus estados.
+- [x] Usar diálogos acessíveis para edição e confirmação de remoção.
+- [x] Eliminar confirmação nativa remanescente na superfície frontend tocada.
+- [x] Cobrir validação, duplicidade, ownership e desativação.
 
 ### Critérios de conclusão
 
@@ -609,3 +612,7 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-06 | 5 | SPEC REVIEW → SPEC APPROVED | `docs/specs/005-clinical-audit.md` | Auditoria transacional, fronteiras de autorização e alinhamento do modal de vacina aprovados; próximo passo é a migration `0003` em RED. |
 | 2026-10-06 | 5 | SPEC APPROVED → IN PROGRESS | branch `feat/clinical-audit` | Auditoria atômica das mutações de vacina, migration `0003` e modal atualizado foram implementados por TDD. |
 | 2026-10-06 | 5 | IN PROGRESS → DONE | `850e2ad`, `fe56d2a` | Backend: 75 testes; frontend: 13 unitários e 12 E2E; migration e atomicidade aprovadas no MySQL 8 real; build aprovado. |
+| 2026-10-06 | 6 | PLANNED → SPEC REVIEW | `docs/specs/010-health-markers.md` | Dependências, contratos, histórico, unicidade concorrente, auditoria e impacto no frontend revisados; implementação aguarda aprovação. |
+| 2026-10-06 | 6 | SPEC REVIEW → SPEC APPROVED | `docs/specs/010-health-markers.md` | Contratos, normalização, histórico removido, auditoria e direção do frontend aprovados; próximo passo é a migration `0004` em RED. |
+| 2026-10-06 | 6 | SPEC APPROVED → IN PROGRESS | branch `feat/health-markers` | Migration `0004`, API, auditoria e interface foram concluídas por TDD; 88 testes backend, 18 unitários frontend, 13 E2E e build passaram. Aguarda commits e referência do PR para `DONE`. |
+| 2026-10-06 | 6 | IN PROGRESS → DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) | Entrega publicada com migration, autorização, auditoria, interface alinhada e evidências de regressão registradas. |

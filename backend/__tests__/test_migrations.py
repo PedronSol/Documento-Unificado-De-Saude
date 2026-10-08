@@ -282,6 +282,115 @@ def test_migration_0003_cria_eventos_de_auditoria_com_indices_e_constraints():
     ]
 
 
+def test_migration_de_marcadores_e_a_revisao_0004_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0004_health_markers.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("health_markers_migration", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    assert migration.revision == "0004"
+    assert migration.down_revision == "0003"
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_migration_0004_cria_marcadores_com_historico_e_unicidade_ativa():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0004_health_markers.py"
+    )
+    spec = importlib.util.spec_from_file_location("health_markers_schema", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.table = None
+            self.elements = ()
+            self.indexes = []
+
+        def create_table(self, table, *elements):
+            self.table = table
+            self.elements = elements
+
+        def create_index(self, name, table, columns):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    columns = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Column)
+    }
+    constraints = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Constraint)
+    }
+
+    assert operations.table == "health_markers"
+    assert set(columns) == {
+        "marker_id",
+        "patient_id",
+        "marker_type",
+        "name",
+        "normalized_name",
+        "active_name_key",
+        "description",
+        "dosage",
+        "frequency",
+        "status",
+        "created_by_user_id",
+        "updated_by_user_id",
+        "created_at",
+        "updated_at",
+        "removed_at",
+    }
+    assert columns["marker_type"].type.enums == [
+        "medication",
+        "diagnosis",
+        "condition",
+        "allergy",
+    ]
+    assert columns["status"].type.enums == ["active", "removed"]
+    assert columns["active_name_key"].computed is not None
+    assert {
+        "ck_health_markers_medication_fields",
+        "ck_health_markers_removed_at",
+        "fk_health_markers_patient",
+        "fk_health_markers_created_by",
+        "fk_health_markers_updated_by",
+        "uq_health_markers_active_name",
+    } <= set(constraints)
+    assert operations.indexes == [
+        (
+            "idx_health_markers_patient_status_type_name",
+            "health_markers",
+            ["patient_id", "status", "marker_type", "name"],
+        ),
+        (
+            "idx_health_markers_patient_status_removed",
+            "health_markers",
+            ["patient_id", "status", "removed_at"],
+        ),
+    ]
+
+
 def test_makefile_compose_e_ci_usam_executor_alembic():
     makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
     compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")

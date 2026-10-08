@@ -22,7 +22,7 @@ Exemplo: `001-database-migrations.md`.
 | `003-unified-identity-roles-frontend.md` | Identidade, roles e experiência de acesso | SPEC APPROVED |
 | `004-resource-contracts-authorization.md` | Contratos e autorização por recurso | IMPLEMENTED |
 | `005-clinical-audit.md` | Auditoria clínica transacional | IMPLEMENTED |
-| `010-health-markers.md` | Marcadores do paciente | SPEC REVIEW |
+| `010-health-markers.md` | Marcadores do paciente | IMPLEMENTED |
 | `020-health-documents-ocr.md` | Documentos e OCR | SPEC REVIEW |
 | `030-medical-panel.md` | Painel e autorização médica | SPEC REVIEW |
 | `040-health-summary-sharing.md` | Compartilhamento temporário | SPEC REVIEW |
