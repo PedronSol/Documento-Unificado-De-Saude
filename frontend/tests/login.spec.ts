@@ -308,10 +308,16 @@ test.describe('Página Home', () => {
     });
     expect(bounds?.x).toBe(0);
     expect(bounds?.width).toBeLessThanOrEqual(390);
-    expect(style.background).toBe('rgb(251, 251, 247)');
+    expect(style.background).toBe('rgb(255, 255, 255)');
     expect(style.radius).not.toBe('0px');
     await page.getByLabel('Nome da vacina').fill('Influenza tetravalente');
     await page.getByLabel('Dose').fill('Dose anual');
+    await page.getByLabel('Status').click();
+    await page.getByRole('option', { name: 'Pendente' }).click();
+    await expect(page.getByLabel('Data de aplicação')).toBeDisabled();
+    await page.getByLabel('Status').click();
+    await page.getByRole('option', { name: 'Aplicada' }).click();
+    await expect(page.getByLabel('Data de aplicação')).toBeEnabled();
     await page.getByLabel('Data de aplicação').fill('2026-04-15');
     await page.getByRole('button', { name: 'Registrar vacina' }).click();
 
@@ -333,7 +339,8 @@ test.describe('Página Home', () => {
     expect(formBounds?.width).toBeLessThanOrEqual(390);
 
     await page.getByLabel('Nome do marcador').fill('Metformina');
-    await page.getByLabel('Tipo').selectOption('medication');
+    await page.getByLabel('Tipo').click();
+    await page.getByRole('option', { name: 'Medicação' }).click();
     await page.getByLabel('Dosagem').fill('500 mg');
     await page.getByLabel('Frequência').fill('2 vezes ao dia');
     await page.getByRole('button', { name: 'Adicionar marcador' }).click();
@@ -530,6 +537,7 @@ test.describe('Página Home', () => {
 
       return route.abort();
     });
+    await page.setViewportSize({ width: 320, height: 720 });
     await page.reload();
 
     await expect(
@@ -537,6 +545,9 @@ test.describe('Página Home', () => {
     ).toBeVisible();
     await expect(page.getByText('Carlos Eduardo Silva')).toBeVisible();
     await expect(page.locator('.doctor-main')).not.toContainText(/CPF:\s*\d/i);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(320);
 
     await page.getByLabel('Buscar paciente').fill('Carlos');
     const searchRequest = page.waitForRequest((request) =>
@@ -555,12 +566,14 @@ test.describe('Página Home', () => {
     await expect(page.getByText('Losartana')).toBeVisible();
 
     await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: '/tmp/dus-dialog-320.png' });
     await page.getByLabel('Nome do marcador').fill('Insuficiência renal leve');
-    await page.getByLabel('Tipo').selectOption('diagnosis');
+    await page.getByLabel('Tipo').click();
+    await page.getByRole('option', { name: 'Diagnóstico' }).click();
     await page.getByRole('button', { name: 'Adicionar marcador' }).click();
     await expect(page.getByText('Insuficiência renal leve')).toBeVisible();
 
-    await page.setViewportSize({ width: 390, height: 844 });
     const suspendTrigger = page.getByRole('button', { name: 'Suspender Losartana' });
     await suspendTrigger.click();
     const confirmation = page.getByRole('alertdialog', {
@@ -576,7 +589,7 @@ test.describe('Página Home', () => {
     await page.getByRole('button', { name: 'Histórico' }).click();
     await expect(page.getByText('Losartana')).toBeVisible();
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-    expect(pageWidth).toBeLessThanOrEqual(390);
+    expect(pageWidth).toBeLessThanOrEqual(320);
 
     await page.getByRole('button', { name: 'Voltar para pacientes' }).click();
     denyMedicalRecord = true;

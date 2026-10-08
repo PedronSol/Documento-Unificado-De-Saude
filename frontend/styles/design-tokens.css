@@ -1,0 +1,123 @@
+:root {
+  /* Color — semantic names are the public contract. */
+  --ds-color-canvas: #f1f3f6;
+  --ds-color-surface: #ffffff;
+  --ds-color-surface-muted: #f7f8fa;
+  --ds-color-surface-raised: #ffffff;
+  --ds-color-text: #122543;
+  --ds-color-text-muted: #53647d;
+  --ds-color-text-subtle: #71809a;
+  --ds-color-border: #e1e6ed;
+  --ds-color-border-strong: #cbd6e5;
+  --ds-color-primary: #174fc2;
+  --ds-color-primary-hover: #103f9f;
+  --ds-color-primary-soft: #eff4ff;
+  --ds-color-primary-border: #d5e1fa;
+  --ds-color-on-primary: #ffffff;
+  --ds-color-success: #1d795e;
+  --ds-color-success-soft: #e7f0ea;
+  --ds-color-warning: #9a6818;
+  --ds-color-warning-soft: #f5eddb;
+  --ds-color-danger: #9b433d;
+  --ds-color-danger-hover: #7d332f;
+  --ds-color-danger-soft: #f8eae6;
+  --ds-color-focus: #4b80e8;
+  --ds-color-overlay: rgb(12 27 48 / 52%);
+  --ds-color-warm-surface: #f6f5ef;
+  --ds-color-warm-surface-deep: #eeeee5;
+
+  /* Typography */
+  --ds-font-interface: var(--font-interface), Arial, sans-serif;
+  --ds-font-editorial: var(--font-editorial), Georgia, serif;
+  --ds-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --ds-font-size-2xs: 0.625rem;
+  --ds-font-size-xs: 0.75rem;
+  --ds-font-size-sm: 0.875rem;
+  --ds-font-size-md: 1rem;
+  --ds-font-size-lg: 1.25rem;
+  --ds-font-size-xl: 1.55rem;
+  --ds-font-size-2xl: 2rem;
+  --ds-font-size-3xl: 2.5rem;
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 550;
+  --ds-font-weight-semibold: 650;
+  --ds-font-weight-bold: 700;
+  --ds-line-tight: 1.08;
+  --ds-line-body: 1.55;
+  --ds-line-relaxed: 1.7;
+  --ds-tracking-tight: -0.025em;
+  --ds-tracking-label: 0.12em;
+
+  /* Spacing — 4 px base. */
+  --ds-space-0: 0;
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.25rem;
+  --ds-space-6: 1.5rem;
+  --ds-space-8: 2rem;
+  --ds-space-10: 2.5rem;
+  --ds-space-12: 3rem;
+  --ds-space-16: 4rem;
+
+  /* Shape and elevation */
+  --ds-radius-sm: 0.5rem;
+  --ds-radius-control: 0.625rem;
+  --ds-radius-card: 1.125rem;
+  --ds-radius-dialog: 1.25rem;
+  --ds-radius-pill: 999px;
+  --ds-radius-round: 50%;
+  --ds-shadow-card: 0 5px 18px rgb(28 48 78 / 5%);
+  --ds-shadow-raised: 0 16px 48px rgb(28 48 78 / 8%);
+  --ds-shadow-focus: 0 0 0 3px rgb(75 128 232 / 18%);
+
+  /* Motion */
+  --ds-motion-fast: 160ms;
+  --ds-motion-normal: 240ms;
+  --ds-motion-slow: 420ms;
+  --ds-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ds-ease-emphasized: cubic-bezier(0.2, 0, 0, 1.2);
+
+  /* Layout, control size and layers */
+  --ds-layout-gutter: clamp(0.625rem, 2vw, 2rem);
+  --ds-layout-content: 78rem;
+  --ds-layout-wide: 120rem;
+  --ds-control-min-height: 2.75rem;
+  --ds-z-sticky: 10;
+  --ds-z-overlay: 40;
+  --ds-z-dialog: 50;
+  --ds-z-toast: 60;
+  --ds-z-dropdown: 70;
+}
+
+.dark {
+  --ds-color-canvas: #0e1829;
+  --ds-color-surface: #172338;
+  --ds-color-surface-muted: #1d2a40;
+  --ds-color-surface-raised: #223049;
+  --ds-color-text: #f1f5fb;
+  --ds-color-text-muted: #b6c2d5;
+  --ds-color-text-subtle: #91a0b8;
+  --ds-color-border: #2c3b55;
+  --ds-color-border-strong: #40516e;
+  --ds-color-primary: #7fa8ff;
+  --ds-color-primary-hover: #9bbaff;
+  --ds-color-primary-soft: #20365f;
+  --ds-color-primary-border: #38578d;
+  --ds-color-on-primary: #0e1d39;
+  --ds-color-success: #75cbae;
+  --ds-color-success-soft: #173d35;
+  --ds-color-warning: #e1b665;
+  --ds-color-warning-soft: #46371e;
+  --ds-color-danger: #ef9b95;
+  --ds-color-danger-hover: #ffb4af;
+  --ds-color-danger-soft: #4a292c;
+  --ds-color-focus: #8bb0ff;
+  --ds-color-overlay: rgb(2 8 18 / 72%);
+  --ds-color-warm-surface: #1c2638;
+  --ds-color-warm-surface-deep: #253147;
+  --ds-shadow-card: 0 8px 24px rgb(0 0 0 / 20%);
+  --ds-shadow-raised: 0 18px 52px rgb(0 0 0 / 30%);
+  --ds-shadow-focus: 0 0 0 3px rgb(139 176 255 / 24%);
+}

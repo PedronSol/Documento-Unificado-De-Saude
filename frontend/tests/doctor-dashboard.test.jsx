@@ -150,7 +150,9 @@ describe("DoctorDashboard", () => {
       screen.getByLabelText("Nome do marcador"),
       "Insuficiência renal leve",
     );
-    await user.selectOptions(screen.getByLabelText("Tipo"), "diagnosis");
+    await user.click(screen.getByLabelText("Tipo"));
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(screen.getByLabelText("Tipo")).toHaveTextContent("Diagnóstico");
     await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
 
     expect(await screen.findByText("Insuficiência renal leve")).toBeInTheDocument();

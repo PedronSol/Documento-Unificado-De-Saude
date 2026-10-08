@@ -208,7 +208,8 @@ describe("AuthenticatedHome", () => {
     expect(screen.getByLabelText("Nome do marcador")).toHaveFocus();
     expect(screen.queryByLabelText("Dosagem")).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Tipo"), "medication");
+    await user.click(screen.getByLabelText("Tipo"));
+    await user.click(screen.getByRole("option", { name: "Medicação" }));
 
     expect(screen.getByLabelText("Dosagem")).toBeInTheDocument();
     expect(screen.getByLabelText("Frequência")).toBeInTheDocument();
@@ -289,7 +290,8 @@ describe("AuthenticatedHome", () => {
     await screen.findByText("Losartana");
     await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
     await user.type(screen.getByLabelText("Nome do marcador"), "Losartana");
-    await user.selectOptions(screen.getByLabelText("Tipo"), "medication");
+    await user.click(screen.getByLabelText("Tipo"));
+    await user.click(screen.getByRole("option", { name: "Medicação" }));
     await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
 
     expect(

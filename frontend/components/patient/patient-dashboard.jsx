@@ -29,6 +29,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { DigitalDocuments } from "@/components/health-passport/digital-documents";
 import { MedicalAlerts } from "@/components/health-passport/medical-alerts";
 import { HealthMarkers } from "@/components/patient/health-markers";
+import { ClinicalSelect } from "@/components/ui/clinical-select";
 import { apiFetch } from "@/lib/api";
 
 const EMPTY_FORM = {
@@ -43,6 +44,12 @@ const STATUS_LABEL = {
   pending: "Pendente",
   overdue: "Atrasada",
 };
+
+const VACCINE_STATUS_OPTIONS = [
+  { value: "applied", label: "Aplicada" },
+  { value: "pending", label: "Pendente" },
+  { value: "overdue", label: "Atrasada" },
+];
 
 function usePatientResource(path, errorMessage, onUnauthenticated) {
   const [requestVersion, setRequestVersion] = useState(0);
@@ -197,16 +204,15 @@ function VaccineDialog({
             <div className="dialog-row">
               <div className="dialog-field">
                 <label htmlFor="vaccine-status">Status</label>
-                <select
+                <ClinicalSelect
                   id="vaccine-status"
                   name="status"
                   value={form.status}
-                  onChange={onFieldChange}
-                >
-                  <option value="applied">Aplicada</option>
-                  <option value="pending">Pendente</option>
-                  <option value="overdue">Atrasada</option>
-                </select>
+                  onValueChange={(value) => onFieldChange({
+                    target: { name: "status", value },
+                  })}
+                  options={VACCINE_STATUS_OPTIONS}
+                />
               </div>
               <div className="dialog-field">
                 <label htmlFor="vaccine-date">Data de aplicação</label>

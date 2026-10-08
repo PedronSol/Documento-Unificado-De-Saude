@@ -33,6 +33,31 @@ Pastas na raiz devem usar nomes minúsculos. Código gerado, caches e resultados
 
 Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock.json`.
 
+## Design system do frontend
+
+- A fonte de verdade visual é `docs/design-system.md`; os tokens executáveis
+  ficam em `frontend/styles/design-tokens.css` e usam o prefixo `--ds-*`.
+- O estilo é institucional clínico: claro, calmo e preciso. Use canvas
+  cinza-azulado, superfícies brancas, azul para ação/foco e verde apenas para
+  sucesso ou estado clínico positivo. Fluxos clínicos usam Instrument Sans;
+  não crie uma linguagem editorial própria por área.
+- Implemente mobile-first a partir de 320 px. O CSS-base atende telas pequenas
+  e expansões usam preferencialmente `min-width`; nenhuma tela pode depender de
+  redução posterior por `max-width` para se tornar utilizável.
+- Reutilize primeiro os componentes de `frontend/components/ui/` e os padrões
+  compostos catalogados. Não duplique Button, Card, Badge, Avatar, Tooltip,
+  ClinicalSelect, cabeçalho de seção, busca, item de lista, estado vazio ou
+  diálogo. Campos de seleção usam `ClinicalSelect`, não `<select>` nativo, salvo
+  justificativa explícita de acessibilidade na spec.
+- Cores, tipografia, espaços, raios, sombras, movimento, larguras e camadas do
+  código tocado devem consumir tokens semânticos. Não adicione hex, shadow,
+  radius ou breakpoint isolado sem necessidade concreta e atualização conjunta
+  do guia e dos tokens.
+- Preserve alvo interativo de 44 px, foco visível, contraste, reduced motion,
+  zoom de texto, quebra de conteúdo e ausência de overflow em 320 px.
+- Toda mudança visual deve testar ao menos a menor viewport afetada e uma
+  viewport ampla; componentes compartilhados exigem regressão nos consumidores.
+
 ## Princípios de engenharia
 
 - **Spec-driven:** nenhuma mudança de comportamento começa sem uma spec revisada e versionada em `docs/specs/`.

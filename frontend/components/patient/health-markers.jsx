@@ -30,6 +30,7 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 
+import { ClinicalSelect } from "@/components/ui/clinical-select";
 import { apiFetch } from "@/lib/api";
 
 const EMPTY_FORM = {
@@ -41,6 +42,13 @@ const EMPTY_FORM = {
 };
 
 const TYPE_ORDER = ["allergy", "medication", "condition", "diagnosis"];
+
+const TYPE_OPTIONS = [
+  { value: "condition", label: "Condição" },
+  { value: "diagnosis", label: "Diagnóstico" },
+  { value: "allergy", label: "Alergia" },
+  { value: "medication", label: "Medicação" },
+];
 
 const TYPE_CONFIG = {
   allergy: {
@@ -161,17 +169,15 @@ function MarkerDialog({
 
             <div className="dialog-field">
               <label htmlFor="marker-type">Tipo</label>
-              <select
+              <ClinicalSelect
                 id="marker-type"
                 name="type"
                 value={form.type}
-                onChange={onFieldChange}
-              >
-                <option value="condition">Condição</option>
-                <option value="diagnosis">Diagnóstico</option>
-                <option value="allergy">Alergia</option>
-                <option value="medication">Medicação</option>
-              </select>
+                onValueChange={(value) => onFieldChange({
+                  target: { name: "type", value },
+                })}
+                options={TYPE_OPTIONS}
+              />
             </div>
 
             {form.type === "medication" ? (
