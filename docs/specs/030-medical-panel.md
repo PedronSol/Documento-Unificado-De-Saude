@@ -1,132 +1,516 @@
-# Painel Médico e Gestão de Pacientes
+# Área Médica e Grupos de Atendimento
 
 ## Status
 
-SPEC REVIEW
+SPEC APPROVED
 
 ## Dependências
 
-- Steps 3, 4, 5, 6 e 7 do roadmap.
-- Papéis, vínculos, marcadores e auditoria aprovados.
+- Steps 3, 4, 5 e 6 concluídos.
+- `docs/specs/003-unified-identity-roles-frontend.md` para identidade e troca de
+  contexto.
+- `docs/specs/004-resource-contracts-authorization.md` para erros e autorização
+  por recurso.
+- `docs/specs/005-clinical-audit.md` para auditoria transacional.
+- `docs/specs/010-health-markers.md` para contratos, validação e histórico de
+  marcadores.
 
 ## Contexto e problema
 
-Médicos precisam consultar e atualizar dados de pacientes atribuídos, sem obter
-acesso global a todos os pacientes da plataforma.
+O backend reconhece médicos verificados, mas ainda não existe uma relação que
+limite quais pacientes cada profissional pode atender. Também não há rotas sob
+`/medical` nem uma interface profissional. Conceder acesso somente pela role
+`doctor` daria a qualquer médico acesso global a dados clínicos.
+
+Esta entrega cria grupos de atendimento e usa o compartilhamento de um grupo
+ativo como fronteira obrigatória de autorização. O médico poderá localizar
+somente pacientes autorizados, abrir um prontuário longitudinal mínimo e usar
+as mesmas regras de marcadores já disponíveis ao paciente.
 
 ## Objetivos
 
-- Listar somente pacientes vinculados aos grupos do médico.
-- Pesquisar pacientes autorizados por nome ou CPF.
-- Consultar prontuário longitudinal.
-- Adicionar, editar e suspender marcadores com autoria médica.
-- Bloquear acesso direto a pacientes fora dos vínculos ativos.
+- Criar grupos e vínculos persistentes de médicos e pacientes.
+- Autorizar acesso somente quando médico e paciente compartilham ao menos um
+  grupo e todos os elementos do vínculo estão vigentes e ativos.
+- Buscar pacientes autorizados por nome ou CPF sem expor CPF na resposta.
+- Exibir um prontuário médico somente leitura para perfil, vacinas e histórico
+  de marcadores.
+- Permitir criação, edição e remoção lógica de marcadores pelas rotas médicas,
+  reutilizando validação, atomicidade e auditoria do módulo existente.
+- Preservar a autoria da alteração pelo usuário médico e permitir resolvê-la
+  para nome e CRM.
+- Entregar a área profissional com estados de carregamento, vazio, erro e
+  acesso negado cobertos por testes.
 
 ## Não objetivos
 
-- Cadastro público de médico.
-- Validação automática do CRM em serviço externo.
-- Agenda, consulta por vídeo, faturamento ou prescrição eletrônica.
-- Acesso emergencial fora dos vínculos.
+- Interface ou API pública para administrar grupos e vínculos; nesta versão,
+  eles são provisionados por migration, seed ou operação interna confiável.
+- Cadastro público de médicos ou validação de CRM em serviço externo.
+- Acesso emergencial, delegação, consentimento granular ou vínculo por convite.
+- Agenda, consulta, vídeo, faturamento, prescrição ou assinatura digital.
+- Alterar perfil, vacinas ou outros recursos pelo prontuário médico.
+- Exibir binários de documentos, OCR, exames estruturados ou gráficos ainda não
+  definidos; esses comportamentos pertencem aos Steps 9 e 10.
+- Reorganizar superfícies do frontend que não pertençam ao contexto médico.
 
 ## Regras de negócio
 
-1. Usuário deve possuir papel `doctor` e perfil médico ativo.
-2. Médico e paciente precisam compartilhar ao menos um grupo ativo.
-3. Busca retorna somente pacientes já autorizados.
-4. CPF pode ser critério de busca, mas não identificador na URL.
-5. Acesso ao prontuário é auditado.
-6. Alterações clínicas registram usuário, médico, CRM, data e valores anteriores.
-7. Suspender medicação altera status; não remove histórico.
-8. O backend valida vínculo em toda rota com `patient_id`.
+1. Toda rota `/medical` exige sessão válida e role `doctor` autorizada pelo
+   backend. Na identidade atual, isso também exige usuário ativo, perfil médico
+   existente e `verification_status = 'verified'`.
+2. Um paciente é autorizado somente quando existe ao menos um grupo em comum em
+   que o grupo, o vínculo do médico e o vínculo do paciente têm status `active`,
+   `starts_at <= UTC_TIMESTAMP()` e `ends_at` ausente ou no futuro.
+3. Grupo ou vínculo inativo, ainda não iniciado ou expirado não concede acesso.
+   Mais de um vínculo válido não duplica o paciente na listagem.
+4. Um paciente pode participar de vários grupos. Um médico também pode atuar em
+   vários grupos.
+5. A busca vazia lista, em ordem alfabética, todos os pacientes autorizados. Um
+   texto com dois ou mais caracteres busca por nome completo ou nome preferido,
+   sem diferenciar caixa. Um CPF, com ou sem pontuação, só é pesquisado quando
+   contém exatamente 11 dígitos.
+6. A resposta da busca nunca contém CPF, e-mail, IDs de usuário, nome de grupo
+   ou informação de pacientes sem vínculo válido.
+7. Toda rota com `patient_id` repete a verificação de vínculo no SQL. O frontend
+   esconder links ou ter listado o paciente antes não participa da autorização.
+8. Paciente inexistente e paciente sem vínculo válido são indistinguíveis para
+   o médico e retornam `403` sem qualquer dado clínico.
+9. Abrir o prontuário retorna somente perfil clínico mínimo, vacinas e
+   marcadores ativos/removidos. O prontuário não permite editar perfil nem
+   vacinas.
+10. A leitura bem-sucedida do prontuário grava
+    `medical_record.viewed` antes de devolver os dados. Falha de auditoria
+    retorna `503` e nenhum dado clínico é entregue.
+11. Criação, edição e remoção lógica de marcadores mantêm os contratos do Step
+    6: normalização, campos condicionais, unicidade ativa, maioridade do
+    paciente, snapshots por allowlist e eventos `health_marker.*`.
+12. A maioridade é calculada com a data de nascimento do paciente alvo, e não
+    com a idade do médico. Médico não altera o prontuário de menor nesta versão.
+13. Em mutações, `patient_id`, `actor_user_id`, nome do profissional e CRM são
+    derivados no servidor. O payload aceita apenas os campos clínicos do
+    marcador.
+14. `created_by_user_id`, `updated_by_user_id` e
+    `clinical_audit_events.actor_user_id` registram o usuário médico. A FK única
+    `doctors.user_id` permite resolver o mesmo autor para `display_name`,
+    `crm_number` e `crm_state`, sem duplicar CRM em snapshots clínicos.
+15. Remover uma medicação é apresentado como "suspender" na interface, mas usa
+    a remoção lógica existente (`status = 'removed'`); outros tipos usam o texto
+    "remover". Nenhum histórico é apagado.
+16. A alteração do marcador e seu evento de auditoria permanecem na mesma
+    transação. Falha em qualquer parte desfaz toda a mutação.
 
 ## Cenários de aceitação
 
-### Cenário: listar pacientes do grupo
+### Cenário: listar somente pacientes de grupos compartilhados
 
-Dado que sou médico autenticado com grupo ativo
-Quando acesso o painel
-Então vejo somente pacientes vinculados aos meus grupos
-E posso pesquisar esses pacientes por nome ou CPF.
+Dado que Helena é médica verificada de um grupo ativo com Carlos
+E Mariana não compartilha nenhum grupo ativo com Helena
+Quando Helena acessa `GET /medical/patients`
+Então a resposta contém Carlos uma única vez
+E não contém Mariana nem seus dados pessoais.
 
-### Cenário: visualizar prontuário autorizado
+### Cenário: buscar paciente autorizado por nome ou CPF
 
-Dado que João pertence a um dos meus grupos
-Quando acesso seu perfil
-Então vejo marcadores, exames, gráficos e documentos permitidos.
+Dado que Carlos pertence a um grupo ativo da médica Helena
+Quando Helena pesquisa por parte do nome de Carlos
+Ou pelo CPF completo de Carlos com pontuação
+Então Carlos é retornado sem que o CPF apareça na resposta.
 
-### Cenário: adicionar marcador clínico
+### Cenário: vínculo inválido não autoriza
 
-Dado que estou no prontuário autorizado de João
-Quando adiciono "Insuficiência Renal Leve" com observação
-Então o marcador é salvo
-E minha identidade e CRM ficam registrados no histórico.
+Dado que Helena e Mariana possuem somente um grupo em comum inativo, futuro ou
+expirado
+Quando Helena lista pacientes ou tenta abrir o prontuário de Mariana
+Então Mariana não aparece na listagem
+E o acesso direto retorna `403` sem dados clínicos.
 
-### Cenário: suspender medicação
+### Cenário: abrir prontuário longitudinal autorizado
 
-Dado que João possui "Captopril 25mg" ativo
-Quando altero o status para suspenso e confirmo
+Dado que Carlos compartilha um grupo válido com Helena
+Quando Helena abre o prontuário de Carlos
+Então vê o perfil clínico mínimo, vacinas e marcadores ativos e removidos
+E um evento `medical_record.viewed` identifica Helena como autora da leitura.
+
+### Cenário: adicionar marcador com autoria médica
+
+Dado que Helena possui vínculo válido com Carlos e Carlos é adulto
+Quando adiciona o diagnóstico "Insuficiência renal leve"
+Então o marcador é criado pelas mesmas regras do módulo de marcadores
+E a alteração e o evento de auditoria registram o `user_id` de Helena
+E esse usuário resolve para o nome de Helena e seu CRM.
+
+### Cenário: suspender medicação sem apagar histórico
+
+Dado que Carlos possui "Captopril 25 mg" ativo
+Quando Helena confirma a suspensão
 Então o marcador sai da lista ativa
-E permanece no histórico com data e autoria.
+E permanece no histórico como removido, com data e autoria médica.
 
-### Cenário: bloquear paciente de outro grupo
+### Cenário: bloquear troca de patient_id
 
-Dado que Maria não pertence aos meus grupos
-Quando tento acessar diretamente sua URL por ID
+Dado que Helena pode atender Carlos, mas não Mariana
+Quando troca o `patient_id` na URL de consulta ou mutação para o de Mariana
 Então o backend retorna `403`
-E nenhum dado clínico de Maria é retornado.
+E não consulta, cria ou altera recurso clínico de Mariana.
 
-## Contratos propostos
+### Cenário: papel ou perfil médico inválido
 
-```text
-GET  /medical/patients?query=
-GET  /medical/patients/{patient_id}
-GET  /medical/patients/{patient_id}/markers
-POST /medical/patients/{patient_id}/markers
-PUT  /medical/patients/{patient_id}/markers/{marker_id}
+Dado um paciente, um médico pendente ou um médico rejeitado autenticado
+Quando acessa qualquer rota `/medical`
+Então recebe `403` e nenhum dado de pacientes é retornado.
+
+### Cenário: paciente menor não pode ter marcador alterado
+
+Dado que a médica possui vínculo válido com um paciente menor de idade
+Quando tenta criar, editar ou remover um marcador desse paciente
+Então recebe `403` e não há mutação nem evento de auditoria parcial.
+
+## Contratos afetados
+
+### API
+
+#### `GET /medical/patients?query=`
+
+- `query` é opcional, recebe no máximo 100 caracteres e tem espaços externos
+  removidos.
+- Vazio retorna todos os pacientes autorizados; texto não vazio que não seja um
+  CPF válido precisa de pelo menos dois caracteres.
+- CPF aceita `00011122222` ou `000.111.222-22` e faz correspondência exata após
+  remover pontuação.
+- Nome usa correspondência parcial sobre nome completo e nome preferido.
+- Resposta `200`:
+
+```json
+[
+  {
+    "patient_id": 1,
+    "preferred_name": "Carlos Silva",
+    "full_name": "Carlos Eduardo Silva",
+    "avatar_url": null,
+    "health_status": "updated",
+    "age": 41
+  }
+]
 ```
 
-- Papel incorreto retorna `403`.
-- Paciente fora do vínculo retorna `403`.
-- Busca vazia retorna lista paginada dos pacientes autorizados.
+#### `GET /medical/patients/{patient_id}`
 
-## Dados propostos
+- Repete a autorização pelo vínculo e registra a leitura na mesma unidade de
+  trabalho usada para montar a resposta.
+- Resposta `200`:
 
-```text
-grupos_atendimento
-medicos_grupos
-pacientes_grupos
+```json
+{
+  "patient": {
+    "patient_id": 1,
+    "preferred_name": "Carlos Silva",
+    "full_name": "Carlos Eduardo Silva",
+    "avatar_url": null,
+    "health_status": "updated",
+    "blood_type": "A+",
+    "age": 41
+  },
+  "vaccines": [
+    {
+      "vaccine_id": 1,
+      "name": "COVID-19 (Pfizer)",
+      "dose": "3ª Dose - Reforço",
+      "administered_on": "2024-02-10",
+      "status": "applied"
+    }
+  ],
+  "markers": {
+    "active": [],
+    "removed": []
+  }
+}
 ```
 
-Os vínculos possuem status e período de vigência para preservar histórico.
+- A ordenação é determinística: vacinas por data decrescente e depois nome;
+  marcadores ativos por tipo/nome e removidos por `removed_at` decrescente.
+- Autoria interna e CPF não são expostos nesse contrato.
+
+#### Mutações de marcadores
+
+```text
+POST   /medical/patients/{patient_id}/markers
+PUT    /medical/patients/{patient_id}/markers/{marker_id}
+DELETE /medical/patients/{patient_id}/markers/{marker_id}
+```
+
+- `POST` e `PUT` recebem `MarkerCreateUpdate` e retornam `MarkerResponse`; `POST`
+  usa `201`.
+- `DELETE` mantém a mensagem do contrato atual e executa remoção lógica.
+- Todas verificam o paciente autorizado antes de carregar o marcador.
+- Depois da autorização do paciente, marcador alheio, removido ou inexistente
+  retorna o mesmo `404` do módulo atual.
+
+#### Erros
+
+| Status | Condição |
+|---|---|
+| `401` | cookie ausente, sessão inválida ou expirada |
+| `403` | role médica indisponível, vínculo inválido, paciente inexistente ou menor em mutação |
+| `404` | marcador ativo não encontrado dentro do paciente já autorizado |
+| `409` | perfil profissional inconsistente ou marcador ativo duplicado |
+| `422` | busca ou payload inválido |
+| `503` | banco ou auditoria indisponível |
+
+### Dados
+
+A migration forward-only `0005` cria:
+
+```text
+care_groups
+- care_group_id BIGINT PK
+- name VARCHAR(100) NOT NULL
+- status ENUM('active', 'inactive') NOT NULL
+- created_at DATETIME(6) NOT NULL
+- updated_at DATETIME(6) NOT NULL
+
+doctor_care_groups
+- care_group_id BIGINT FK care_groups RESTRICT
+- doctor_id BIGINT FK doctors RESTRICT
+- status ENUM('active', 'inactive') NOT NULL
+- starts_at DATETIME(6) NOT NULL
+- ends_at DATETIME(6) NULL
+- created_at DATETIME(6) NOT NULL
+- updated_at DATETIME(6) NOT NULL
+- PK (care_group_id, doctor_id)
+
+patient_care_groups
+- care_group_id BIGINT FK care_groups RESTRICT
+- patient_id BIGINT FK patients RESTRICT
+- status ENUM('active', 'inactive') NOT NULL
+- starts_at DATETIME(6) NOT NULL
+- ends_at DATETIME(6) NULL
+- created_at DATETIME(6) NOT NULL
+- updated_at DATETIME(6) NOT NULL
+- PK (care_group_id, patient_id)
+```
+
+- Índices iniciados pelo sujeito suportam autorização e listagem:
+  `doctor_care_groups(doctor_id, status, starts_at, ends_at, care_group_id)` e
+  `patient_care_groups(patient_id, status, starts_at, ends_at, care_group_id)`.
+- Um índice adicional iniciado por grupo em `patient_care_groups` suporta a
+  listagem dos pacientes dos grupos autorizados.
+- `ends_at`, quando informado, precisa ser posterior a `starts_at`.
+- As linhas inativas e expiradas permanecem armazenadas. Como não há API de
+  administração nesta entrega, cada par grupo/profissional ou grupo/paciente
+  possui no máximo um vínculo provisionado; histórico de múltiplos períodos não
+  é antecipado.
+- Nenhuma tabela existente é removida ou alterada. Autoria e CRM são resolvidos
+  pelas FKs atuais de `health_markers`, `clinical_audit_events`, `users` e
+  `doctors`.
+
+### Seed de desenvolvimento
+
+- Grupo ativo "Unidade Centro": Helena e Carlos.
+- Grupo ativo "Unidade Norte": Marcos e Mariana.
+- Grupo inativo: Helena e Mariana, para demonstrar negação sem misturar os
+  grupos válidos.
+- Seeds permanecem idempotentes e exclusivos de desenvolvimento.
+
+### Frontend
+
+- O contexto `doctor` carrega sob demanda um `DoctorDashboard` no lugar do
+  placeholder institucional.
+- A tela inicial possui busca explícita, lista de pacientes e estados de
+  loading, vazio e erro com tentativa novamente.
+- A listagem nunca renderiza CPF. Busca por CPF mantém o valor somente no estado
+  transitório do formulário e não o escreve em URL do navegador ou storage.
+- Ao abrir um paciente, a interface mostra cabeçalho clínico, vacinas,
+  marcadores ativos e histórico. Cada recurso deixa claro quando está vazio.
+- Perfil e vacinas são somente leitura. Marcadores usam os mesmos campos,
+  validações, conflito e diálogos acessíveis do fluxo do paciente.
+- Acesso `403` exibe estado negado sem manter dados de uma resposta anterior e
+  oferece retorno à lista.
+- Em viewport móvel não há overflow horizontal. Diálogos preservam foco,
+  teclado, `Escape`, retorno ao acionador e reduced motion.
+- A revisão visual fica limitada à área profissional e a componentes
+  compartilhados diretamente necessários.
 
 ## Segurança e autorização
 
-- Não existe endpoint médico que consulte paciente sem verificar vínculo.
-- Resultados de busca já são filtrados no SQL.
-- CPF completo não é exibido em listagens por padrão.
-- Toda leitura de prontuário e toda escrita clínica são auditadas.
+- O filtro de vínculo faz parte de cada consulta por paciente e usa
+  `EXISTS`/joins parametrizados; não existe carregamento global seguido de
+  filtragem em Python.
+- Busca por nome e CPF aplica o filtro de vínculo no mesmo SQL e usa parâmetros,
+  sem interpolar entrada.
+- O frontend não envia `doctor_id`, `user_id`, CRM, autoria ou group ID.
+- `patient_id` é um identificador interno, mas nunca é considerado segredo ou
+  prova de autorização.
+- `403` uniforme impede confirmar se um `patient_id` fora do vínculo existe.
+- O CPF é usado apenas como predicado e não entra em resposta, evento de
+  auditoria ou log da aplicação.
+- Eventos de auditoria não recebem snapshots de perfil, CPF ou grupo na leitura
+  do prontuário.
+- Mutações verificam vínculo novamente dentro da unidade de trabalho; perder a
+  autorização antes da operação impede a escrita.
+- A interface é defesa de experiência, não fronteira de segurança.
+
+## Casos de erro e limites
+
+- Espaços em uma busca vazia equivalem à listagem sem filtro.
+- Texto de um caractere e sequência numérica diferente de 11 dígitos retornam
+  `422`; não são tratados como busca aproximada de CPF.
+- Zero resultados retorna `200` com lista vazia.
+- Grupos compartilhados duplicados não duplicam pacientes por causa de
+  `DISTINCT`/`EXISTS` e do contrato testado.
+- Datas usam UTC no banco. `ends_at` é exclusivo: o vínculo deixa de valer em
+  `ends_at`.
+- Falha de banco na listagem, prontuário, vínculo, mutação ou auditoria retorna
+  `503` sem detalhes internos.
+- A listagem desta primeira versão retorna no máximo 50 pacientes. O resultado
+  é ordenado antes do limite; paginação fica fora do escopo até existir demanda
+  concreta.
+- Nenhum dado clínico parcial é mantido no estado visual ao trocar paciente ou
+  receber erro.
 
 ## Estratégia de testes
 
-- Primeiro RED: médico lista somente pacientes do grupo compartilhado.
-- Papel de paciente bloqueado.
-- Vínculo ausente, expirado e inativo.
-- Manipulação de `patient_id`.
-- Autoria médica na alteração.
-- Playwright para lista, busca, prontuário e bloqueio.
+### Primeiro ciclo RED
+
+Adicionar o teste estrutural da revisão `0005`, esperando as três tabelas,
+constraints, FKs e índices de vínculo. O teste deve falhar inicialmente porque
+a revisão ainda não existe.
+
+### Ciclos seguintes
+
+1. Migration cria grupos e vínculos no MySQL 8 real, é forward-only e preserva
+   tabelas existentes.
+2. Dependência médica resolve somente usuário ativo com doctor verificado.
+3. Verificador central aceita vínculo vigente e rejeita grupo/vínculo inativo,
+   futuro, expirado, ausente ou paciente inexistente com `403` uniforme.
+4. Listagem retorna somente autorizados, elimina duplicidade e limita a 50.
+5. Busca cobre nome completo, nome preferido, CPF puro/formatado, vazio e
+   entradas `422`, sem CPF no schema de resposta.
+6. Prontuário retorna somente a allowlist especificada, com ordenação estável,
+   e audita `medical_record.viewed` antes de responder.
+7. Falha da auditoria de leitura retorna `503` e não expõe o prontuário.
+8. Criação médica entra em RED antes da extração da lógica compartilhada de
+   marcadores; GREEN comprova comportamento idêntico e autoria do médico.
+9. Edição e remoção cobrem vínculo revogado, troca de `patient_id`, marcador
+   alheio, paciente menor, duplicidade e rollback de auditoria.
+10. Teste de integração real comprova que o autor do evento resolve para nome e
+    CRM sem duplicar esses dados no snapshot.
+11. Teste React entra em RED antes do `DoctorDashboard` e cobre busca, seleção,
+    loading, vazio, erro, `403`, prontuário e mutações acessíveis.
+12. Playwright cobre login médico, busca autorizada, acesso direto negado,
+    criação de marcador, suspensão de medicação, histórico e viewport móvel.
+
+### Regressão e alinhamento
+
+- Suíte completa de `backend/__tests__/`.
+- Migration, seeds, vínculo e atomicidade no MySQL 8 real via Compose.
+- `npm test`, Playwright e build do frontend.
+- Depois do backend verde, revisão explícita do contrato consumido, estados do
+  frontend e direção visual antes da implementação da interface.
+- Conferência do OpenAPI para rotas, schemas e ausência de campos sensíveis.
+- `git diff --check`, `git status` e ausência de artefatos gerados.
+
+## Evidência TDD
+
+| Ciclo | Teste RED observado | Implementação GREEN | Refactor |
+|---|---|---|---|
+| Migration | — | — | — |
+| Autorização | — | — | — |
+| Busca | — | — | — |
+| Prontuário | — | — | — |
+| Marcadores médicos | — | — | — |
+| Frontend | — | — | — |
+| E2E | — | — | — |
+
+Referência da entrega: a registrar no commit ou PR do Step 7.
+
+## Plano de execução
+
+1. **Migration e seed:** testar e criar `0005`, depois provisionar os grupos de
+   demonstração.
+2. **Autorização:** criar dependência médica e verificador de vínculo usados por
+   todas as rotas com paciente.
+3. **Busca e prontuário:** implementar allowlists, busca segura e auditoria da
+   leitura.
+4. **Mutações médicas:** reutilizar o módulo de marcadores e comprovar autoria,
+   atomicidade e negações.
+5. **Interface vertical:** substituir o placeholder médico por busca,
+   prontuário e diálogos acessíveis.
+6. **Regressão e documentação:** executar MySQL real, backend, frontend,
+   Playwright, build e registrar evidências e referência.
+
+## Tarefas menores
+
+| ID | Tarefa | Área | Esforço | Pré-requisitos | Definition of Done |
+|---|---|---|---|---|---|
+| T1 | Testar e criar migration `0005` | backend/infra | M | spec aprovada | schema, FKs, checks e índices verdes no MySQL 8 |
+| T2 | Atualizar seed de desenvolvimento | infra | S | T1 | grupos válidos e inválidos idempotentes |
+| T3 | Criar autorização central de vínculo | backend | M | T1 | matriz válida/inválida coberta |
+| T4 | Implementar listagem e busca | backend | M | T3 | filtros, allowlist e limites verdes |
+| T5 | Implementar prontuário auditado | backend | M | T3 | resposta mínima e leitura auditada |
+| T6 | Reutilizar marcadores nas rotas médicas | backend | L | T3 | mutações, autoria e rollback verdes |
+| T7 | Implementar área médica | frontend | L | T4–T6 | estados, prontuário e diálogos testados |
+| T8 | Executar E2E, regressão e tracker | fullstack | M | T1–T7 | DoD e evidências registradas |
+
+## Riscos e limites
+
+- **Vazamento por enumeração:** mitigado por `403` uniforme e verificação no
+  mesmo SQL que acessa o paciente.
+- **Vínculo revogado durante uso:** mitigado por verificação em toda rota e
+  novamente na unidade de trabalho das mutações.
+- **Duplicidade por vários grupos:** mitigada por consulta com `EXISTS` ou
+  `DISTINCT` e teste explícito.
+- **Divergência de marcadores:** mitigada por extração somente quando existir o
+  segundo consumidor médico, com regressão das rotas `/me`.
+- **Exposição de CPF:** mitigada por schema de saída sem o campo e teste de
+  allowlist.
+- **Escopo crescente do prontuário:** limitado a perfil, vacinas e marcadores já
+  existentes; documentos e OCR continuam em steps próprios.
+- **Histórico de vínculo:** esta versão preserva vínculos inativos, mas não
+  modela múltiplos períodos do mesmo par sem um caso de uso administrativo.
 
 ## Critérios de conclusão
 
-- [ ] Spec aprovada.
-- [ ] Matriz de autorização coberta.
-- [ ] Acesso direto fora do grupo não vaza dados.
-- [ ] Alterações clínicas possuem autoria médica.
-- [ ] Definition of Done atendida.
+- [x] Spec aprovada antes do primeiro teste RED.
+- [ ] Migration `0005` e seed validados no MySQL 8 real.
+- [ ] Médico vê apenas pacientes de grupos ativos compartilhados e vigentes.
+- [ ] Busca por nome/CPF não expõe CPF nem pacientes não autorizados.
+- [ ] Acesso direto ausente ou sem vínculo retorna `403` sem vazamento.
+- [ ] Prontuário mínimo é somente leitura e sua abertura é auditada.
+- [ ] Mutações de marcadores reutilizam regras existentes e são atômicas.
+- [ ] Alterações médicas permitem resolver autoria para usuário, nome e CRM.
+- [ ] Papel inválido, vínculo inativo/expirado e paciente menor possuem testes.
+- [ ] Revisão de impacto no frontend registrada depois do backend verde.
+- [ ] Interface possui estados completos e diálogos acessíveis e responsivos.
+- [ ] Backend, MySQL real, frontend, Playwright e build passam.
+- [ ] Evidências RED, GREEN e REFACTOR registradas.
+- [ ] Roadmap e referência de commit ou PR atualizados.
 
-## Questões para revisão
+## Decisões propostas para revisão
 
-1. Quem cria e administra grupos na primeira versão? Recomendação: dados
-   administrativos por seed ou operação interna, sem UI administrativa inicial.
-2. Um paciente pode pertencer a vários grupos simultaneamente? Recomendação: sim.
-3. O médico pode visualizar o documento original ou apenas dados confirmados?
+1. Grupos e vínculos são administrados somente por seed/operação interna nesta
+   versão; não será criada UI administrativa.
+2. Pacientes e médicos podem pertencer a vários grupos simultaneamente.
+3. Documento original e OCR não aparecem no prontuário até os Steps 9 e 10; o
+   Step 7 entrega perfil, vacinas e marcadores.
+4. Paciente inexistente e paciente fora do vínculo retornam o mesmo `403` para
+   reduzir enumeração.
+5. Busca por CPF exige os 11 dígitos e nunca devolve o CPF.
+6. A listagem é limitada a 50 itens sem paginação nesta primeira versão.
+7. CRM é resolvido pela relação do usuário autor com `doctors`, sem duplicá-lo
+   nos snapshots; o teste de integração comprova essa cadeia.
+8. Remoção lógica de medicação é rotulada como suspensão, sem criar um terceiro
+   status incompatível com o Step 6.
+9. Vínculos usam um registro por par nesta versão e preservam o estado inativo;
+   múltiplos períodos serão modelados somente se a administração futura exigir.
+
+## Decisões e observações
+
+- Revisão aprofundada iniciada em 2026-10-08 na branch
+  `feat/medical-panel`.
+- Spec e decisões propostas aprovadas pelo usuário em 2026-10-08.
+- A dependência circular anterior do próprio Step 7 foi removida.
+- O modelo de dados proposto foi alinhado à convenção em inglês vigente nas
+  migrations e no backend.
+- Nenhum código de produção do Step 7 deve ser escrito enquanto esta spec
+  permanecer em `SPEC REVIEW`.

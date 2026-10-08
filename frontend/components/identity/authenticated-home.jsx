@@ -15,6 +15,11 @@ const PatientDashboard = dynamic(
   { loading: () => <p className="home-loading">Preparando sua área de saúde…</p> },
 );
 
+const DoctorDashboard = dynamic(
+  () => import("@/components/medical/doctor-dashboard"),
+  { loading: () => <p className="home-loading">Preparando área profissional…</p> },
+);
+
 const CONTEXT_LABEL = {
   patient: "Minha saúde",
   doctor: "Área profissional",
@@ -161,6 +166,11 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
       {context === "patient" ? (
         <PatientDashboard
           profile={envelope.patient_profile}
+          onUnauthenticated={onUnauthenticated}
+        />
+      ) : context === "doctor" ? (
+        <DoctorDashboard
+          user={envelope.user}
           onUnauthenticated={onUnauthenticated}
         />
       ) : (

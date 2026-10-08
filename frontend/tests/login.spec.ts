@@ -423,7 +423,18 @@ test.describe('Página Home', () => {
     expect(mobileCards[2]?.y).toBeGreaterThan(mobileCards[1]?.y ?? 0);
   });
 
-  test('exibe estado institucional para doctor sem dados clínicos', async ({ page }) => {
+  test('oferece busca, prontuário e suspensão na área médica responsiva', async ({ page }) => {
+    const medicalPatient = {
+      patient_id: 10,
+      preferred_name: 'Carlos Silva',
+      full_name: 'Carlos Eduardo Silva',
+      avatar_url: null,
+      health_status: 'updated',
+      age: 41,
+    };
+    let medicalActiveMarkers = MOCK_MARKERS.map((marker) => ({ ...marker }));
+    let medicalRemovedMarkers = [];
+
     await page.unroute('**/me');
     await page.route('**/me', (route) =>
       route.fulfill({
@@ -440,19 +451,98 @@ test.describe('Página Home', () => {
         }),
       })
     );
+    await page.route('**/medical/patients**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+
+      if (url.pathname === '/medical/patients') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([medicalPatient]),
+        });
+      }
+
+      if (url.pathname === '/medical/patients/10') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            patient: { ...medicalPatient, blood_type: 'A+' },
+            vaccines: MOCK_VACCINES,
+            markers: {
+              active: medicalActiveMarkers,
+              removed: medicalRemovedMarkers,
+            },
+          }),
+        });
+      }
+
+      if (
+        url.pathname === '/medical/patients/10/markers/21' &&
+        request.method() === 'DELETE'
+      ) {
+        const removed = medicalActiveMarkers.find((item) => item.marker_id === 21);
+        medicalActiveMarkers = medicalActiveMarkers.filter(
+          (item) => item.marker_id !== 21,
+        );
+        medicalRemovedMarkers = [
+          {
+            ...removed,
+            status: 'removed',
+            removed_at: '2026-10-08T18:00:00',
+          },
+        ];
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Marcador removido com sucesso!' }),
+        });
+      }
+
+      return route.abort();
+    });
     await page.reload();
 
-    await expect(page.getByRole('heading', { name: 'Área profissional' })).toBeVisible();
-    await expect(page.locator('.credential-name')).toHaveText('Dr. Rui Lima');
-    await expect(page.locator('.credential-avatar')).toContainText('DR');
-    const credentialStyle = await page.locator('.institutional-credential').evaluate((element) => {
-      const style = getComputedStyle(element);
-      return { background: style.backgroundColor, radius: style.borderRadius };
+    await expect(
+      page.getByRole('heading', { name: 'Pacientes em acompanhamento' }),
+    ).toBeVisible();
+    await expect(page.getByText('Carlos Eduardo Silva')).toBeVisible();
+    await expect(page.locator('.doctor-main')).not.toContainText(/CPF:\s*\d/i);
+
+    await page.getByLabel('Buscar paciente').fill('Carlos');
+    const searchRequest = page.waitForRequest((request) =>
+      request.url().includes('/medical/patients?query=Carlos')
+    );
+    await page.getByRole('button', { name: 'Buscar' }).click();
+    await searchRequest;
+
+    await page.getByRole('button', {
+      name: 'Abrir prontuário de Carlos Silva',
+    }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Carlos Eduardo Silva' }),
+    ).toBeVisible();
+    await expect(page.getByText('COVID-19 (Pfizer)')).toBeVisible();
+    await expect(page.getByText('Losartana')).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const suspendTrigger = page.getByRole('button', { name: 'Suspender Losartana' });
+    await suspendTrigger.click();
+    const confirmation = page.getByRole('alertdialog', {
+      name: 'Suspender medicação',
     });
-    expect(credentialStyle.background).toBe('rgb(255, 255, 255)');
-    expect(credentialStyle.radius).not.toBe('0px');
-    await expect(page.getByText('Histórico de Vacinação')).toHaveCount(0);
-    await expect(page.getByText('COVID-19 (Pfizer)')).toHaveCount(0);
+    await expect(confirmation).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Cancelar suspensão' }),
+    ).toBeFocused();
+    await page.getByRole('button', { name: 'Suspender medicação' }).click();
+    await expect(confirmation).toBeHidden();
+
+    await page.getByRole('button', { name: 'Histórico' }).click();
+    await expect(page.getByText('Losartana')).toBeVisible();
+    const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(pageWidth).toBeLessThanOrEqual(390);
   });
 
   test('redireciona para login se não há sessão', async ({ page }) => {

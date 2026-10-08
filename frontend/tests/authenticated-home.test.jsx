@@ -300,9 +300,12 @@ describe("AuthenticatedHome", () => {
     expect(screen.getByRole("dialog", { name: "Adicionar marcador" })).toBeInTheDocument();
   });
 
-  it("mostra credencial profissional sem renderizar conteúdo clínico", async () => {
-    apiFetch.mockReturnValue(
-      respondWith({
+  it("carrega a área profissional sem renderizar o dashboard do paciente", async () => {
+    apiFetch.mockImplementation((path) => {
+      if (path === "/medical/patients") {
+        return respondWith([]);
+      }
+      return respondWith({
         user: {
           user_id: 7,
           display_name: "Dr. Rui Lima",
@@ -310,18 +313,19 @@ describe("AuthenticatedHome", () => {
           roles: ["doctor"],
         },
         patient_profile: null,
-      }),
-    );
+      });
+    });
 
     render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
 
     expect(
-      await screen.findByRole("heading", { name: "Área profissional" }),
+      await screen.findByRole("heading", { name: "Pacientes em acompanhamento" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Dr. Rui Lima")).toHaveLength(2);
+    expect(screen.getAllByText(/Dr. Rui Lima/)).toHaveLength(2);
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
     expect(screen.queryByText("BCG reservada")).not.toBeInTheDocument();
-    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(apiFetch).toHaveBeenCalledWith("/medical/patients");
+    expect(apiFetch).toHaveBeenCalledTimes(2);
   });
 
   it("mostra estado institucional para administração sem consultar conteúdo clínico", async () => {
@@ -356,7 +360,7 @@ describe("AuthenticatedHome", () => {
     await user.click(screen.getByRole("button", { name: "Área profissional" }));
 
     expect(
-      screen.getByRole("heading", { name: "Área profissional" }),
+      await screen.findByRole("heading", { name: "Pacientes em acompanhamento" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("BCG reservada")).not.toBeInTheDocument();
 

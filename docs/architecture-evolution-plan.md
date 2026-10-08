@@ -189,7 +189,7 @@ flowchart TD
 | 4 | Contratos e autorização por recurso | 3 | DONE | [PR #4](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/4) |
 | 5 | Auditoria clínica | 4 | DONE | `850e2ad`, `fe56d2a` |
 | 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
-| 7 | Área médica e grupos | 4, 6 | PLANNED | — |
+| 7 | Área médica e grupos | 4, 6 | IN PROGRESS | branch `feat/medical-panel` |
 | 8 | Compartilhamento e QR-Code | 6 | PLANNED | — |
 | 9 | Armazenamento de documentos | 5 | PLANNED | — |
 | 10 | OCR e revisão | 9 | PLANNED | — |
@@ -401,7 +401,7 @@ medicações com histórico.
 
 ### Tarefas
 
-- [ ] Escrever cenários de vínculo válido, inválido e inativo.
+- [x] Escrever cenários de vínculo válido, inválido e inativo.
 - [ ] Criar grupos, vínculos de médicos e vínculos de pacientes.
 - [ ] Implementar busca de pacientes autorizados por nome ou CPF.
 - [ ] Criar prontuário longitudinal médico somente leitura.
@@ -616,3 +616,6 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-06 | 6 | SPEC REVIEW → SPEC APPROVED | `docs/specs/010-health-markers.md` | Contratos, normalização, histórico removido, auditoria e direção do frontend aprovados; próximo passo é a migration `0004` em RED. |
 | 2026-10-06 | 6 | SPEC APPROVED → IN PROGRESS | branch `feat/health-markers` | Migration `0004`, API, auditoria e interface foram concluídas por TDD; 88 testes backend, 18 unitários frontend, 13 E2E e build passaram. Aguarda commits e referência do PR para `DONE`. |
 | 2026-10-06 | 6 | IN PROGRESS → DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) | Entrega publicada com migration, autorização, auditoria, interface alinhada e evidências de regressão registradas. |
+| 2026-10-08 | 7 | PLANNED → SPEC REVIEW | `docs/specs/030-medical-panel.md` | Cenários, contratos, grupos, matriz de vínculo, segurança, prontuário mínimo e impacto no frontend detalhados; implementação aguarda aprovação. |
+| 2026-10-08 | 7 | SPEC REVIEW → SPEC APPROVED | `docs/specs/030-medical-panel.md` | Grupos, vigência, busca, prontuário mínimo, autoria médica, erros e direção do frontend aprovados; próximo passo é a migration `0005` em RED. |
+| 2026-10-08 | 7 | SPEC APPROVED → IN PROGRESS | branch `feat/medical-panel` | Migration `0005`, autorização por grupos, prontuário auditado, mutações médicas e interface profissional implementados por TDD; validação final e referência de commit pendentes. |

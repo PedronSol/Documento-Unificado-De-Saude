@@ -123,6 +123,67 @@ SELECT
 FROM patients
 WHERE user_id = (SELECT user_id FROM users WHERE email = 'carlos.silva@email.com');
 
+INSERT IGNORE INTO care_groups (
+    care_group_id, name, status, created_at, updated_at
+)
+VALUES
+    (1, 'Unidade Centro', 'active', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (2, 'Unidade Norte', 'active', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (
+        3, 'Grupo Inativo de Demonstração', 'inactive',
+        UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+    );
+
+INSERT IGNORE INTO doctor_care_groups (
+    care_group_id, doctor_id, status, starts_at, ends_at,
+    created_at, updated_at
+)
+SELECT
+    1, d.doctor_id, 'active', UTC_TIMESTAMP(6), NULL,
+    UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM doctors d
+JOIN users u ON u.user_id = d.user_id
+WHERE u.email = 'helena.costa@email.com'
+UNION ALL
+SELECT
+    2, d.doctor_id, 'active', UTC_TIMESTAMP(6), NULL,
+    UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM doctors d
+JOIN users u ON u.user_id = d.user_id
+WHERE u.email = 'marcos.nunes@email.com'
+UNION ALL
+SELECT
+    3, d.doctor_id, 'active', UTC_TIMESTAMP(6), NULL,
+    UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM doctors d
+JOIN users u ON u.user_id = d.user_id
+WHERE u.email = 'helena.costa@email.com';
+
+INSERT IGNORE INTO patient_care_groups (
+    care_group_id, patient_id, status, starts_at, ends_at,
+    created_at, updated_at
+)
+SELECT
+    1, p.patient_id, 'active', UTC_TIMESTAMP(6), NULL,
+    UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM patients p
+JOIN users u ON u.user_id = p.user_id
+WHERE u.email = 'carlos.silva@email.com'
+UNION ALL
+SELECT
+    2, p.patient_id, 'active', UTC_TIMESTAMP(6), NULL,
+    UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM patients p
+JOIN users u ON u.user_id = p.user_id
+WHERE u.email = 'mariana.souza@email.com'
+UNION ALL
+SELECT
+    3, p.patient_id, 'active', UTC_TIMESTAMP(6), NULL,
+    UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM patients p
+JOIN users u ON u.user_id = p.user_id
+WHERE u.email = 'mariana.souza@email.com';
+
 INSERT IGNORE INTO documents (
     id_documento, patient_id, titulo_documento, tipo_documento,
     data_criacao_documento, status_documento

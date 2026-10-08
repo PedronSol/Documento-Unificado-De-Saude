@@ -257,8 +257,10 @@ function RemoveMarkerDialog({
   onConfirm,
   onOpenChange,
   returnFocusRef,
+  variant,
 }) {
   const cancelRef = useRef(null);
+  const isSuspension = variant === "medical" && marker?.type === "medication";
 
   return (
     <AlertDialogRoot open={isOpen} onOpenChange={onOpenChange}>
@@ -276,10 +278,12 @@ function RemoveMarkerDialog({
           }}
         >
           <p className="dialog-kicker">Preservação de histórico</p>
-          <AlertDialogTitle>Remover marcador</AlertDialogTitle>
+          <AlertDialogTitle>
+            {isSuspension ? "Suspender medicação" : "Remover marcador"}
+          </AlertDialogTitle>
           <AlertDialogDescription className="dialog-description">
             {marker
-              ? `${marker.name} sairá do resumo ativo e permanecerá no histórico.`
+              ? `${marker.name} ${isSuspension ? "será suspensa" : "sairá do resumo ativo"} e permanecerá no histórico.`
               : "O marcador sairá do resumo ativo e permanecerá no histórico."}
           </AlertDialogDescription>
           {error ? (
@@ -295,7 +299,7 @@ function RemoveMarkerDialog({
                 type="button"
                 disabled={isRemoving}
               >
-                Cancelar remoção
+                {isSuspension ? "Cancelar suspensão" : "Cancelar remoção"}
               </button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
@@ -308,7 +312,9 @@ function RemoveMarkerDialog({
                   onConfirm();
                 }}
               >
-                {isRemoving ? "Removendo…" : "Remover do resumo"}
+                {isRemoving
+                  ? isSuspension ? "Suspendendo…" : "Removendo…"
+                  : isSuspension ? "Suspender medicação" : "Remover do resumo"}
               </button>
             </AlertDialogAction>
           </div>
@@ -318,7 +324,7 @@ function RemoveMarkerDialog({
   );
 }
 
-function MarkerCard({ marker, canEdit, onEdit, onRemove }) {
+function MarkerCard({ marker, canEdit, onEdit, onRemove, variant }) {
   const type = TYPE_CONFIG[marker.type];
   const TypeIcon = type.icon;
 
@@ -361,7 +367,7 @@ function MarkerCard({ marker, canEdit, onEdit, onRemove }) {
           <button
             type="button"
             onClick={(event) => onRemove(marker, event.currentTarget)}
-            aria-label={`Remover ${marker.name}`}
+            aria-label={`${variant === "medical" && marker.type === "medication" ? "Suspender" : "Remover"} ${marker.name}`}
           >
             <Trash2 aria-hidden="true" size={15} />
           </button>
@@ -371,7 +377,7 @@ function MarkerCard({ marker, canEdit, onEdit, onRemove }) {
   );
 }
 
-function MarkerCollection({ markers, canEdit, onEdit, onRemove, view }) {
+function MarkerCollection({ markers, canEdit, onEdit, onRemove, variant, view }) {
   if (markers.length === 0) {
     return (
       <div className="marker-empty">
@@ -395,6 +401,7 @@ function MarkerCollection({ markers, canEdit, onEdit, onRemove, view }) {
             canEdit={false}
             onEdit={onEdit}
             onRemove={onRemove}
+            variant={variant}
           />
         ))}
       </div>
@@ -423,6 +430,7 @@ function MarkerCollection({ markers, canEdit, onEdit, onRemove, view }) {
                   canEdit={canEdit}
                   onEdit={onEdit}
                   onRemove={onRemove}
+                  variant={variant}
                 />
               ))}
             </div>
@@ -433,15 +441,23 @@ function MarkerCollection({ markers, canEdit, onEdit, onRemove, view }) {
   );
 }
 
-export function HealthMarkers({ isAdult, onUnauthenticated }) {
-  const [activeResource, setActiveResource] = useState({
-    status: "loading",
-    data: [],
-  });
-  const [historyResource, setHistoryResource] = useState({
-    status: "idle",
-    data: [],
-  });
+export function HealthMarkers({
+  basePath = "/me/markers",
+  initialActive = null,
+  initialRemoved = null,
+  isAdult,
+  onUnauthenticated,
+  variant = "patient",
+}) {
+  const hasInitialTimeline = initialActive !== null;
+  const [activeResource, setActiveResource] = useState(() => ({
+    status: hasInitialTimeline ? "ready" : "loading",
+    data: hasInitialTimeline ? sortActiveMarkers(initialActive) : [],
+  }));
+  const [historyResource, setHistoryResource] = useState(() => ({
+    status: initialRemoved !== null ? "ready" : "idle",
+    data: initialRemoved || [],
+  }));
   const [view, setView] = useState("active");
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
@@ -457,7 +473,7 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
   const loadActiveMarkers = useCallback(async () => {
     setActiveResource((current) => ({ ...current, status: "loading" }));
     try {
-      const response = await apiFetch("/me/markers?status=active");
+      const response = await apiFetch(`${basePath}?status=active`);
       if (response.status === 401) {
         onUnauthenticated();
         return;
@@ -473,12 +489,12 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
     } catch (error) {
       setActiveResource({ status: "error", data: [], error: error.message });
     }
-  }, [onUnauthenticated]);
+  }, [basePath, onUnauthenticated]);
 
   const loadHistoryMarkers = useCallback(async () => {
     setHistoryResource((current) => ({ ...current, status: "loading" }));
     try {
-      const response = await apiFetch("/me/markers?status=removed");
+      const response = await apiFetch(`${basePath}?status=removed`);
       if (response.status === 401) {
         onUnauthenticated();
         return;
@@ -494,11 +510,13 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
     } catch (error) {
       setHistoryResource({ status: "error", data: [], error: error.message });
     }
-  }, [onUnauthenticated]);
+  }, [basePath, onUnauthenticated]);
 
   useEffect(() => {
-    loadActiveMarkers();
-  }, [loadActiveMarkers]);
+    if (!hasInitialTimeline) {
+      loadActiveMarkers();
+    }
+  }, [hasInitialTimeline, loadActiveMarkers]);
 
   function selectView(nextView) {
     setView(nextView);
@@ -549,7 +567,7 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
     event.preventDefault();
     setIsSaving(true);
     setFormError("");
-    const path = editingId ? `/me/markers/${editingId}` : "/me/markers";
+    const path = editingId ? `${basePath}/${editingId}` : basePath;
 
     try {
       const response = await apiFetch(path, {
@@ -597,7 +615,7 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
     setIsRemoving(true);
     setRemoveError("");
     try {
-      const response = await apiFetch(`/me/markers/${markerToRemove.marker_id}`, {
+      const response = await apiFetch(`${basePath}/${markerToRemove.marker_id}`, {
         method: "DELETE",
       });
       if (response.status === 401) {
@@ -615,7 +633,21 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
           (marker) => marker.marker_id !== markerToRemove.marker_id,
         ),
       }));
-      setHistoryResource({ status: "idle", data: [] });
+      setHistoryResource((current) =>
+        hasInitialTimeline
+          ? {
+              status: "ready",
+              data: [
+                {
+                  ...markerToRemove,
+                  status: "removed",
+                  removed_at: new Date().toISOString(),
+                },
+                ...current.data,
+              ],
+            }
+          : { status: "idle", data: [] },
+      );
       setMarkerToRemove(null);
     } catch (error) {
       setRemoveError(error.message);
@@ -633,10 +665,16 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
     >
       <header className="marker-section-header">
         <div>
-          <p className="eyebrow">Resumo clínico pessoal</p>
+          <p className="eyebrow">
+            {variant === "medical"
+              ? "Registro clínico compartilhado"
+              : "Resumo clínico pessoal"}
+          </p>
           <h2 id="markers-title">Marcadores de saúde</h2>
           <p className="section-intro">
-            Uma leitura objetiva do que está ativo no seu cuidado hoje.
+            {variant === "medical"
+              ? "Marcadores ativos e histórico preservado deste paciente."
+              : "Uma leitura objetiva do que está ativo no seu cuidado hoje."}
           </p>
         </div>
         {isAdult ? (
@@ -698,6 +736,7 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
           canEdit={isAdult}
           onEdit={openEditMarker}
           onRemove={openRemoveMarker}
+          variant={variant}
           view={view}
         />
       ) : null}
@@ -725,6 +764,7 @@ export function HealthMarkers({ isAdult, onUnauthenticated }) {
           }
         }}
         returnFocusRef={removeTriggerRef}
+        variant={variant}
       />
     </section>
   );

@@ -123,6 +123,30 @@ class PatientProfileResponse(BaseModel):
     age: int
 
 
+class MedicalPatientSummary(BaseModel):
+    patient_id: int
+    preferred_name: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    health_status: Literal["updated", "pending", "overdue"]
+    age: int
+
+
+class MedicalPatientProfile(MedicalPatientSummary):
+    blood_type: str
+
+
+class MedicalMarkerTimeline(BaseModel):
+    active: List[MarkerResponse]
+    removed: List[MarkerResponse]
+
+
+class MedicalRecordResponse(BaseModel):
+    patient: MedicalPatientProfile
+    vaccines: List[VaccineResponse]
+    markers: MedicalMarkerTimeline
+
+
 class CurrentUserProfileResponse(BaseModel):
     user: UserIdentity
     patient_profile: Optional[PatientProfileResponse]
