@@ -199,4 +199,4 @@ E foco, rótulos, diálogos e reduced motion continuam funcionais.
 - `npm test`: 27 testes aprovados; `npm run test:e2e`: 13 testes aprovados;
   `npm run build`: aprovado. `npm run lint` não executa porque `eslint` não está
   instalado no projeto.
-- Implementado em `feat/medical-panel`.
+- Implementado na branch `feat/medical-panel`, commit `9ac89b6`.
