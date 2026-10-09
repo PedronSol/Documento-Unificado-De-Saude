@@ -480,15 +480,21 @@ test.describe('Página Home', () => {
     await waitForHydration(page);
 
     const dashboard = await page.locator('.patient-main').boundingBox();
-    expect(dashboard?.x).toBeGreaterThanOrEqual(24);
-    expect(dashboard?.x).toBeLessThanOrEqual(48);
-    expect(dashboard?.width).toBeGreaterThan(1800);
+    const contentWidth = await page.evaluate(() => {
+      const token = getComputedStyle(document.documentElement)
+        .getPropertyValue('--ds-layout-content');
+      return Number.parseFloat(token) * Number.parseFloat(
+        getComputedStyle(document.documentElement).fontSize,
+      );
+    });
+    expect(dashboard?.width).toBeCloseTo(contentWidth, 0);
+    expect(dashboard?.x).toBeCloseTo((1920 - contentWidth) / 2, 0);
 
     const vaccineCards = await page.locator('.vaccine-entry').all();
     const cardBounds = await Promise.all(vaccineCards.map((card) => card.boundingBox()));
     expect(cardBounds).toHaveLength(3);
     expect(cardBounds[0]?.y).toBeCloseTo(cardBounds[1]?.y ?? 0, 0);
-    expect(cardBounds[1]?.y).toBeCloseTo(cardBounds[2]?.y ?? 0, 0);
+    expect(cardBounds[2]?.y).toBeGreaterThan(cardBounds[1]?.y ?? 0);
     expect(cardBounds.every((bounds) => (bounds?.width ?? 0) > 500)).toBe(true);
 
     await page.setViewportSize({ width: 390, height: 844 });

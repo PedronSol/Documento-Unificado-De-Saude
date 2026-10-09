@@ -118,6 +118,14 @@ antes de criar um valor ou padrão novo.
 Dado um viewport de 320 px ou navegação por teclado
 Quando a pessoa pesquisa, abre um prontuário ou opera marcadores
 Então não existe overflow horizontal
+
+### Cenário: conteúdo do paciente compartilha o container desktop
+
+Dado que uma pessoa abre “Minha saúde” em um viewport desktop amplo
+Quando o dashboard é renderizado
+Então sua largura máxima e centralização seguem `--ds-layout-content`, como a
+área profissional
+E em viewport móvel o conteúdo continua fluido e sem overflow horizontal.
 E busca, cards, metadados e ações permanecem legíveis e operáveis
 E foco, rótulos, diálogos e reduced motion continuam funcionais.
 
@@ -200,3 +208,9 @@ E foco, rótulos, diálogos e reduced motion continuam funcionais.
   `npm run build`: aprovado. `npm run lint` não executa porque `eslint` não está
   instalado no projeto.
 - Implementado na branch `feat/medical-panel`, commit `9ac89b6`.
+- Correção responsiva desktop solicitada em 2026-10-08: RED mediu dashboard do
+  paciente em 1856 px contra o token de 1248 px; GREEN limita e centraliza o
+  container em 1248 px (viewport 1920 px), compartilhando
+  `--ds-layout-content` com a área profissional. Os cards de vacina passam a
+  quebrar em grade 2+1 no desktop e seguem em coluna no mobile. 28 unitários,
+  17 E2E e build isolado passaram.

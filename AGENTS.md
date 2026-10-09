@@ -53,6 +53,9 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
   código tocado devem consumir tokens semânticos. Não adicione hex, shadow,
   radius ou breakpoint isolado sem necessidade concreta e atualização conjunta
   do guia e dos tokens.
+- Conteúdo principal em dashboards deve usar `--ds-layout-content` como largura
+  máxima desktop; backgrounds podem ocupar a viewport, mas linhas clínicas não
+  devem se esticar por toda a tela.
 - Preserve alvo interativo de 44 px, foco visível, contraste, reduced motion,
   zoom de texto, quebra de conteúdo e ausência de overflow em 320 px.
 - Em contas com vários contextos, mantenha o seletor no dock inferior flutuante

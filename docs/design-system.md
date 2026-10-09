@@ -260,6 +260,11 @@ em que o conteúdo exige outra composição.
 | 1024–1279 px | Grids de módulos quando melhoram leitura |
 | 1280 px+ | Conteúdo para na largura máxima; não esticar linhas |
 
+O limite padrão de conteúdo para dashboards e áreas de trabalho é
+`--ds-layout-content` (78 rem). Superfícies de fundo podem continuar em largura
+total; o conteúdo centralizado da área pessoal e da área profissional deve
+compartilhar esse limite para preservar hierarquia e legibilidade.
+
 Regras:
 
 - teste obrigatório em 320 px e em uma viewport ampla;

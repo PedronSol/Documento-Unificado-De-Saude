@@ -911,7 +911,7 @@ select:focus-visible {
 }
 
 .patient-main {
-  width: min(calc(100% - var(--page-gutter) - var(--page-gutter)), 120rem);
+  width: min(calc(100% - (2 * var(--ds-layout-gutter))), var(--ds-layout-content));
   padding-top: clamp(2rem, 4vw, 3.5rem);
 }
 
@@ -2106,7 +2106,7 @@ select:focus-visible {
   }
 
   .patient-main {
-    width: min(calc(100% - var(--page-gutter) - var(--page-gutter)), 120rem);
+    width: min(calc(100% - (2 * var(--ds-layout-gutter))), var(--ds-layout-content));
     padding-top: 1.25rem;
   }
 
