@@ -14,7 +14,7 @@ barra de navegação suspensa junto ao rodapé, semelhante a um dock de aplicati
 ## Objetivos
 
 - Reposicionar a troca de contexto para um dock fixo e flutuante em telas abaixo
-  de 600 px.
+  de 800 px.
 - Preservar as roles e a semântica de seleção existentes.
 - Manter os rótulos e uma forma visual clara para o contexto ativo.
 - Liberar o espaço ocupado pelo dock no fluxo para que o último conteúdo possa
@@ -37,7 +37,7 @@ barra de navegação suspensa junto ao rodapé, semelhante a um dock de aplicati
 - Fundo e cores permanecem os tokens claros existentes.
 - Barra posicionada no centro inferior, acima da safe area, sem cobrir o
   conteúdo rolável.
-- A partir de 600 px, volta ao seletor segmentado no cabeçalho.
+- A partir de 800 px, volta ao seletor segmentado no cabeçalho.
 
 ## Cenários de aceitação
 
@@ -59,7 +59,7 @@ E `aria-pressed` identifica o item selecionado.
 
 ### Cenário: navegação permanece no cabeçalho em telas amplas
 
-Dado que a aplicação é vista em viewport de 600 px ou maior
+Dado que a aplicação é vista em viewport de 800 px ou maior
 Quando o seletor de contexto é renderizado
 Então ele fica estático no cabeçalho e mantém o formato segmentado existente.
 
@@ -88,8 +88,8 @@ Então o seletor não é renderizado nem há espaço vazio reservado para ele.
 
 1. RED: Playwright em 320 px verifica `position: fixed`, alcance inferior,
    padding de segurança, ausência de overflow e troca entre contextos; falha com
-   o seletor atual no cabeçalho. O mesmo teste verifica posição estática acima
-   de 600 px.
+   o seletor atual no cabeçalho. O mesmo teste verifica posição fixa até
+   768 px e posição estática a partir de 800 px.
 2. GREEN: adicionar ícones/contextualização visual, CSS mobile-first e espaço
    inferior condicionado à presença do seletor.
 3. REFACTOR: consolidar tokens e estados responsivos, preservando fluxo de uma
@@ -101,7 +101,7 @@ Então o seletor não é renderizado nem há espaço vazio reservado para ele.
 - [x] O seletor multirole é um dock flutuante no rodapé em 320 px.
 - [x] Conteúdo não fica atrás do dock e não há scroll horizontal.
 - [x] Troca por toque e teclado mantém contexto e `aria-pressed` corretos.
-- [x] Em 600 px ou mais, o controle permanece no cabeçalho.
+- [x] Em 800 px ou mais, o controle permanece no cabeçalho.
 - [x] Conta com uma role não reserva espaço nem exibe dock.
 - [x] Testes, build e roadmap ficam sincronizados.
 
@@ -109,9 +109,14 @@ Então o seletor não é renderizado nem há espaço vazio reservado para ele.
 
 - RED: antes do CSS, o cenário Playwright de 320 px falhou porque o seletor
   calculava `position: static` em vez de `fixed`.
-- GREEN: após o dock mobile-first, o mesmo cenário passa em 320 px e confirma
-  espaçamento inferior, ausência de overflow, troca por toque/teclado e retorno
-  ao cabeçalho acima de 600 px.
+- Revisão: a captura do usuário mostrou o estilo de cabeçalho em uma janela
+  móvel mais larga; o limite foi ampliado de 600 px para 800 px e o teste foi
+  estendido a 768 px.
+- RED adicional: em 768 px, antes de ajustar o breakpoint, o seletor ainda
+  calculava `position: static`.
+- GREEN: após o breakpoint de 800 px, Playwright passa em 320 px e 768 px,
+  confirma espaçamento inferior, ausência de overflow, troca por toque/teclado
+  e retorno ao cabeçalho a partir de 800 px.
 - REFACTOR: ícones são resolvidos uma vez por papel durante a renderização; o
   seletor continua restrito às roles autenticadas.
 

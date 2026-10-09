@@ -56,8 +56,8 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
 - Preserve alvo interativo de 44 px, foco visível, contraste, reduced motion,
   zoom de texto, quebra de conteúdo e ausência de overflow em 320 px.
 - Em contas com vários contextos, mantenha o seletor no dock inferior flutuante
-  em mobile, com safe area e espaço rolável reservado; em desktop ele volta ao
-  cabeçalho. Contas de uma role não devem reservar esse espaço.
+  abaixo de 800 px, com safe area e espaço rolável reservado; a partir de 800 px
+  ele volta ao cabeçalho. Contas de uma role não devem reservar esse espaço.
 - Toda mudança visual deve testar ao menos a menor viewport afetada e uma
   viewport ampla; componentes compartilhados exigem regressão nos consumidores.
 
