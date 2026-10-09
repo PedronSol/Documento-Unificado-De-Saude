@@ -1978,7 +1978,7 @@ select:focus-visible {
 
 }
 
-@media (min-width: 50rem) {
+@media (min-width: 75rem) {
   .authenticated-shell.has-context-dock {
     padding-bottom: 0;
   }

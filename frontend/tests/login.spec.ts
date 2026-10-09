@@ -329,6 +329,12 @@ test.describe('Página Home', () => {
     await expect.poll(() => page.locator('.authenticated-shell').evaluate((element) => getComputedStyle(element).paddingBottom)).not.toBe('0px');
 
     await page.setViewportSize({ width: 1024, height: 768 });
+    await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+
+    await page.setViewportSize({ width: 1199, height: 800 });
+    await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+
+    await page.setViewportSize({ width: 1200, height: 900 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('static');
   });
 

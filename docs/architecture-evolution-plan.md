@@ -413,6 +413,8 @@ medicações com histórico.
       componentes e governança visual.
 - [x] Exibir o seletor multirole como dock inferior flutuante em mobile,
       preservando navegação no cabeçalho em telas amplas.
+- [x] Ampliar o dock para celulares/tablets e tornar a aplicação instalável
+      como PWA sem persistir dados de saúde no dispositivo.
 
 ### Critérios de conclusão
 
@@ -626,4 +628,5 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-08 | 7 | CORREÇÃO VISUAL → SPEC APPROVED | `docs/specs/031-interface-design-system.md` | Alinhamento da área médica e design system solicitados e aprovados; tokens, guia e guardrail visual serão implementados sem alterar contratos funcionais. |
 | 2026-10-08 | 7 | CORREÇÃO VISUAL → IMPLEMENTED | `9ac89b6` | Tokens claro/escuro, guia, governança no `AGENTS.md`, área médica mobile-first, diálogos azuis e `ClinicalSelect` acessível concluídos; RED/GREEN e validação em 320 px registrados. |
 | 2026-10-08 | 7 | DOCK MOBILE → IMPLEMENTED | `fa92262`, `84cd842`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Seletor multirole virou dock flutuante mobile-first, com safe area, espaço de conteúdo e retorno ao cabeçalho a partir de 800 px; captura reportada reproduzida em RED a 768 px; 27 unitários, 14 E2E e build aprovados. |
+| 2026-10-08 | 7 | PWA MOBILE → IMPLEMENTED | `0df6083`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Dock permanece em celular/tablet até 1199 px; manifest instalável, ícones, registro do service worker e fallback sem dados sensíveis concluídos por TDD. 27 testes unitários, 15 E2E e build aprovados. |
 | 2026-10-08 | 7 | IN PROGRESS → DONE | `fc2b12e` | Backend com 103 testes no MySQL 8 real, frontend com 21 unitários e 13 E2E, build aprovado; grupos, autorização, auditoria, autoria CRM e interface responsiva concluídos. |

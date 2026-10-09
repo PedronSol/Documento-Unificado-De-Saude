@@ -1,5 +1,6 @@
 import { Analytics } from "@vercel/analytics/next";
 import { Instrument_Sans, Newsreader } from "next/font/google";
+import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import "./globals.css";
 
 
@@ -19,6 +20,12 @@ export const metadata = {
   title: "Documento Unificado de Saúde",
   description:
     "Seu passaporte digital de saúde - Vacinação, documentos médicos e alertas em um só lugar",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "DUS",
+  },
   icons: {
     icon: [
       {
@@ -38,6 +45,12 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#f1f3f6",
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" className={`${interfaceFont.variable} ${editorialFont.variable}`}>
@@ -45,6 +58,7 @@ export default function RootLayout({ children }) {
         <meta charSet="utf-8" />
       </head>
       <body className="antialiased min-h-screen">
+        <ServiceWorkerRegistration />
         {children}
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
