@@ -230,7 +230,8 @@ botão, card ou badge sem uma variante concreta.
 - rótulo e contagem permanecem legíveis em zoom.
 - Para contas com múltiplos contextos, no mobile o seletor vira um dock branco
   flutuante junto ao rodapé, com ícones, rótulos e área segura; em viewport de
-  1200 px ou maior permanece no cabeçalho.
+  1200 px ou maior permanece no cabeçalho somente em desktop com ponteiro fino
+  e hover. Dispositivos touch mantêm o dock mesmo em viewports CSS amplos.
 
 ### Estados obrigatórios
 

@@ -1,5 +1,48 @@
 import { expect, test } from '@playwright/test';
 
+test('mantém o dock em tablet touch mesmo com viewport CSS acima do breakpoint desktop', async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 1366, height: 1024 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  });
+  const page = await context.newPage();
+
+  await page.route('**/me', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      user: {
+        user_id: 1,
+        display_name: 'Pessoa de teste',
+        email: 'teste@example.com',
+        roles: ['patient', 'doctor'],
+      },
+      patient_profile: {
+        preferred_name: 'Pessoa de teste',
+        full_name: 'Pessoa de teste',
+        avatar_url: null,
+        health_status: 'updated',
+        blood_type: 'O+',
+        is_adult: true,
+        age: 30,
+      },
+    }),
+  }));
+
+  try {
+    await page.goto('/home');
+    const contextNav = page.getByRole('navigation', { name: 'Contexto de acesso' });
+    await expect(contextNav).toBeVisible();
+    expect(await page.evaluate(() => window.innerWidth)).toBeGreaterThanOrEqual(1200);
+    expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+    await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+  } finally {
+    await context.close();
+  }
+});
+
 test('instala como PWA e oferece fallback offline sem armazenar dados privados', async ({ page, context }) => {
   await page.goto('/');
 

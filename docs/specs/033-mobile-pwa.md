@@ -21,8 +21,8 @@ portanto não pode ser instalada como PWA.
 ## Objetivos
 
 - Manter o seletor multirole como dock inferior, com safe area e espaço de
-  conteúdo, em viewports CSS menores que 1200 px; em 1200 px ou mais manter a
-  apresentação segmentada no cabeçalho.
+  conteúdo, em viewports CSS menores que 1200 px ou em dispositivos touch;
+  somente desktop amplo com mouse mantém a apresentação no cabeçalho.
 - Tornar o frontend instalável como PWA em navegadores compatíveis, com nome,
   ícones de instalação, cores e modo standalone coerentes com a identidade DUS.
 - Exibir uma página offline neutra quando uma navegação falhar por falta de
@@ -41,8 +41,9 @@ portanto não pode ser instalada como PWA.
 
 ## Regras
 
-1. O breakpoint de cabeçalho é 1200 px inclusive; abaixo dele, contas com mais
-   de um contexto usam o dock.
+1. Contas com mais de um contexto usam o dock quando o viewport tem menos de
+   1200 px ou o dispositivo primário é touch/coarse pointer. O cabeçalho aparece
+   somente a partir de 1200 px em dispositivos com ponteiro fino e hover.
 2. Contas com um único contexto não exibem o seletor nem reservam espaço.
 3. O manifest declara nome `Documento Unificado de Saúde`, nome curto `DUS`,
    `start_url` na entrada pública de login, escopo `/`, modo `standalone`,
@@ -64,14 +65,15 @@ portanto não pode ser instalada como PWA.
 ### Cenário: dock permanece no rodapé em celular e tablet
 
 Dado que uma pessoa autenticada possui os contextos paciente e profissional
-Quando abre a aplicação em viewports de 320, 768, 1024 e 1199 px
+Quando abre a aplicação em viewports de 320, 768, 1024 e 1199 px ou em um
+tablet touch com viewport CSS amplo
 Então o seletor fica fixo ao rodapé e acima da safe area
 E o conteúdo pode ser rolado sem ficar encoberto.
 
 ### Cenário: cabeçalho em desktop
 
 Dado que a pessoa possui múltiplos contextos
-Quando abre a aplicação em viewport de 1200 px ou maior
+Quando abre a aplicação em viewport de 1200 px ou maior com mouse/ponteiro fino
 Então o seletor permanece segmentado no cabeçalho.
 
 ### Cenário: instalação PWA
@@ -130,8 +132,11 @@ E requests API e respostas com dados de saúde continuam sem cache.
 ## Estratégia de testes
 
 - RED: Playwright confirmou o seletor estático em 1024 px e falhou pela ausência
-  de `<link rel="manifest">` antes da implementação.
-- GREEN: testar dock em 320/768/1024/1199 px e cabeçalho a partir de 1200 px.
+  de `<link rel="manifest">` antes da implementação. No ajuste seguinte, a
+  emulação touch a 1366 px também falhou (`static`), confirmando que o CSS
+  diferenciava somente pela largura e não pelo tipo de dispositivo.
+- GREEN: testar dock em 320/768/1024/1199 px e em tablet touch com viewport de
+  1366 px; cabeçalho em desktop com mouse a partir de 1200 px.
 - E2E PWA: validar manifest, registro do worker, fallback offline e ausência de
   APIs/HTML de saúde em Cache Storage.
 - Executar testes unitários, Playwright, build e `git diff --check`.
@@ -140,8 +145,9 @@ E requests API e respostas com dados de saúde continuam sem cache.
 
 ## Critérios de conclusão
 
-- [x] Dock aparece no rodapé em celular e tablet até 1199 px.
-- [x] Cabeçalho segmentado retorna em 1200 px ou maior.
+- [x] Dock aparece no rodapé em celular/tablet até 1199 px e em dispositivos
+      touch mesmo com viewport amplo.
+- [x] Cabeçalho segmentado retorna em desktop com mouse a partir de 1200 px.
 - [x] Manifest válido e ícones PWA instaláveis estão incluídos.
 - [x] Service worker registra com fallback offline genérico.
 - [x] Cache Storage não recebe respostas API nem conteúdo autenticado/clínico.
@@ -153,12 +159,17 @@ E requests API e respostas com dados de saúde continuam sem cache.
 - RED: teste Playwright falhou em 1024 px (`static` em vez de `fixed`) e não
   encontrou o link de manifest. Comando: `npx playwright test
   tests/login.spec.ts tests/pwa.spec.ts --grep "dock em mobile|PWA"`.
-- GREEN: a suíte E2E completa (15 testes) passou, incluindo larguras
-  320/768/1024/1199/1200 px, manifest/ícones, registro e controle do service
-  worker, fallback offline e allowlist Cache Storage com somente `/offline.html`.
+- GREEN: a suíte E2E completa (16 testes) passou, incluindo larguras
+  320/768/1024/1199/1200 px, tablet touch a 1366 px, manifest/ícones, registro e
+  controle do service worker, fallback offline e Cache Storage com somente
+  `/offline.html`.
 - REFACTOR: registro isolado em componente client pequeno; worker faz network
   only para toda requisição exceto navegação, e limpa apenas caches versionados
   com prefixo próprio.
+- Ajuste pós-captura: o estilo de cabeçalho foi limitado a
+  `hover: hover` + `pointer: fine`, mantendo o dock em tablet touch mesmo quando
+  o viewport CSS é 1366 px; cobertura adicionada em Playwright.
+- Referências: commits `d29389f`, `427138d`, PR #7.
 - Regressão unitária e build de produção executados antes da conclusão.
 
 ## Decisões e observações

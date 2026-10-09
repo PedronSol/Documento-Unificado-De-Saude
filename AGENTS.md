@@ -56,8 +56,9 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
 - Preserve alvo interativo de 44 px, foco visível, contraste, reduced motion,
   zoom de texto, quebra de conteúdo e ausência de overflow em 320 px.
 - Em contas com vários contextos, mantenha o seletor no dock inferior flutuante
-  abaixo de 1200 px, com safe area e espaço rolável reservado; a partir de
-  1200 px ele volta ao cabeçalho. Contas de uma role não reservam esse espaço.
+  abaixo de 1200 px ou em dispositivos touch, com safe area e espaço rolável
+  reservado; somente desktop com ponteiro fino/hover a partir de 1200 px volta
+  ao cabeçalho. Contas de uma role não reservam esse espaço.
 - O service worker pode armazenar somente a página offline genérica; nunca faça
   cache de API, HTML autenticado ou dados pessoais/clínicos.
 - Toda mudança visual deve testar ao menos a menor viewport afetada e uma
