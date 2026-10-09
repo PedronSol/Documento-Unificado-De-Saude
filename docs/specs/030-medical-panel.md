@@ -537,3 +537,121 @@ renderizado nem persistido no navegador.
 - O gate de revisão foi respeitado: o primeiro RED ocorreu somente depois da
   aprovação explícita da spec.
 - Implementação concluída no commit `fc2b12e`.
+
+## Incremento: busca reativa de pacientes
+
+### Status
+
+IMPLEMENTED — spec aprovada pelo usuário em 2026-10-08.
+
+### Contexto e objetivo
+
+A busca da carteira médica atualmente depende do botão “Buscar”. O campo deve
+atualizar os resultados enquanto a pessoa digita, sem disparar uma solicitação
+por tecla nem permitir que respostas atrasadas substituam resultados mais
+recentes. Este incremento é somente de interação no frontend; os contratos e a
+autorização da API existente permanecem inalterados.
+
+### Regras
+
+1. A busca é reativa e aguarda 300 ms sem alterações antes de consultar a API.
+2. Digitação rápida reinicia o temporizador; apenas o valor final após a pausa
+   gera uma solicitação.
+3. Busca por nome só é enviada com pelo menos dois caracteres não vazios.
+   Prefixos de um caractere não consultam a API e mostram orientação para
+   informar ao menos dois caracteres.
+4. Uma entrada composta apenas de dígitos, espaços, pontos ou hífens só é
+   enviada quando contém exatamente 11 dígitos, aceitando CPF formatado ou não.
+   Prefixos incompletos não consultam a API nem produzem respostas 422.
+5. Limpar o campo restaura a listagem autorizada sem parâmetro `query`, após a
+   mesma pausa de 300 ms.
+6. O botão “Buscar” permanece como submissão imediata para a entrada válida;
+   submeter cancela o temporizador, não repete um valor já consultado e ainda
+   permite repetir a consulta quando o estado atual é erro.
+7. Uma nova consulta cancela a anterior quando possível. Mesmo se uma resposta
+   antiga ainda chegar, ela não pode substituir os resultados da consulta mais
+   recente. Cancelamento não é apresentado como erro.
+8. O estado de carregamento, resultados, vazio e erro continua acessível pelos
+   estados visíveis e `role="status"`/`role="alert"` existentes.
+
+### Cenários de aceitação
+
+#### Cenário: busca acompanha a digitação sem excesso de chamadas
+
+Dado que a carteira autorizada está carregada
+Quando a pessoa digita ou altera um nome válido
+E permanece sem digitar por 300 ms
+Então a interface consulta `/medical/patients?query=` com o texto atual
+E digitação rápida antes do prazo gera somente a consulta do valor final.
+
+#### Cenário: entrada curta não envia busca inválida
+
+Dado que o campo contém menos de dois caracteres de nome ou um CPF incompleto
+Quando a pessoa digita ou tenta submeter
+Então nenhuma consulta inválida é enviada
+E a interface orienta a informar dois caracteres ou um CPF completo.
+
+#### Cenário: CPF completo permanece compatível com a API
+
+Dado que a pessoa informa um CPF com 11 dígitos, pontuado ou não
+Quando a pausa de 300 ms termina ou ela submete a busca
+Então uma única consulta envia o CPF completo à API
+E o CPF não é exibido na lista nem gravado em storage.
+
+#### Cenário: limpar a busca restaura a carteira
+
+Dado que resultados filtrados estão visíveis
+Quando a pessoa apaga o conteúdo e aguarda 300 ms
+Então a interface consulta a listagem autorizada sem `query` e exibe seus
+resultados.
+
+#### Cenário: resposta antiga não sobrescreve a busca atual
+
+Dado que uma consulta anterior ainda está em andamento
+Quando a pessoa altera o texto e a consulta mais recente termina primeiro
+Então apenas os resultados da consulta mais recente são renderizados
+E o cancelamento da consulta anterior não exibe erro.
+
+### Contratos, erros e segurança
+
+- A API continua usando `GET /medical/patients?query=` e suas regras existentes
+  de nome, CPF, limite de 50 itens e autorização por grupo ativo.
+- A implementação deve reutilizar `apiFetch` e seu suporte atual às opções de
+  `fetch`; nenhuma dependência, serviço, cache compartilhado ou mudança no
+  backend é necessária.
+- Erros HTTP/rede da consulta vigente continuam no estado de erro atual, com
+  ação de tentar novamente. Erros de requisições canceladas são ignorados.
+- CPF é transitório no estado do campo e na requisição já existente. Não deve
+  ser adicionado a storage, logs, telemetria, resultados ou mensagens visíveis.
+- Nenhuma resposta desta interação amplia o escopo de pacientes autorizado pelo
+  backend.
+
+### Não objetivos
+
+- Alterar o algoritmo, o contrato, a autorização ou o limite de resultados da
+  API.
+- Adicionar paginação, cache, busca fuzzy, sugestões ou busca em background.
+- Remover o botão de submissão manual ou alterar a abertura de prontuários.
+
+### Critérios de aceite e estratégia de testes
+
+- [x] Teste com timers controlados confirma debounce de 300 ms e ausência de
+  chamadas por tecla.
+- [x] Testes cobrem entrada curta, CPF completo/incompleto, limpeza e botão
+  manual sem duplicação.
+- [x] Teste com promises fora de ordem confirma que resposta obsoleta não
+  substitui o resultado atual e não gera erro após cancelamento.
+- [x] RED observado pela razão esperada antes do código de produção; testes
+  afetados, E2E da área profissional, build e `git diff --check` passam.
+
+### Evidências RED/GREEN e regressão (2026-10-08)
+
+- RED: `npm test -- --run tests/doctor-dashboard.test.jsx` falhou em dois
+  cenários novos: o componente não orientava entradas curtas/CPF incompleto e
+  não emitia consulta após o período de pausa.
+- GREEN: implementação com 300 ms de debounce, validação de entrada no cliente,
+  `AbortController`, identificador monotônico de requisição e deduplicação da
+  submissão para um valor já consultado.
+- Regressão: 33 testes unitários, 17 E2E (incluindo a carteira médica em 320 px)
+  e build do Next.js passaram. Build/E2E executados em cópia isolada para
+  preservar o servidor local ativo; `git diff --check` passou.

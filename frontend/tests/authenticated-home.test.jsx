@@ -326,7 +326,9 @@ describe("AuthenticatedHome", () => {
     expect(screen.getAllByText(/Dr. Rui Lima/)).toHaveLength(2);
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
     expect(screen.queryByText("BCG reservada")).not.toBeInTheDocument();
-    expect(apiFetch).toHaveBeenCalledWith("/medical/patients");
+    expect(
+      apiFetch.mock.calls.some(([path]) => path === "/medical/patients"),
+    ).toBe(true);
     expect(apiFetch).toHaveBeenCalledTimes(2);
   });
 

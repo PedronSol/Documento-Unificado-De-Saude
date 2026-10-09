@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import ClipboardPlus from "lucide-react/dist/esm/icons/clipboard-plus";
@@ -21,6 +21,25 @@ const HEALTH_STATUS = {
   pending: "Atualização pendente",
   overdue: "Revisão necessária",
 };
+const PATIENT_SEARCH_DEBOUNCE_MS = 300;
+
+
+function getPatientSearchGuidance(search) {
+  const normalized = search.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (/^[\d.\-\s]+$/.test(normalized)) {
+    return normalized.replace(/\D/g, "").length === 11
+      ? null
+      : "Informe um CPF completo para pesquisar por documento.";
+  }
+
+  return normalized.length >= 2
+    ? null
+    : "Informe ao menos dois caracteres para buscar por nome.";
+}
 
 
 function formatDate(value) {
@@ -170,20 +189,43 @@ function MedicalRecord({ record, onBack, onUnauthenticated }) {
 
 export function DoctorDashboard({ user, onUnauthenticated }) {
   const [query, setQuery] = useState("");
+  const [hasEditedSearch, setHasEditedSearch] = useState(false);
   const [patientsResource, setPatientsResource] = useState({
     status: "loading",
     data: [],
   });
   const [recordResource, setRecordResource] = useState(null);
+  const searchTimerRef = useRef(null);
+  const searchControllerRef = useRef(null);
+  const searchRequestIdRef = useRef(0);
+  const searchStartedForQueryRef = useRef(null);
+
+  function cancelPatientSearch() {
+    if (searchTimerRef.current !== null) {
+      window.clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
+    searchRequestIdRef.current += 1;
+    searchControllerRef.current?.abort();
+    searchControllerRef.current = null;
+  }
 
   const loadPatients = useCallback(async (search = "") => {
+    const requestId = ++searchRequestIdRef.current;
+    searchControllerRef.current?.abort();
+    const controller = new AbortController();
+    searchControllerRef.current = controller;
     setPatientsResource((current) => ({ ...current, status: "loading" }));
     const normalized = search.trim();
+    searchStartedForQueryRef.current = normalized;
     const path = normalized
       ? `/medical/patients?query=${encodeURIComponent(normalized)}`
       : "/medical/patients";
     try {
-      const response = await apiFetch(path);
+      const response = await apiFetch(path, { signal: controller.signal });
+      if (requestId !== searchRequestIdRef.current) {
+        return;
+      }
       if (response.status === 401) {
         onUnauthenticated();
         return;
@@ -192,18 +234,55 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
         throw new Error("Não foi possível carregar seus pacientes.");
       }
       const data = await response.json();
+      if (requestId !== searchRequestIdRef.current) {
+        return;
+      }
       setPatientsResource({
         status: "ready",
         data: Array.isArray(data) ? data : [],
       });
     } catch (error) {
+      if (controller.signal.aborted || requestId !== searchRequestIdRef.current) {
+        return;
+      }
       setPatientsResource({ status: "error", data: [], error: error.message });
+    } finally {
+      if (requestId === searchRequestIdRef.current) {
+        searchControllerRef.current = null;
+      }
     }
   }, [onUnauthenticated]);
 
   useEffect(() => {
     loadPatients();
   }, [loadPatients]);
+
+  useEffect(() => {
+    if (!hasEditedSearch || getPatientSearchGuidance(query)) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      searchTimerRef.current = null;
+      loadPatients(query);
+    }, PATIENT_SEARCH_DEBOUNCE_MS);
+    searchTimerRef.current = timer;
+
+    return () => {
+      window.clearTimeout(timer);
+      if (searchTimerRef.current === timer) {
+        searchTimerRef.current = null;
+      }
+    };
+  }, [hasEditedSearch, loadPatients, query]);
+
+  useEffect(() => () => {
+    if (searchTimerRef.current !== null) {
+      window.clearTimeout(searchTimerRef.current);
+    }
+    searchControllerRef.current?.abort();
+    searchRequestIdRef.current += 1;
+  }, []);
 
   async function openRecord(patientId) {
     setRecordResource({ status: "loading", patientId, data: null });
@@ -237,6 +316,45 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
 
   function submitSearch(event) {
     event.preventDefault();
+    if (getPatientSearchGuidance(query)) {
+      cancelPatientSearch();
+      searchStartedForQueryRef.current = null;
+      setHasEditedSearch(true);
+      setPatientsResource({ status: "idle", data: [] });
+      return;
+    }
+
+    const normalized = query.trim();
+    if (
+      searchStartedForQueryRef.current === normalized &&
+      patientsResource.status !== "error"
+    ) {
+      if (searchTimerRef.current !== null) {
+        window.clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = null;
+      }
+      return;
+    }
+
+    cancelPatientSearch();
+    loadPatients(query);
+  }
+
+  function handleSearchChange(event) {
+    const nextQuery = event.target.value;
+    cancelPatientSearch();
+    searchStartedForQueryRef.current = null;
+    setQuery(nextQuery);
+    setHasEditedSearch(true);
+    if (getPatientSearchGuidance(nextQuery)) {
+      setPatientsResource({ status: "idle", data: [] });
+    } else {
+      setPatientsResource((current) => ({ ...current, status: "loading" }));
+    }
+  }
+
+  function retryPatientSearch() {
+    searchStartedForQueryRef.current = null;
     loadPatients(query);
   }
 
@@ -313,13 +431,16 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
             <input
               id="medical-patient-search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={handleSearchChange}
               placeholder="Nome ou CPF completo"
               maxLength={100}
             />
             <button type="submit">Buscar</button>
           </div>
           <small>CPF é usado somente na busca e nunca aparece nos resultados.</small>
+          {hasEditedSearch && getPatientSearchGuidance(query) ? (
+            <small role="status">{getPatientSearchGuidance(query)}</small>
+          ) : null}
         </form>
 
         {patientsResource.status === "loading" ? (
@@ -331,7 +452,7 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
         {patientsResource.status === "error" ? (
           <div className="medical-list-state medical-list-error" role="alert">
             <p>{patientsResource.error}</p>
-            <button type="button" onClick={() => loadPatients(query)}>
+            <button type="button" onClick={retryPatientSearch}>
               <RefreshCw aria-hidden="true" size={16} />
               Tentar novamente
             </button>

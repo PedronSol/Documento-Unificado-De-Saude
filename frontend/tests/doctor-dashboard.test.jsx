@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -54,10 +54,141 @@ function respondWith(body, status = 200) {
   });
 }
 
+function deferred() {
+  let resolve;
+  const promise = new Promise((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 
 describe("DoctorDashboard", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     apiFetch.mockReset();
+  });
+
+  it("busca automaticamente após 300 ms sem consultar prefixos curtos", async () => {
+    apiFetch.mockImplementation(() => respondWith([patient]));
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dra. Helena Costa" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+    await screen.findByText("Carlos Eduardo Silva");
+    const input = screen.getByLabelText("Buscar paciente");
+
+    vi.useFakeTimers();
+    fireEvent.change(input, { target: { value: "C" } });
+    expect(screen.getByRole("status")).toHaveTextContent(/dois caracteres/i);
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(input, { target: { value: "Ca" } });
+    await act(async () => vi.advanceTimersByTimeAsync(299));
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    fireEvent.change(input, { target: { value: "Carlos" } });
+    await act(async () => vi.advanceTimersByTimeAsync(299));
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+
+    expect(apiFetch.mock.calls[1][0]).toBe("/medical/patients?query=Carlos");
+    vi.useRealTimers();
+  });
+
+  it("aguarda CPF completo e recarrega a carteira ao limpar a busca", async () => {
+    apiFetch.mockImplementation(() => respondWith([patient]));
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dra. Helena Costa" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+    await screen.findByText("Carlos Eduardo Silva");
+    const input = screen.getByLabelText("Buscar paciente");
+
+    vi.useFakeTimers();
+    fireEvent.change(input, { target: { value: "000.111.222-2" } });
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status")).toHaveTextContent(/cpf completo/i);
+
+    fireEvent.change(input, { target: { value: "000.111.222-22" } });
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    expect(apiFetch.mock.calls[1][0]).toBe(
+      "/medical/patients?query=000.111.222-22",
+    );
+
+    fireEvent.change(input, { target: { value: "" } });
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    expect(apiFetch.mock.calls[2][0]).toBe("/medical/patients");
+    vi.useRealTimers();
+  });
+
+  it("submete imediatamente sem repetir a busca após o debounce", async () => {
+    apiFetch.mockImplementation(() => respondWith([patient]));
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dra. Helena Costa" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+    await screen.findByText("Carlos Eduardo Silva");
+
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByLabelText("Buscar paciente"), {
+      target: { value: "Carlos" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+
+    expect(apiFetch).toHaveBeenCalledTimes(2);
+    expect(apiFetch.mock.calls[1][0]).toBe("/medical/patients?query=Carlos");
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    expect(apiFetch).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("ignora respostas antigas e cancela a consulta anterior", async () => {
+    const olderRequest = deferred();
+    const newerRequest = deferred();
+    apiFetch.mockImplementation((path) => {
+      if (path === "/medical/patients") {
+        return respondWith([patient]);
+      }
+      return path.endsWith("Carlos") ? olderRequest.promise : newerRequest.promise;
+    });
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dra. Helena Costa" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+    await screen.findByText("Carlos Eduardo Silva");
+    const input = screen.getByLabelText("Buscar paciente");
+
+    vi.useFakeTimers();
+    fireEvent.change(input, { target: { value: "Carlos" } });
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    fireEvent.change(input, { target: { value: "Helena" } });
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+
+    expect(apiFetch.mock.calls[1][1].signal.aborted).toBe(true);
+    await act(async () => {
+      newerRequest.resolve(respondWith([{ ...patient, full_name: "Helena Costa" }]));
+      await newerRequest.promise;
+    });
+    await act(async () => {
+      olderRequest.resolve(respondWith([patient]));
+      await olderRequest.promise;
+    });
+
+    expect(screen.getByText("Helena Costa")).toBeInTheDocument();
+    expect(screen.queryByText("Carlos Eduardo Silva")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it("lista, pesquisa e abre somente o prontuário selecionado", async () => {
@@ -77,15 +208,15 @@ describe("DoctorDashboard", () => {
     );
 
     expect(await screen.findByText("Carlos Eduardo Silva")).toBeInTheDocument();
-    expect(apiFetch).toHaveBeenCalledWith("/medical/patients");
+    expect(apiFetch.mock.calls[0][0]).toBe("/medical/patients");
     expect(screen.queryByText("00011122222")).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Buscar paciente"), "Carlos");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
     await waitFor(() =>
-      expect(apiFetch).toHaveBeenCalledWith(
-        "/medical/patients?query=Carlos",
-      ),
+      expect(apiFetch.mock.calls.some(([path]) =>
+        path === "/medical/patients?query=Carlos",
+      )).toBe(true),
     );
 
     await user.click(

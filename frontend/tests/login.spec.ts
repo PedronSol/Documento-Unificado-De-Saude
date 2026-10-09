@@ -650,11 +650,10 @@ test.describe('Página Home', () => {
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(320);
 
-    await page.getByLabel('Buscar paciente').fill('Carlos');
     const searchRequest = page.waitForRequest((request) =>
       request.url().includes('/medical/patients?query=Carlos')
     );
-    await page.getByRole('button', { name: 'Buscar' }).click();
+    await page.getByLabel('Buscar paciente').fill('Carlos');
     await searchRequest;
 
     await page.getByRole('button', {
