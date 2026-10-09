@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def _normalize_text(value: str) -> str:
@@ -150,3 +150,32 @@ class MedicalRecordResponse(BaseModel):
 class CurrentUserProfileResponse(BaseModel):
     user: UserIdentity
     patient_profile: Optional[PatientProfileResponse]
+
+
+class OwnProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: Optional[str] = Field(default=None, max_length=100)
+    preferred_name: Optional[str] = Field(default=None, max_length=20)
+
+    @field_validator("display_name", "preferred_name", mode="before")
+    @classmethod
+    def normalize_name(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("display_name", "preferred_name")
+    @classmethod
+    def reject_empty_name(cls, value):
+        if value is not None and not value:
+            raise ValueError("O nome não pode ser vazio.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_requested_fields(self):
+        if not self.model_fields_set:
+            raise ValueError("Informe ao menos um campo para atualizar.")
+        if any(getattr(self, field) is None for field in self.model_fields_set):
+            raise ValueError("O nome não pode ser nulo.")
+        return self

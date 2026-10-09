@@ -72,6 +72,7 @@ def test_domain_routers_own_the_current_routes():
         "/login",
         "/logout",
         "/me",
+        "/me/profile",
         "/me/vaccines",
         "/me/vaccines/{vaccine_id}",
         "/me/alerts",

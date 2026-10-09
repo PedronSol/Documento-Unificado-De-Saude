@@ -403,4 +403,30 @@ describe("AuthenticatedHome", () => {
     expect(screen.queryByText("Administração")).not.toBeInTheDocument();
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
   });
+
+  it("abre o menu da conta com configurações e logout", async () => {
+    mockPatientResources();
+    const user = userEvent.setup();
+    render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
+
+    await screen.findByText("BCG reservada");
+    await user.click(screen.getByRole("button", { name: "Conta de Helena" }));
+
+    expect(screen.getByText("helena@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Configurações" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    expect(screen.getByRole("menuitem", { name: "Sair da conta" })).toBeInTheDocument();
+    expect(screen.queryByText("Presets")).not.toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Conta de Helena" });
+    expect(trigger).toHaveFocus();
+
+    await user.click(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "Sair da conta" }));
+    expect(apiFetch).toHaveBeenCalledWith("/logout", { method: "POST" });
+  });
 });

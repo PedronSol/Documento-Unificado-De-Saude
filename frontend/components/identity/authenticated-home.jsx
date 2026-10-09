@@ -2,9 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import HeartPulse from "lucide-react/dist/esm/icons/heart-pulse";
 import LogOut from "lucide-react/dist/esm/icons/log-out";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Settings from "lucide-react/dist/esm/icons/settings";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 
@@ -55,6 +57,51 @@ function ContextSwitcher({ roles, context, onSelect }) {
         );
       })}
     </nav>
+  );
+}
+
+
+function AccountMenu({ name, avatarName, email, src, onLogout }) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          className="account-menu-trigger"
+          type="button"
+          aria-label={`Conta de ${avatarName}`}
+        >
+          <UserAvatar name={avatarName} src={src} className="identity-avatar" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          className="account-menu-content"
+          align="end"
+          sideOffset={8}
+          collisionPadding={12}
+        >
+          <div className="account-menu-identity">
+            <strong>{name}</strong>
+            <span>{email}</span>
+          </div>
+          <DropdownMenu.Separator className="account-menu-separator" />
+          <DropdownMenu.Item className="account-menu-item" asChild>
+            <a href="/settings">
+              <Settings aria-hidden="true" size={17} />
+              Configurações
+            </a>
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="account-menu-separator" />
+          <DropdownMenu.Item
+            className="account-menu-item account-menu-logout"
+            onSelect={onLogout}
+          >
+            <LogOut aria-hidden="true" size={17} />
+            Sair da conta
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
@@ -143,7 +190,6 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
   const avatarSrc = context === "patient"
     ? envelope.patient_profile?.avatar_url
     : null;
-
   async function logout() {
     await apiFetch("/logout", { method: "POST" });
     onUnauthenticated();
@@ -169,20 +215,18 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
 
         <div className="identity-actions">
           <div className="identity-account">
-            <UserAvatar
-              name={avatarName}
+            <AccountMenu
+              name={envelope.user.display_name}
+              avatarName={avatarName}
+              email={envelope.user.email}
               src={avatarSrc}
-              className="identity-avatar"
+              onLogout={() => void logout()}
             />
             <div className="identity-account-copy">
               <span>{avatarName}</span>
               <small>{context ? CONTEXT_LABEL[context] : "Identidade autenticada"}</small>
             </div>
           </div>
-          <button className="logout-action" type="button" onClick={logout}>
-            <LogOut aria-hidden="true" size={16} />
-            Sair
-          </button>
         </div>
       </header>
 
