@@ -36,6 +36,29 @@ const CONTEXT_ICON = {
 };
 
 
+function ContextSwitcher({ roles, context, onSelect }) {
+  return (
+    <nav className="context-switcher" aria-label="Contexto de acesso">
+      {roles.map((role) => {
+        const ContextIcon = CONTEXT_ICON[role];
+
+        return (
+          <button
+            key={role}
+            type="button"
+            aria-pressed={context === role}
+            onClick={() => onSelect(role)}
+          >
+            <ContextIcon aria-hidden="true" size={17} />
+            <span className="context-switcher-label">{CONTEXT_LABEL[role]}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+
 function redirectToLogin() {
   window.location.replace("/");
 }
@@ -138,29 +161,11 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
           <strong>DUS</strong>
         </a>
 
-        {roles.length > 1 ? (
-          <nav className="context-switcher" aria-label="Contexto de acesso">
-            {roles.map((role) => {
-              const ContextIcon = CONTEXT_ICON[role];
-
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  aria-pressed={context === role}
-                  onClick={() => setSelectedContext(role)}
-                >
-                  <ContextIcon aria-hidden="true" size={17} />
-                  <span className="context-switcher-label">{CONTEXT_LABEL[role]}</span>
-                </button>
-              );
-            })}
-          </nav>
-        ) : (
+        {roles.length === 1 ? (
           <p className="single-context">
             {context ? CONTEXT_LABEL[context] : "Nenhum perfil liberado"}
           </p>
-        )}
+        ) : null}
 
         <div className="identity-actions">
           <div className="identity-account">
@@ -180,6 +185,14 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
           </button>
         </div>
       </header>
+
+      {roles.length > 1 && (
+        <ContextSwitcher
+          roles={roles}
+          context={context}
+          onSelect={setSelectedContext}
+        />
+      )}
 
       {context === "patient" ? (
         <PatientDashboard

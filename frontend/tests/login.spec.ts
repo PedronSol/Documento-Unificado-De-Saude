@@ -313,8 +313,9 @@ test.describe('Página Home', () => {
     });
 
     expect(mobileStyle.position).toBe('fixed');
-    expect(mobileStyle.bottom).toBeLessThanOrEqual(mobileStyle.viewportHeight);
+    expect(mobileStyle.bottom).toBeGreaterThan(mobileStyle.viewportHeight - 100);
     expect(parseFloat(mobileStyle.shellPadding)).toBeGreaterThan(0);
+    expect(await contextNav.evaluate((element) => element.closest('.identity-bar'))).toBeNull();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toBeVisible();
     await contextNav.getByRole('button', { name: 'Área profissional' }).click();
@@ -326,19 +327,25 @@ test.describe('Página Home', () => {
 
     await page.setViewportSize({ width: 475, height: 900 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+    await expect.poll(() => contextNav.evaluate((element) => window.innerHeight - element.getBoundingClientRect().bottom)).toBeLessThan(100);
 
     await page.setViewportSize({ width: 768, height: 1024 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+    await expect.poll(() => contextNav.evaluate((element) => window.innerHeight - element.getBoundingClientRect().bottom)).toBeLessThan(100);
     await expect.poll(() => page.locator('.authenticated-shell').evaluate((element) => getComputedStyle(element).paddingBottom)).not.toBe('0px');
 
     await page.setViewportSize({ width: 1024, height: 768 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+    await expect.poll(() => contextNav.evaluate((element) => window.innerHeight - element.getBoundingClientRect().bottom)).toBeLessThan(100);
 
     await page.setViewportSize({ width: 1199, height: 800 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+    await expect.poll(() => contextNav.evaluate((element) => window.innerHeight - element.getBoundingClientRect().bottom)).toBeLessThan(100);
 
     await page.setViewportSize({ width: 1200, height: 900 });
-    await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('static');
+    await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+    await expect.poll(() => contextNav.evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(24);
+    await expect.poll(() => contextNav.evaluate((element) => element.getBoundingClientRect().bottom)).toBeLessThanOrEqual(72);
   });
 
   test('preserva avatar e resumo do perfil sem expor CPF', async ({ page }) => {

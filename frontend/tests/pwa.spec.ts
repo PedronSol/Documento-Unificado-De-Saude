@@ -38,6 +38,7 @@ test('mantém o dock em tablet touch mesmo com viewport CSS acima do breakpoint 
     expect(await page.evaluate(() => window.innerWidth)).toBeGreaterThanOrEqual(1200);
     expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+    await expect.poll(() => contextNav.evaluate((element) => window.innerHeight - element.getBoundingClientRect().bottom)).toBeLessThan(100);
   } finally {
     await context.close();
   }

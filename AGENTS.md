@@ -61,6 +61,8 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
   ao cabeçalho. Contas de uma role não reservam esse espaço.
 - O service worker pode armazenar somente a página offline genérica; nunca faça
   cache de API, HTML autenticado ou dados pessoais/clínicos.
+- Docks com `position: fixed` devem ficar fora de ancestrais sticky/transformados;
+  valide a posição geométrica no viewport, não apenas o valor computado.
 - Toda mudança visual deve testar ao menos a menor viewport afetada e uma
   viewport ampla; componentes compartilhados exigem regressão nos consumidores.
 
