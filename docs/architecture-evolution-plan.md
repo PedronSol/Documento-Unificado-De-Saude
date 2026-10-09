@@ -190,7 +190,7 @@ flowchart TD
 | 5 | Auditoria clínica | 4 | DONE | `850e2ad`, `fe56d2a` |
 | 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
 | 7 | Área médica e grupos | 4, 6 | DONE | `fc2b12e` |
-| 8 | Compartilhamento e QR-Code | 6 | SPEC APPROVED | `docs/specs/040-health-summary-sharing.md` |
+| 8 | Compartilhamento e QR-Code | 6 | DONE | `333df01` |
 | 9 | Armazenamento de documentos | 5 | PLANNED | — |
 | 10 | OCR e revisão | 9 | PLANNED | — |
 | 11 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
@@ -431,15 +431,15 @@ revogação.
 
 ### Tarefas
 
-- [ ] Escrever testes para token válido, expirado, revogado e adulterado.
-- [ ] Criar `compartilhamentos` com token hash, expiração e revogação.
-- [ ] Armazenar somente o hash do token.
-- [ ] Criar endpoints autenticados para gerar e revogar.
-- [ ] Criar endpoint público somente leitura.
-- [ ] Definir explicitamente os campos permitidos no resumo.
-- [ ] Excluir CPF, e-mail e dados não necessários.
-- [ ] Auditar geração, revogação e acesso.
-- [ ] Gerar QR-Code e temporizador no frontend.
+- [x] Escrever testes para token válido, expirado, revogado e adulterado.
+- [x] Criar `compartilhamentos` com token hash, expiração e revogação.
+- [x] Armazenar somente o hash do token.
+- [x] Criar endpoints autenticados para gerar e revogar.
+- [x] Criar endpoint público somente leitura.
+- [x] Definir explicitamente os campos permitidos no resumo.
+- [x] Excluir CPF, e-mail e dados não necessários.
+- [x] Auditar geração, revogação e acesso.
+- [x] Gerar QR-Code e temporizador no frontend.
 
 ### Critérios de conclusão
 
@@ -637,3 +637,4 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-08 | 7 | CORES DOS MARCADORES → DONE | `docs/specs/031-interface-design-system.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Filtro ativo, contador, foco, decoração do card e estado vazio usam tokens azuis/neutros; verde permanece somente em estados positivos. RED/GREEN, 29 unitários, 17 E2E com cores computadas e build aprovados. |
 | 2026-10-08 | 7 | BUSCA REATIVA DE PACIENTES → DONE | `docs/specs/030-medical-panel.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Debounce de 300 ms, critérios de busca, CPF completo, limpeza, botão sem duplicação e descarte de respostas obsoletas implementados por TDD; 33 unitários, 17 E2E e build aprovados. |
 | 2026-10-08 | 7 | IN PROGRESS → DONE | `fc2b12e` | Backend com 103 testes no MySQL 8 real, frontend com 21 unitários e 13 E2E, build aprovado; grupos, autorização, auditoria, autoria CRM e interface responsiva concluídos. |
+| 2026-10-09 | 8 | SPEC APPROVED → DONE | `333df01` | Compartilhamento temporário com token entregue uma vez, revogação, allowlist pública, auditoria e interface QR concluído por strict TDD; 128 testes backend no MySQL 8, 41 unitários, 19 E2E e build aprovados. |

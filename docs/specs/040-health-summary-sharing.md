@@ -538,7 +538,7 @@ ainda não existe.
 - [x] Revisão do impacto no frontend é registrada depois do backend verde.
 - [x] Suítes afetadas, regressão, build e viewports obrigatórias passam.
 - [x] Evidências RED, GREEN e REFACTOR são registradas.
-- [ ] Roadmap e referência do commit ou PR são atualizados.
+- [x] Roadmap e referência do commit ou PR são atualizados.
 
 ## Decisões e observações
 
@@ -548,3 +548,5 @@ ainda não existe.
 - Spec aprovada pelo usuário em 2026-10-09 antes do primeiro teste RED.
 - Implementação concluída por strict TDD em 2026-10-09; o único comando não
   executável foi o lint, pois o repositório não possui `eslint` instalado.
+- Implementação registrada no commit `333df01`; o fechamento documental atualiza
+  o tracker do roadmap para `DONE`.
