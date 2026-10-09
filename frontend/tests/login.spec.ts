@@ -403,6 +403,13 @@ test.describe('Página Home', () => {
   test('gerencia marcador em diálogos acessíveis e preserva o histórico', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const addTrigger = page.getByRole('button', { name: 'Adicionar marcador' });
+    const activeTab = page.locator('.marker-view-switch button[aria-pressed="true"]');
+    const activeTabStyles = await activeTab.evaluate((element) => ({
+      color: getComputedStyle(element).color,
+      badgeBackground: getComputedStyle(element.querySelector('span')).backgroundColor,
+    }));
+    expect(activeTabStyles.color).toBe('rgb(23, 79, 194)');
+    expect(activeTabStyles.badgeBackground).toBe('rgb(239, 244, 255)');
 
     await addTrigger.click();
 
@@ -444,10 +451,23 @@ test.describe('Página Home', () => {
     await removeTrigger.click();
     await page.getByRole('button', { name: 'Remover do resumo' }).click();
     await expect(page.getByText('Metformina XR')).toBeHidden();
+    await page.getByRole('button', { name: 'Remover Losartana' }).click();
+    await page.getByRole('button', { name: 'Remover do resumo' }).click();
+    await expect(page.getByText('Losartana')).toBeHidden();
+
+    const emptyState = page.locator('.marker-empty');
+    const emptyStateStyles = await emptyState.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      border: getComputedStyle(element).borderTopColor,
+      icon: getComputedStyle(element.querySelector('span')).color,
+    }));
+    expect(emptyStateStyles.background).toBe('rgb(247, 248, 250)');
+    expect(emptyStateStyles.border).toBe('rgb(203, 214, 229)');
+    expect(emptyStateStyles.icon).toBe('rgb(23, 79, 194)');
 
     await page.getByRole('button', { name: 'Histórico' }).click();
     await expect(page.getByText('Metformina XR')).toBeVisible();
-    await expect(page.getByText('Removido em 06/10/2026')).toBeVisible();
+    await expect(page.getByText('Removido em 06/10/2026').first()).toBeVisible();
   });
 
   test('mantém o dashboard amplo e os cards alinhados em desktop', async ({ page }) => {

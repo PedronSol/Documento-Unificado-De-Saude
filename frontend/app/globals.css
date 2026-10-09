@@ -1155,8 +1155,12 @@ select:focus-visible {
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(120deg, rgb(245 250 247 / 86%), transparent 34%),
-    #fff;
+    linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--ds-color-primary-soft) 70%, transparent),
+      transparent 34%
+    ),
+    var(--ds-color-surface);
 }
 
 .marker-section::after {
@@ -1165,11 +1169,11 @@ select:focus-visible {
   right: -4rem;
   width: 13rem;
   height: 13rem;
-  border: 1px solid rgb(23 103 83 / 8%);
+  border: 1px solid color-mix(in srgb, var(--ds-color-primary) 8%, transparent);
   border-radius: 50%;
   box-shadow:
-    0 0 0 1.8rem rgb(23 103 83 / 3%),
-    0 0 0 3.6rem rgb(23 103 83 / 2%);
+    0 0 0 1.8rem color-mix(in srgb, var(--ds-color-primary) 3%, transparent),
+    0 0 0 3.6rem color-mix(in srgb, var(--ds-color-primary) 2%, transparent);
   content: "";
   pointer-events: none;
 }
@@ -1192,9 +1196,9 @@ select:focus-visible {
   z-index: 1;
   display: inline-flex;
   gap: 0.3rem;
-  border: 1px solid #dce4df;
+  border: 1px solid var(--ds-color-border);
   border-radius: 999px;
-  background: #f3f6f3;
+  background: var(--ds-color-surface-muted);
   padding: 0.25rem;
 }
 
@@ -1207,26 +1211,27 @@ select:focus-visible {
   border-radius: 999px;
   background: transparent;
   padding: 0.42rem 0.8rem;
-  color: #65766f;
+  color: var(--ds-color-text-muted);
   font-size: 0.7rem;
   font-weight: 700;
 }
 
 .marker-view-switch button[aria-pressed="true"] {
   background: #fff;
-  color: var(--green-dark);
-  box-shadow: 0 2px 9px rgb(24 51 41 / 9%);
+  color: var(--ds-color-primary);
+  box-shadow: var(--ds-shadow-card);
 }
 
 .marker-view-switch button:focus-visible {
-  outline: 3px solid rgb(23 103 83 / 18%);
+  outline: 3px solid color-mix(in srgb, var(--ds-color-focus) 24%, transparent);
   outline-offset: 2px;
 }
 
 .marker-view-switch span {
   min-width: 1.25rem;
   border-radius: 999px;
-  background: var(--green-wash);
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
   padding: 0.1rem 0.3rem;
   font-size: 0.58rem;
   text-align: center;
@@ -1414,11 +1419,11 @@ select:focus-visible {
 .marker-empty,
 .marker-resource-state {
   margin-top: 1.35rem;
-  border: 1px dashed #cad5cf;
+  border: 1px dashed var(--ds-color-border-strong);
   border-radius: 0.9rem;
-  background: rgb(247 249 247 / 82%);
+  background: var(--ds-color-surface-muted);
   padding: 2rem 1rem;
-  color: #6f7e77;
+  color: var(--ds-color-text-muted);
   font-size: 0.75rem;
   text-align: center;
 }
@@ -1429,10 +1434,10 @@ select:focus-visible {
   height: 2.4rem;
   margin: 0 auto 0.55rem;
   place-items: center;
-  border: 1px solid #d3ddd7;
+  border: 1px solid var(--ds-color-border-strong);
   border-radius: 50%;
-  color: var(--green-dark);
-  font-family: var(--serif);
+  color: var(--ds-color-primary);
+  font-family: var(--ds-font-interface);
   font-size: 1.25rem;
 }
 

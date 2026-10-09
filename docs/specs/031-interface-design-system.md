@@ -129,6 +129,14 @@ E em viewport móvel o conteúdo continua fluido e sem overflow horizontal.
 E busca, cards, metadados e ações permanecem legíveis e operáveis
 E foco, rótulos, diálogos e reduced motion continuam funcionais.
 
+### Cenário: navegação e estado vazio de marcadores não usam verde semântico
+
+Dado que a pessoa consulta os marcadores de saúde no dashboard pessoal
+Quando alterna entre ativos e histórico ou visualiza uma lista vazia
+Então seleção, foco, contador, borda, superfície e ícone usam azul institucional
+ou neutros do design system
+E verde fica reservado a sucesso e estados clínicos positivos.
+
 ## Contratos afetados
 
 ### Tokens
@@ -170,14 +178,26 @@ E foco, rótulos, diálogos e reduced motion continuam funcionais.
 
 ## Estratégia de testes
 
-1. RED: teste de contrato visual falha sem o arquivo de tokens, aliases e uso
-   semântico na área médica, além de detectar a paleta e a serifada antigas.
+1. RED: testes de contrato visual falham sem o arquivo de tokens, aliases e uso
+   semântico na área médica, além de detectar a paleta e a serifada antigas e
+   verde indevido nos controles e estado vazio dos marcadores.
 2. GREEN: adicionar os tokens, importar a fonte de verdade e alinhar o CSS
    médico sem alterar a marcação funcional.
 3. REFACTOR: substituir aliases e valores repetidos tocados por tokens e
    consolidar a documentação sem criar nova dependência.
 4. Regressão: `npm test`, Playwright da área médica em 320 px e desktop, build
    do Next.js, `git diff --check` e inspeção responsiva.
+
+### Evidência da correção de cores dos marcadores (2026-10-08)
+
+- RED: `npm test -- --run tests/design-system.test.js` falhou no novo contrato
+  porque `.marker-view-switch` ainda não usava `--ds-color-primary`.
+- GREEN: o contrato passou após a troca por tokens azuis/neutros. A suíte E2E
+  também verifica cores computadas da aba selecionada, contador e estado vazio
+  após a remoção dos marcadores.
+- Regressão: 29 testes unitários, 17 E2E e build do Next.js passaram. O build e
+  os E2E foram executados contra cópia temporária isolada para não interferir
+  no servidor local ativo.
 
 ## Critérios de aceite
 

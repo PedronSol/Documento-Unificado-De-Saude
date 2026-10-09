@@ -21,6 +21,14 @@ const dialogStyles = globals.slice(
   globals.indexOf(".modal-backdrop"),
   globals.indexOf(".home-state"),
 );
+const markerSwitchStyles = globals.slice(
+  globals.indexOf(".marker-view-switch {"),
+  globals.indexOf(".marker-groups,"),
+);
+const markerEmptyStyles = globals.slice(
+  globals.indexOf(".marker-empty,"),
+  globals.indexOf(".marker-empty p,"),
+);
 
 
 describe("contrato do design system", () => {
@@ -71,6 +79,16 @@ describe("contrato do design system", () => {
     expect(dialogStyles).not.toContain("var(--green-dark)");
     expect(dialogStyles).not.toContain("font-family: var(--serif)");
     expect(dialogStyles).not.toContain("#fbfbf7");
+  });
+
+  it("usa azul e neutros nos controles e estado vazio dos marcadores", () => {
+    expect(markerSwitchStyles).toContain("var(--ds-color-primary)");
+    expect(markerSwitchStyles).toContain("var(--ds-color-primary-soft)");
+    expect(markerSwitchStyles).not.toContain("var(--green-dark)");
+    expect(markerSwitchStyles).not.toContain("var(--green-wash)");
+    expect(markerEmptyStyles).toContain("var(--ds-color-border-strong)");
+    expect(markerEmptyStyles).toContain("var(--ds-color-primary)");
+    expect(markerEmptyStyles).not.toContain("var(--green-dark)");
   });
 
   it("substitui selects nativos pelo dropdown compartilhado", () => {
