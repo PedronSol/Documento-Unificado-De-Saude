@@ -160,9 +160,9 @@ E requests API e respostas com dados de saúde continuam sem cache.
   encontrou o link de manifest. Comando: `npx playwright test
   tests/login.spec.ts tests/pwa.spec.ts --grep "dock em mobile|PWA"`.
 - GREEN: a suíte E2E completa (16 testes) passou, incluindo larguras
-  320/768/1024/1199/1200 px, tablet touch a 1366 px, manifest/ícones, registro e
-  controle do service worker, fallback offline e Cache Storage com somente
-  `/offline.html`.
+  320/475/768/1024/1199/1200 px, tablet touch a 1366 px, manifest/ícones,
+  registro e controle do service worker, fallback offline e Cache Storage com
+  somente `/offline.html`.
 - REFACTOR: registro isolado em componente client pequeno; worker faz network
   only para toda requisição exceto navegação, e limpa apenas caches versionados
   com prefixo próprio.

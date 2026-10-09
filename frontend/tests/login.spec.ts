@@ -324,6 +324,9 @@ test.describe('Página Home', () => {
     await page.keyboard.press('Enter');
     await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toHaveAttribute('aria-pressed', 'true');
 
+    await page.setViewportSize({ width: 475, height: 900 });
+    await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
+
     await page.setViewportSize({ width: 768, height: 1024 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
     await expect.poll(() => page.locator('.authenticated-shell').evaluate((element) => getComputedStyle(element).paddingBottom)).not.toBe('0px');
