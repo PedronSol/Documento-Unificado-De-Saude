@@ -7,3 +7,11 @@ export function apiFetch(path, options = {}) {
     credentials: "include",
   });
 }
+
+export function publicApiFetch(path, options = {}) {
+  return fetch(`${API_URL}${path}`, {
+    ...options,
+    cache: "no-store",
+    credentials: "omit",
+  });
+}

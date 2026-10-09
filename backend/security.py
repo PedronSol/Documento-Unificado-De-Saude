@@ -32,9 +32,25 @@ def verify_password(password: str, encoded_password: str) -> bool:
         return False
 
 
-def create_session_token() -> str:
+def _create_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def hash_session_token(token: str) -> str:
+def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_session_token() -> str:
+    return _create_token()
+
+
+def hash_session_token(token: str) -> str:
+    return _hash_token(token)
+
+
+def create_share_token() -> str:
+    return _create_token()
+
+
+def hash_share_token(token: str) -> str:
+    return _hash_token(token)

@@ -5,12 +5,13 @@ from datetime import date
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy.exc import SQLAlchemyError
 
+from config import AppSettings
 from database import create_connection
 from database_admin import seed_database
 from database_config import DatabaseSettings, create_database_engine
@@ -22,6 +23,11 @@ from medical.router import (
     list_medical_patients,
 )
 from models import MarkerCreateUpdate, VaccineCreateUpdate
+from shares.router import (
+    create_health_share,
+    get_public_health_summary,
+    revoke_health_share,
+)
 from vaccines.router import add_vaccine
 
 
@@ -89,6 +95,11 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 f"WHERE table_schema='{database_name}' "
                 "AND table_name='health_markers'"
             ).scalar_one()
+            shares_table_count = connection.exec_driver_sql(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                f"WHERE table_schema='{database_name}' "
+                "AND table_name='health_shares'"
+            ).scalar_one()
             care_group_count = connection.exec_driver_sql(
                 "SELECT COUNT(*) FROM care_groups"
             ).scalar_one()
@@ -111,7 +122,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 "SELECT COUNT(*) FROM patients"
             ).scalar_one()
 
-        assert revision == "0005"
+        assert revision == "0006"
         assert patient_count > 0
         assert user_counts["total"] == 7
         assert user_counts["unique_cpfs"] == 7
@@ -119,6 +130,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
         assert doctor_count == 3
         assert audit_table_count == 1
         assert markers_table_count == 1
+        assert shares_table_count == 1
         assert care_group_count == 3
         assert pending_doctor_roles == 0
         assert patient_count_after_second_upgrade == patient_count
@@ -230,7 +242,7 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 """
             ).scalars().all()
 
-        assert revision == "0005"
+        assert revision == "0006"
         assert user["display_name"] == "Ana da Silva"
         assert user["email"] == "ana@example.com"
         assert user["password_hash"] == "hash-legado"
@@ -632,6 +644,122 @@ def test_medical_groups_enforce_access_and_resolve_doctor_crm_in_mysql():
             "crm_number": "100001",
             "crm_state": "RN",
         }
+    finally:
+        database_engine.dispose()
+        with admin_engine.begin() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
+        admin_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="Requer MySQL real com RUN_DB_INTEGRATION=1",
+)
+def test_health_share_expires_revokes_and_audits_in_mysql():
+    database_name = f"dus_share_test_{uuid4().hex[:12]}"
+    settings = DatabaseSettings(
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3307")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "root"),
+        database=database_name,
+    )
+    admin_engine = create_database_engine(settings, include_database=False)
+
+    with admin_engine.begin() as connection:
+        connection.exec_driver_sql(
+            f"CREATE DATABASE `{database_name}` "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+
+    database_engine = create_database_engine(settings)
+    try:
+        upgrade_database(database_engine, PROJECT_ROOT / "db" / "alembic.ini")
+        seed_database(
+            database_engine,
+            PROJECT_ROOT / "db" / "seeds" / "development.sql",
+            app_env="development",
+        )
+        with database_engine.connect() as connection:
+            patient = connection.exec_driver_sql(
+                """
+                SELECT p.patient_id, p.user_id
+                FROM patients p
+                JOIN users u ON u.user_id = p.user_id
+                WHERE u.email = 'carlos.silva@email.com'
+                """
+            ).mappings().one()
+
+        app_connection = create_connection(settings)
+        try:
+            add_marker(
+                marker=MarkerCreateUpdate(type="allergy", name="Dipirona"),
+                patient=dict(patient),
+                connection=app_connection,
+            )
+            created = create_health_share(
+                patient=dict(patient),
+                settings=AppSettings.from_mapping(
+                    {"PUBLIC_APP_URL": "https://app.example"}
+                ),
+                connection=app_connection,
+            )
+            raw_token = created["share_url"].split("#", 1)[1]
+            summary = get_public_health_summary(
+                response=Response(),
+                share_token=raw_token,
+                connection=app_connection,
+            )
+            revoked = revoke_health_share(
+                share_id=created["share_id"],
+                patient=dict(patient),
+                connection=app_connection,
+            )
+            with pytest.raises(HTTPException) as unavailable:
+                get_public_health_summary(
+                    response=Response(),
+                    share_token=raw_token,
+                    connection=app_connection,
+                )
+        finally:
+            app_connection.close()
+
+        with database_engine.connect() as connection:
+            stored = connection.exec_driver_sql(
+                """
+                SELECT token_hash, revoked_at, last_accessed_at
+                FROM health_shares WHERE share_id = %s
+                """,
+                (created["share_id"],),
+            ).mappings().one()
+            actions = connection.exec_driver_sql(
+                """
+                SELECT action
+                FROM clinical_audit_events
+                WHERE resource_type = 'health_share'
+                  AND resource_id = %s
+                ORDER BY audit_event_id
+                """,
+                (created["share_id"],),
+            ).scalars().all()
+
+        assert summary["patient"] == {
+            "preferred_name": "Carlos Silva",
+            "blood_type": "A+",
+        }
+        assert summary["markers"]["allergies"] == [
+            {"name": "Dipirona", "description": None}
+        ]
+        assert revoked.status_code == 204
+        assert unavailable.value.status_code == 404
+        assert stored["token_hash"] != raw_token
+        assert stored["revoked_at"] is not None
+        assert stored["last_accessed_at"] is not None
+        assert actions == [
+            "health_share.created",
+            "health_share.accessed",
+            "health_share.revoked",
+        ]
     finally:
         database_engine.dispose()
         with admin_engine.begin() as connection:
