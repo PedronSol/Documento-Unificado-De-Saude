@@ -32,6 +32,7 @@ class AppSettings:
     cookie_secure: bool
     session_cookie: str
     session_duration_hours: int
+    public_app_url: str
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, str]) -> "AppSettings":
@@ -46,6 +47,10 @@ class AppSettings:
             cookie_secure=values.get("COOKIE_SECURE", "false").lower() == "true",
             session_cookie=SESSION_COOKIE,
             session_duration_hours=int(values.get("SESSION_DURATION_HOURS", "8")),
+            public_app_url=values.get(
+                "PUBLIC_APP_URL",
+                "http://localhost:3000",
+            ).rstrip("/"),
         )
 
 

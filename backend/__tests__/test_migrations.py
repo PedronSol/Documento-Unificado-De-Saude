@@ -496,6 +496,85 @@ def test_migration_0005_cria_grupos_e_vinculos_vigentes_forward_only():
         migration.downgrade()
 
 
+def test_migration_0006_cria_compartilhamentos_temporarios_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0006_health_shares.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("health_shares_schema", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.table = None
+            self.elements = ()
+            self.indexes = []
+
+        def create_table(self, table, *elements):
+            self.table = table
+            self.elements = elements
+
+        def create_index(self, name, table, columns):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    columns = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Column)
+    }
+    constraints = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Constraint)
+    }
+
+    assert migration.revision == "0006"
+    assert migration.down_revision == "0005"
+    assert operations.table == "health_shares"
+    assert set(columns) == {
+        "share_id",
+        "token_hash",
+        "patient_id",
+        "created_by_user_id",
+        "created_at",
+        "expires_at",
+        "revoked_at",
+        "last_accessed_at",
+        "active_patient_id",
+    }
+    assert columns["token_hash"].nullable is False
+    assert columns["active_patient_id"].computed is not None
+    assert {
+        "ck_health_shares_expiration",
+        "ck_health_shares_revocation",
+        "ck_health_shares_last_access",
+        "fk_health_shares_patient",
+        "fk_health_shares_created_by",
+        "uq_health_shares_token_hash",
+        "uq_health_shares_active_patient",
+    } <= set(constraints)
+    assert operations.indexes == [
+        (
+            "idx_health_shares_patient_expiration",
+            "health_shares",
+            ["patient_id", "expires_at"],
+        ),
+    ]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
     seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
         encoding="utf-8"

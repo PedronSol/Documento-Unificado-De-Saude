@@ -64,7 +64,9 @@ make db-reset   # recria o banco local e reaplica migrations/seeds
 
 Os comandos `db-*` executam dentro do Compose. Para executar o backend
 diretamente no host, exporte `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e
-`DB_NAME` conforme o MySQL local; `.env.example` documenta os valores esperados.
+`DB_NAME` conforme o MySQL local. Configure também `PUBLIC_APP_URL` com a origem
+pública do frontend usada nos links temporários; `.env.example` documenta os
+valores esperados.
 
 Para executar a aplicação como um todo, deve-se entrar no diretório no qual o projeto foi clonado e executar o comando:
 ```Docker

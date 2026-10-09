@@ -57,6 +57,15 @@ test('edita os dados próprios em configurações no mobile', async ({ page }) =
       return;
     }
 
+    if (url.pathname === '/me/shares/active' && request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(null),
+      });
+      return;
+    }
+
     if (url.pathname.startsWith('/me/')) {
       await route.fulfill({
         status: 200,
@@ -71,7 +80,8 @@ test('edita os dados próprios em configurações no mobile', async ({ page }) =
 
   await page.goto('/home');
   await page.getByRole('heading', { name: 'Ana' }).waitFor();
-  await page.getByRole('button', { name: 'Conta de Ana' }).click();
+  await page.getByRole('button', { name: 'Conta de Ana' }).focus();
+  await page.keyboard.press('Enter');
   const accountMenu = page.getByRole('menu', { name: 'Conta de Ana' });
   await expect(accountMenu).toBeVisible();
   const menuBounds = await accountMenu.boundingBox();

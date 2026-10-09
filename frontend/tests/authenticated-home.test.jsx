@@ -70,6 +70,7 @@ function mockPatientResources(overrides = {}) {
       "/me/documents": [],
       "/me/markers?status=active": patientMarkers,
       "/me/markers?status=removed": [],
+      "/me/shares/active": null,
       ...overrides,
     };
     return respondWith(responses[path]);
@@ -95,6 +96,7 @@ describe("AuthenticatedHome", () => {
     expect(apiFetch).toHaveBeenCalledWith("/me/alerts");
     expect(apiFetch).toHaveBeenCalledWith("/me/documents");
     expect(apiFetch).toHaveBeenCalledWith("/me/markers?status=active");
+    expect(apiFetch).toHaveBeenCalledWith("/me/shares/active");
     expect(await screen.findByText("Losartana")).toBeInTheDocument();
   });
 

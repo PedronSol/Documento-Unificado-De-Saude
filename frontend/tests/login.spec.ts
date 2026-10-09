@@ -161,6 +161,7 @@ test.describe('Página Home', () => {
     let nextMarkerId = 22;
     let activeMarkers = MOCK_MARKERS.map((marker) => ({ ...marker }));
     let removedMarkers = [];
+    let activeShare = null;
 
     await page.route('**/me', (route) =>
       route.fulfill({
@@ -263,6 +264,39 @@ test.describe('Página Home', () => {
 
       return route.abort();
     });
+    await page.route('**/me/shares**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+
+      if (request.method() === 'GET' && url.pathname === '/me/shares/active') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(activeShare),
+        });
+      }
+
+      if (request.method() === 'POST' && url.pathname === '/me/shares') {
+        activeShare = {
+          share_id: 42,
+          share_url: `http://localhost:3000/share#${'v'.repeat(43)}`,
+          created_at: '2099-10-09T12:00:00',
+          expires_at: '2099-10-09T14:00:00',
+        };
+        return route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(activeShare),
+        });
+      }
+
+      if (request.method() === 'DELETE' && url.pathname === '/me/shares/42') {
+        activeShare = null;
+        return route.fulfill({ status: 204 });
+      }
+
+      return route.abort();
+    });
     await page.goto('/home');
     await waitForHydration(page);
   });
@@ -273,6 +307,68 @@ test.describe('Página Home', () => {
     ).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('navigation', { name: 'Contexto de acesso' })).toHaveCount(0);
     await expect(page.locator('.authenticated-shell')).not.toHaveClass(/has-context-dock/);
+  });
+
+  test('gera QR temporário e revoga o acesso em 320 px', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+
+    await page.getByRole('button', { name: 'Gerar acesso temporário' }).click();
+
+    await expect(page.getByLabel('QR-Code do compartilhamento')).toBeVisible();
+    await expect(page.getByText(/Tempo restante/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copiar link' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+
+    await page.getByRole('button', { name: 'Revogar acesso' }).click();
+    const dialog = page.getByRole('alertdialog', { name: 'Revogar acesso temporário' });
+    await expect(dialog).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Manter acesso' })).toBeFocused();
+    await page.getByRole('button', { name: 'Confirmar revogação' }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Gerar acesso temporário' })).toBeVisible();
+  });
+
+  test('abre resumo público sem login, remove o fragmento e adapta o grid', async ({ page }) => {
+    const token = 'v'.repeat(43);
+    await page.route('**/public/shares/summary', async (route) => {
+      expect(await route.request().headerValue('x-share-token')).toBe(token);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          expires_at: '2099-10-09T14:00:00',
+          patient: { preferred_name: 'Carlos', blood_type: 'A+' },
+          markers: {
+            allergies: [{ name: 'Dipirona', description: 'Reação cutânea' }],
+            medications: [{
+              name: 'Losartana',
+              description: 'Uso contínuo',
+              dosage: '50 mg',
+              frequency: '1 vez ao dia',
+            }],
+            conditions: [],
+            diagnoses: [{ name: 'Hipertensão', description: null }],
+          },
+        }),
+      });
+    });
+
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.goto(`/share#${token}`);
+
+    await expect(page.getByRole('heading', { name: 'Resumo de Carlos' })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    const mobileCards = await page.locator('.public-share-card').all();
+    const firstMobile = await mobileCards[0].boundingBox();
+    const secondMobile = await mobileCards[1].boundingBox();
+    expect(secondMobile?.y).toBeGreaterThan(firstMobile?.y ?? 0);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const firstDesktop = await mobileCards[0].boundingBox();
+    const secondDesktop = await mobileCards[1].boundingBox();
+    expect(firstDesktop?.y).toBeCloseTo(secondDesktop?.y ?? 0, 0);
   });
 
   test('move o seletor de contexto para um dock em mobile e mantém o header no desktop', async ({ page }) => {

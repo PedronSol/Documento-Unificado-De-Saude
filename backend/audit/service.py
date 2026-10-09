@@ -26,7 +26,8 @@ def serialize_health_marker_snapshot(
 def record_clinical_event(
     cursor: Any,
     *,
-    actor_user_id: int,
+    actor_user_id: int | None,
+    actor_type: str = "user",
     patient_id: int,
     action: str,
     resource_type: str,
@@ -42,7 +43,7 @@ def record_clinical_event(
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, UTC_TIMESTAMP(6))
         """,
         (
-            "user",
+            actor_type,
             actor_user_id,
             patient_id,
             action,

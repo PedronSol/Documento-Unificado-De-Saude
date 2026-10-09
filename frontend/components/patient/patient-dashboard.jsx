@@ -29,6 +29,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { DigitalDocuments } from "@/components/health-passport/digital-documents";
 import { MedicalAlerts } from "@/components/health-passport/medical-alerts";
 import { HealthMarkers } from "@/components/patient/health-markers";
+import { HealthSharing } from "@/components/patient/health-sharing";
 import { ClinicalSelect } from "@/components/ui/clinical-select";
 import { apiFetch } from "@/lib/api";
 
@@ -479,6 +480,10 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
       </section>
 
       <div className="patient-sections">
+        <HealthSharing
+          isAdult={profile.is_adult}
+          onUnauthenticated={onUnauthenticated}
+        />
         {alertsResource.status === "loading" ? (
           <ResourceNotice
             title="Alertas médicos"

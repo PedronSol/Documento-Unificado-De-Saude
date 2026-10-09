@@ -190,7 +190,7 @@ flowchart TD
 | 5 | Auditoria clínica | 4 | DONE | `850e2ad`, `fe56d2a` |
 | 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
 | 7 | Área médica e grupos | 4, 6 | DONE | `fc2b12e` |
-| 8 | Compartilhamento e QR-Code | 6 | PLANNED | — |
+| 8 | Compartilhamento e QR-Code | 6 | SPEC APPROVED | `docs/specs/040-health-summary-sharing.md` |
 | 9 | Armazenamento de documentos | 5 | PLANNED | — |
 | 10 | OCR e revisão | 9 | PLANNED | — |
 | 11 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |

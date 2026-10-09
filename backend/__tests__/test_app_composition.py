@@ -8,6 +8,7 @@ from markers.router import router as markers_router
 from main import create_app
 from medical.router import router as medical_router
 from patients.router import router as patients_router
+from shares.router import router as shares_router
 from vaccines.router import router as vaccines_router
 
 
@@ -30,6 +31,10 @@ EXPECTED_API_ROUTES = {
     ("POST", "/medical/patients/{patient_id}/markers"),
     ("PUT", "/medical/patients/{patient_id}/markers/{marker_id}"),
     ("DELETE", "/medical/patients/{patient_id}/markers/{marker_id}"),
+    ("POST", "/me/shares"),
+    ("GET", "/me/shares/active"),
+    ("DELETE", "/me/shares/{share_id}"),
+    ("GET", "/public/shares/summary"),
 }
 
 
@@ -64,6 +69,7 @@ def test_domain_routers_own_the_current_routes():
             documents_router,
             markers_router,
             medical_router,
+            shares_router,
         )
         for route in router.routes
     }
@@ -83,7 +89,25 @@ def test_domain_routers_own_the_current_routes():
         "/medical/patients/{patient_id}",
         "/medical/patients/{patient_id}/markers",
         "/medical/patients/{patient_id}/markers/{marker_id}",
+        "/me/shares",
+        "/me/shares/active",
+        "/me/shares/{share_id}",
+        "/public/shares/summary",
     }
+
+
+def test_cors_allows_share_token_header_only_for_configured_origins():
+    application = create_app(
+        settings=AppSettings.from_mapping(
+            {"CORS_ORIGINS": "https://app.example"}
+        ),
+        connection_factory=lambda: None,
+    )
+
+    cors = application.user_middleware[0]
+    assert cors.kwargs["allow_origins"] == ["https://app.example"]
+    assert cors.kwargs["allow_credentials"] is True
+    assert cors.kwargs["allow_headers"] == ["Content-Type", "X-Share-Token"]
 
 
 def test_main_is_only_the_composition_root():

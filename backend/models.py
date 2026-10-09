@@ -86,6 +86,52 @@ class MarkerResponse(MarkerBase):
     removed_at: Optional[datetime] = None
 
 
+class HealthShareMetadataResponse(BaseModel):
+    share_id: int
+    created_at: datetime
+    expires_at: datetime
+
+
+class HealthShareCreatedResponse(HealthShareMetadataResponse):
+    share_url: str
+
+
+class PublicPatientSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    preferred_name: str
+    blood_type: str
+
+
+class PublicMarkerSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: Optional[str] = None
+
+
+class PublicMedicationSummary(PublicMarkerSummary):
+    dosage: Optional[str] = None
+    frequency: Optional[str] = None
+
+
+class PublicMarkerGroups(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    allergies: List[PublicMarkerSummary]
+    medications: List[PublicMedicationSummary]
+    conditions: List[PublicMarkerSummary]
+    diagnoses: List[PublicMarkerSummary]
+
+
+class PublicHealthSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expires_at: datetime
+    patient: PublicPatientSummary
+    markers: PublicMarkerGroups
+
+
 class AlertResponse(BaseModel):
     alert_id: int
     type: Literal["condition", "medication", "allergy"]
