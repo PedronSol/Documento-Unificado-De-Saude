@@ -81,6 +81,9 @@ test('edita os dados próprios em configurações no mobile', async ({ page }) =
 
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.getByRole('heading', { name: 'Configurações' })).toBeVisible();
+  const backLink = page.getByRole('link', { name: 'Voltar ao início' });
+  await expect(backLink.locator('svg')).toHaveCount(1);
+  await expect(backLink).toHaveClass(/medical-back/);
   await expect(page.getByLabel('E-mail')).toHaveValue('ana@example.com');
   await expect(page.getByLabel('E-mail')).toBeDisabled();
   await page.getByLabel('Nome de exibição').fill('Ana Costa');

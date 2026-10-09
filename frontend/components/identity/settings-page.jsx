@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import { apiFetch } from "@/lib/api";
 
 
@@ -97,7 +98,10 @@ export function SettingsPage({ onUnauthenticated = redirectToLogin }) {
 
   return (
     <main className="settings-main">
-      <a className="settings-back-link" href="/home">Voltar ao início</a>
+      <a className="medical-back settings-back-link" href="/home">
+        <ArrowLeft aria-hidden="true" size={17} />
+        Voltar ao início
+      </a>
       <section className="settings-card" aria-labelledby="settings-title">
         <p className="eyebrow">Minha conta</p>
         <h1 id="settings-title">Configurações</h1>

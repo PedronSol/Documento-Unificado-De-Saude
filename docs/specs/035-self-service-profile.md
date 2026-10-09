@@ -129,6 +129,13 @@ Then nome e, para paciente, nome preferido são editáveis
 And e-mail e demais dados explicitamente somente leitura aparecem identificados
 And sucesso, validação e erro de serviço têm feedback acessível.
 
+### Retorno ao início
+
+Given usuário autenticado em `/settings`
+When a página carrega
+Then o link “Voltar ao início” usa a affordance compacta com seta à esquerda,
+  igual ao botão “Voltar para pacientes” do prontuário médico.
+
 ## Não objetivos
 
 - Alteração/verificação de e-mail, senha, CPF, nome civil ou data de nascimento.
@@ -165,3 +172,5 @@ And sucesso, validação e erro de serviço têm feedback acessível.
   publicar a alteração.
 - Implementação concluída na branch `feat/medical-panel`, PR #7. `npm run lint`
   não executou porque o binário `eslint` não está instalado no workspace.
+- Ajuste visual do retorno ao início: RED com link sem ícone; GREEN ao reutilizar
+  `.medical-back` e seta esquerda. Playwright do fluxo mobile e build passaram.

@@ -922,13 +922,7 @@ select:focus-visible {
 }
 
 .settings-back-link {
-  display: inline-flex;
-  min-height: var(--ds-control-min-height);
-  align-items: center;
   margin-bottom: var(--ds-space-4);
-  color: var(--ds-color-primary);
-  font-size: var(--ds-font-size-sm);
-  text-decoration: none;
 }
 
 .settings-card {
@@ -2630,6 +2624,7 @@ select:focus-visible {
   color: var(--ds-color-primary);
   font-size: var(--ds-font-size-xs);
   font-weight: var(--ds-font-weight-bold);
+  text-decoration: none;
 }
 
 .medical-back:hover {
