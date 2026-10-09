@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from fastapi import Response
 from httpx import ASGITransport, AsyncClient
 import pytest
+import mysql.connector
 
 from auth.router import login
 from config import AppSettings, SESSION_COOKIE
@@ -75,6 +76,31 @@ class FakeCursor:
                     None,
                 )
             )
+        elif sql.startswith("SELECT patient_id FROM patients WHERE user_id"):
+            self.result = next(
+                (
+                    {"patient_id": patient["patient_id"]}
+                    for patient in self.database.patients.values()
+                    if patient["user_id"] == parameters[0]
+                ),
+                None,
+            )
+        elif sql.startswith("UPDATE users SET display_name"):
+            display_name, user_id = parameters
+            if self.database.fail_user_update:
+                self.database.fail_user_update = False
+                raise mysql.connector.Error("Falha simulada")
+            self.database.users[user_id]["display_name"] = display_name
+            self.rowcount = 1
+        elif sql.startswith("UPDATE patients SET nome_paciente"):
+            preferred_name, user_id = parameters
+            patient = next(
+                patient
+                for patient in self.database.patients.values()
+                if patient["user_id"] == user_id
+            )
+            patient["nome_paciente"] = preferred_name
+            self.rowcount = 1
         elif sql.startswith("SELECT * FROM patients WHERE patient_id"):
             self.result = deepcopy(self.database.patients.get(parameters[0]))
         elif "FROM vaccines WHERE patient_id" in sql:
@@ -124,6 +150,10 @@ class FakeCursor:
 class FakeConnection:
     def __init__(self, database):
         self.database = database
+        self.snapshot = (
+            deepcopy(database.users),
+            deepcopy(database.patients),
+        )
 
     def cursor(self, dictionary=False):
         return FakeCursor(self.database)
@@ -133,6 +163,7 @@ class FakeConnection:
 
     def rollback(self):
         self.database.rollbacks += 1
+        self.database.users, self.database.patients = deepcopy(self.snapshot)
 
     def close(self):
         pass
@@ -226,6 +257,7 @@ class FakeIdentityDatabase:
         self.executed = []
         self.commits = 0
         self.rollbacks = 0
+        self.fail_user_update = False
 
     def connect(self):
         return FakeConnection(self)
@@ -282,6 +314,141 @@ async def test_login_de_paciente_retorna_somente_identidade_sem_dashboard(
         or "FROM documents" in statement
         for statement, _ in identity_database.executed
     )
+
+
+async def test_usuario_pode_atualizar_seu_nome_de_exibicao(client, identity_database):
+    identity_database.create_session(1)
+    client.cookies.set(SESSION_COOKIE, "valid-session")
+
+    response = await client.patch(
+        "/me/profile",
+        json={"display_name": "Ana Costa"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["display_name"] == "Ana Costa"
+
+
+async def test_paciente_atualiza_nome_preferido_sem_alterar_nome_civil(
+    client, identity_database
+):
+    identity_database.create_session(1)
+    client.cookies.set(SESSION_COOKIE, "valid-session")
+
+    response = await client.patch(
+        "/me/profile",
+        json={"preferred_name": "Aninha"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["patient_profile"]["preferred_name"] == "Aninha"
+    assert response.json()["patient_profile"]["full_name"] == "Ana da Silva"
+
+
+async def test_atualizacao_rejeita_campos_protegidos_sem_alterar_conta(
+    client, identity_database
+):
+    identity_database.create_session(1)
+    client.cookies.set(SESSION_COOKIE, "valid-session")
+
+    response = await client.patch(
+        "/me/profile",
+        json={"display_name": "Nome falso", "user_id": 2, "email": "attacker@example.com"},
+    )
+
+    assert response.status_code == 422
+    assert identity_database.users[1]["display_name"] == "Ana da Silva"
+    assert identity_database.users[2]["display_name"] == "Dr. Rui Lima"
+
+
+async def test_usuario_sem_perfil_paciente_nao_pode_alterar_nome_preferido(
+    client, identity_database
+):
+    identity_database.create_session(2)
+    client.cookies.set(SESSION_COOKIE, "valid-session")
+
+    response = await client.patch(
+        "/me/profile",
+        json={"preferred_name": "Outro"},
+    )
+
+    assert response.status_code == 422
+    assert identity_database.patients[10]["nome_paciente"] == "Ana"
+
+
+async def test_atualizacao_com_payload_vazio_ou_nome_acima_do_limite_e_rejeitada(
+    client, identity_database
+):
+    identity_database.create_session(1)
+    client.cookies.set(SESSION_COOKIE, "valid-session")
+
+    empty_response = await client.patch("/me/profile", json={})
+    long_name_response = await client.patch(
+        "/me/profile",
+        json={"display_name": "N" * 101},
+    )
+    long_preferred_name_response = await client.patch(
+        "/me/profile",
+        json={"preferred_name": "A" * 21},
+    )
+
+    assert empty_response.status_code == 422
+    assert long_name_response.status_code == 422
+    assert long_preferred_name_response.status_code == 422
+    assert identity_database.users[1]["display_name"] == "Ana da Silva"
+
+
+async def test_atualizacao_combinada_faz_rollback_se_um_update_falha(
+    client, identity_database
+):
+    identity_database.create_session(1)
+    identity_database.fail_user_update = True
+    client.cookies.set(SESSION_COOKIE, "valid-session")
+
+    response = await client.patch(
+        "/me/profile",
+        json={"display_name": "Ana Costa", "preferred_name": "Aninha"},
+    )
+
+    assert response.status_code == 503
+    assert identity_database.users[1]["display_name"] == "Ana da Silva"
+    assert identity_database.patients[10]["nome_paciente"] == "Ana"
+    assert identity_database.rollbacks == 1
+
+
+async def test_atualizacao_de_perfil_exige_sessao(client):
+    response = await client.patch(
+        "/me/profile",
+        json={"display_name": "Ana Costa"},
+    )
+
+    assert response.status_code == 401
+
+
+async def test_cors_permite_preflight_patch_apenas_na_origem_configurada(client):
+    response = await client.options(
+        "/me/profile",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "PATCH" in response.headers["access-control-allow-methods"]
+
+    rejected = await client.options(
+        "/me/profile",
+        headers={
+            "Origin": "https://unexpected.example",
+            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert rejected.status_code == 400
+    assert "access-control-allow-origin" not in rejected.headers
 
 
 def test_contrato_de_login_minimo_nao_retorna_dashboard(identity_database):

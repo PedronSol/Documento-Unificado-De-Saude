@@ -189,7 +189,7 @@ flowchart TD
 | 4 | Contratos e autorização por recurso | 3 | DONE | [PR #4](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/4) |
 | 5 | Auditoria clínica | 4 | DONE | `850e2ad`, `fe56d2a` |
 | 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
-| 7 | Área médica e grupos | 4, 6 | PLANNED | — |
+| 7 | Área médica e grupos | 4, 6 | DONE | `fc2b12e` |
 | 8 | Compartilhamento e QR-Code | 6 | PLANNED | — |
 | 9 | Armazenamento de documentos | 5 | PLANNED | — |
 | 10 | OCR e revisão | 9 | PLANNED | — |
@@ -401,14 +401,20 @@ medicações com histórico.
 
 ### Tarefas
 
-- [ ] Escrever cenários de vínculo válido, inválido e inativo.
-- [ ] Criar grupos, vínculos de médicos e vínculos de pacientes.
-- [ ] Implementar busca de pacientes autorizados por nome ou CPF.
-- [ ] Criar prontuário longitudinal médico somente leitura.
-- [ ] Reutilizar o módulo de marcadores para alterações médicas.
-- [ ] Registrar usuário e CRM nas alterações.
-- [ ] Bloquear acesso direto a paciente de outro grupo.
-- [ ] Criar interface médica e testes ponta a ponta.
+- [x] Escrever cenários de vínculo válido, inválido e inativo.
+- [x] Criar grupos, vínculos de médicos e vínculos de pacientes.
+- [x] Implementar busca de pacientes autorizados por nome ou CPF.
+- [x] Criar prontuário longitudinal médico somente leitura.
+- [x] Reutilizar o módulo de marcadores para alterações médicas.
+- [x] Registrar usuário e CRM nas alterações.
+- [x] Bloquear acesso direto a paciente de outro grupo.
+- [x] Criar interface médica e testes ponta a ponta.
+- [x] Alinhar a área médica ao design system institucional e documentar tokens,
+      componentes e governança visual.
+- [x] Exibir o seletor multirole como dock inferior flutuante em mobile,
+      preservando navegação no cabeçalho em telas amplas.
+- [x] Ampliar o dock para celulares/tablets e tornar a aplicação instalável
+      como PWA sem persistir dados de saúde no dispositivo.
 
 ### Critérios de conclusão
 
@@ -616,3 +622,18 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-06 | 6 | SPEC REVIEW → SPEC APPROVED | `docs/specs/010-health-markers.md` | Contratos, normalização, histórico removido, auditoria e direção do frontend aprovados; próximo passo é a migration `0004` em RED. |
 | 2026-10-06 | 6 | SPEC APPROVED → IN PROGRESS | branch `feat/health-markers` | Migration `0004`, API, auditoria e interface foram concluídas por TDD; 88 testes backend, 18 unitários frontend, 13 E2E e build passaram. Aguarda commits e referência do PR para `DONE`. |
 | 2026-10-06 | 6 | IN PROGRESS → DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) | Entrega publicada com migration, autorização, auditoria, interface alinhada e evidências de regressão registradas. |
+| 2026-10-08 | 7 | PLANNED → SPEC REVIEW | `docs/specs/030-medical-panel.md` | Cenários, contratos, grupos, matriz de vínculo, segurança, prontuário mínimo e impacto no frontend detalhados; implementação aguarda aprovação. |
+| 2026-10-08 | 7 | SPEC REVIEW → SPEC APPROVED | `docs/specs/030-medical-panel.md` | Grupos, vigência, busca, prontuário mínimo, autoria médica, erros e direção do frontend aprovados; próximo passo é a migration `0005` em RED. |
+| 2026-10-08 | 7 | SPEC APPROVED → IN PROGRESS | branch `feat/medical-panel` | Migration `0005`, autorização por grupos, prontuário auditado, mutações médicas e interface profissional implementados por TDD; validação final e referência de commit pendentes. |
+| 2026-10-08 | 7 | CORREÇÃO VISUAL → SPEC APPROVED | `docs/specs/031-interface-design-system.md` | Alinhamento da área médica e design system solicitados e aprovados; tokens, guia e guardrail visual serão implementados sem alterar contratos funcionais. |
+| 2026-10-08 | 7 | CORREÇÃO VISUAL → IMPLEMENTED | `9ac89b6` | Tokens claro/escuro, guia, governança no `AGENTS.md`, área médica mobile-first, diálogos azuis e `ClinicalSelect` acessível concluídos; RED/GREEN e validação em 320 px registrados. |
+| 2026-10-08 | 7 | DOCK MOBILE → IMPLEMENTED | `fa92262`, `84cd842`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Seletor multirole virou dock flutuante mobile-first, com safe area, espaço de conteúdo e retorno ao cabeçalho a partir de 800 px; captura reportada reproduzida em RED a 768 px; 27 unitários, 14 E2E e build aprovados. |
+| 2026-10-08 | 7 | PWA MOBILE → IMPLEMENTED | `d29389f`, `427138d`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Dock permanece em celular/tablet e em dispositivos touch mesmo com viewport CSS amplo; manifest instalável, ícones, registro do service worker e fallback sem dados sensíveis concluídos por TDD. A emulação touch em 1366 px e viewport de 475 px confirma o dock; 27 testes unitários, 16 E2E e build aprovados após o ajuste. |
+| 2026-10-08 | 7 | DOCK FIXED → IMPLEMENTED | `docs/specs/033-mobile-pwa.md` | Corrigido o containing block: dock agora é sibling do header sticky; testes validam geometria próxima ao limite inferior do viewport, não só `position: fixed`. Chrome emulado 475×900 confirmou bottom a 12 px; 27 unitários, 16 E2E e build passaram. Commit `6057170`, PR #7. |
+| 2026-10-08 | 7 | MENU DA CONTA MOBILE → DONE | `docs/specs/034-mobile-account-menu.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Menu acessível com nome/e-mail, configurações e logout; avatar preserva foto/iniciais. `/settings` abre a partir do menu; E2E confirma contenção a 320 px. Suíte frontend, 17 E2E e build aprovados. |
+| 2026-10-08 | 7 | PERFIL PRÓPRIO → DONE | `docs/specs/035-self-service-profile.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | API `PATCH /me/profile` autoescopada e transacional; atualiza display/preferred name, rejeita campos protegidos e payload inválido. CORS libera PATCH somente às origens configuradas. 105 testes backend (6 integração ignorados), 28 unitários, 17 E2E e build aprovados. Lint indisponível: `eslint` não instalado. |
+| 2026-10-08 | 7 | RETORNO DE CONFIGURAÇÕES → DONE | `docs/specs/035-self-service-profile.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Link “Voltar ao início” agora reaproveita a affordance `.medical-back`, com seta e tipografia compacta; RED/GREEN, Playwright mobile e build aprovados. |
+| 2026-10-08 | 7 | LARGURA DESKTOP DO PACIENTE → DONE | `docs/specs/031-interface-design-system.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | `.patient-main` compartilha `--ds-layout-content` (78 rem) com a área profissional; a 1920 px fica centralizada com 1248 px, preservando fluidez em 320 px. Evidência RED/GREEN, 28 unitários, 17 E2E e build registrados. |
+| 2026-10-08 | 7 | CORES DOS MARCADORES → DONE | `docs/specs/031-interface-design-system.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Filtro ativo, contador, foco, decoração do card e estado vazio usam tokens azuis/neutros; verde permanece somente em estados positivos. RED/GREEN, 29 unitários, 17 E2E com cores computadas e build aprovados. |
+| 2026-10-08 | 7 | BUSCA REATIVA DE PACIENTES → DONE | `docs/specs/030-medical-panel.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Debounce de 300 ms, critérios de busca, CPF completo, limpeza, botão sem duplicação e descarte de respostas obsoletas implementados por TDD; 33 unitários, 17 E2E e build aprovados. |
+| 2026-10-08 | 7 | IN PROGRESS → DONE | `fc2b12e` | Backend com 103 testes no MySQL 8 real, frontend com 21 unitários e 13 E2E, build aprovado; grupos, autorização, auditoria, autoria CRM e interface responsiva concluídos. |

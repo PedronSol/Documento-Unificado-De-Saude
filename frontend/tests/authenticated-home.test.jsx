@@ -208,7 +208,8 @@ describe("AuthenticatedHome", () => {
     expect(screen.getByLabelText("Nome do marcador")).toHaveFocus();
     expect(screen.queryByLabelText("Dosagem")).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Tipo"), "medication");
+    await user.click(screen.getByLabelText("Tipo"));
+    await user.click(screen.getByRole("option", { name: "Medicação" }));
 
     expect(screen.getByLabelText("Dosagem")).toBeInTheDocument();
     expect(screen.getByLabelText("Frequência")).toBeInTheDocument();
@@ -289,7 +290,8 @@ describe("AuthenticatedHome", () => {
     await screen.findByText("Losartana");
     await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
     await user.type(screen.getByLabelText("Nome do marcador"), "Losartana");
-    await user.selectOptions(screen.getByLabelText("Tipo"), "medication");
+    await user.click(screen.getByLabelText("Tipo"));
+    await user.click(screen.getByRole("option", { name: "Medicação" }));
     await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
 
     expect(
@@ -300,9 +302,12 @@ describe("AuthenticatedHome", () => {
     expect(screen.getByRole("dialog", { name: "Adicionar marcador" })).toBeInTheDocument();
   });
 
-  it("mostra credencial profissional sem renderizar conteúdo clínico", async () => {
-    apiFetch.mockReturnValue(
-      respondWith({
+  it("carrega a área profissional sem renderizar o dashboard do paciente", async () => {
+    apiFetch.mockImplementation((path) => {
+      if (path === "/medical/patients") {
+        return respondWith([]);
+      }
+      return respondWith({
         user: {
           user_id: 7,
           display_name: "Dr. Rui Lima",
@@ -310,18 +315,21 @@ describe("AuthenticatedHome", () => {
           roles: ["doctor"],
         },
         patient_profile: null,
-      }),
-    );
+      });
+    });
 
     render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
 
     expect(
-      await screen.findByRole("heading", { name: "Área profissional" }),
+      await screen.findByRole("heading", { name: "Pacientes em acompanhamento" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Dr. Rui Lima")).toHaveLength(2);
+    expect(screen.getAllByText(/Dr. Rui Lima/)).toHaveLength(2);
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
     expect(screen.queryByText("BCG reservada")).not.toBeInTheDocument();
-    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(
+      apiFetch.mock.calls.some(([path]) => path === "/medical/patients"),
+    ).toBe(true);
+    expect(apiFetch).toHaveBeenCalledTimes(2);
   });
 
   it("mostra estado institucional para administração sem consultar conteúdo clínico", async () => {
@@ -356,7 +364,7 @@ describe("AuthenticatedHome", () => {
     await user.click(screen.getByRole("button", { name: "Área profissional" }));
 
     expect(
-      screen.getByRole("heading", { name: "Área profissional" }),
+      await screen.findByRole("heading", { name: "Pacientes em acompanhamento" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("BCG reservada")).not.toBeInTheDocument();
 
@@ -396,5 +404,31 @@ describe("AuthenticatedHome", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Administração")).not.toBeInTheDocument();
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
+  });
+
+  it("abre o menu da conta com configurações e logout", async () => {
+    mockPatientResources();
+    const user = userEvent.setup();
+    render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
+
+    await screen.findByText("BCG reservada");
+    await user.click(screen.getByRole("button", { name: "Conta de Helena" }));
+
+    expect(screen.getByText("helena@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Configurações" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    expect(screen.getByRole("menuitem", { name: "Sair da conta" })).toBeInTheDocument();
+    expect(screen.queryByText("Presets")).not.toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Conta de Helena" });
+    expect(trigger).toHaveFocus();
+
+    await user.click(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "Sair da conta" }));
+    expect(apiFetch).toHaveBeenCalledWith("/logout", { method: "POST" });
   });
 });

@@ -16,6 +16,11 @@ from database_admin import seed_database
 from database_config import DatabaseSettings, create_database_engine
 from migration_service import upgrade_database
 from markers.router import add_marker, delete_marker
+from medical.router import (
+    add_medical_marker,
+    get_medical_record,
+    list_medical_patients,
+)
 from models import MarkerCreateUpdate, VaccineCreateUpdate
 from vaccines.router import add_vaccine
 
@@ -84,6 +89,9 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 f"WHERE table_schema='{database_name}' "
                 "AND table_name='health_markers'"
             ).scalar_one()
+            care_group_count = connection.exec_driver_sql(
+                "SELECT COUNT(*) FROM care_groups"
+            ).scalar_one()
             pending_doctor_roles = connection.exec_driver_sql(
                 """
                 SELECT COUNT(*)
@@ -103,7 +111,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 "SELECT COUNT(*) FROM patients"
             ).scalar_one()
 
-        assert revision == "0004"
+        assert revision == "0005"
         assert patient_count > 0
         assert user_counts["total"] == 7
         assert user_counts["unique_cpfs"] == 7
@@ -111,6 +119,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
         assert doctor_count == 3
         assert audit_table_count == 1
         assert markers_table_count == 1
+        assert care_group_count == 3
         assert pending_doctor_roles == 0
         assert patient_count_after_second_upgrade == patient_count
     finally:
@@ -221,7 +230,7 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 """
             ).scalars().all()
 
-        assert revision == "0004"
+        assert revision == "0005"
         assert user["display_name"] == "Ana da Silva"
         assert user["email"] == "ana@example.com"
         assert user["password_hash"] == "hash-legado"
@@ -508,6 +517,121 @@ def test_health_markers_preserve_history_uniqueness_and_atomicity_in_mysql():
 
         assert audit_error.value.status_code == 503
         assert total_after_failure == total_before_failure
+    finally:
+        database_engine.dispose()
+        with admin_engine.begin() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
+        admin_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="Requer MySQL real com RUN_DB_INTEGRATION=1",
+)
+def test_medical_groups_enforce_access_and_resolve_doctor_crm_in_mysql():
+    database_name = f"dus_medical_test_{uuid4().hex[:12]}"
+    settings = DatabaseSettings(
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3307")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "root"),
+        database=database_name,
+    )
+    admin_engine = create_database_engine(settings, include_database=False)
+
+    with admin_engine.begin() as connection:
+        connection.exec_driver_sql(
+            f"CREATE DATABASE `{database_name}` "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+
+    database_engine = create_database_engine(settings)
+    try:
+        upgrade_database(database_engine, PROJECT_ROOT / "db" / "alembic.ini")
+        seed_database(
+            database_engine,
+            PROJECT_ROOT / "db" / "seeds" / "development.sql",
+            app_env="development",
+        )
+        with database_engine.connect() as connection:
+            doctor = connection.exec_driver_sql(
+                """
+                SELECT d.doctor_id, d.user_id
+                FROM doctors d
+                JOIN users u ON u.user_id = d.user_id
+                WHERE u.email = 'helena.costa@email.com'
+                """
+            ).mappings().one()
+            patients = {
+                row["email"]: row["patient_id"]
+                for row in connection.exec_driver_sql(
+                    """
+                    SELECT u.email, p.patient_id
+                    FROM patients p
+                    JOIN users u ON u.user_id = p.user_id
+                    WHERE u.email IN (
+                        'carlos.silva@email.com',
+                        'mariana.souza@email.com'
+                    )
+                    """
+                ).mappings()
+            }
+
+        app_connection = create_connection(settings)
+        try:
+            listed = list_medical_patients(
+                query=None,
+                doctor=dict(doctor),
+                connection=app_connection,
+            )
+            created = add_medical_marker(
+                patient_id=patients["carlos.silva@email.com"],
+                marker=MarkerCreateUpdate(
+                    type="diagnosis",
+                    name="Insuficiência renal leve",
+                ),
+                doctor=dict(doctor),
+                connection=app_connection,
+            )
+            record = get_medical_record(
+                patient_id=patients["carlos.silva@email.com"],
+                doctor=dict(doctor),
+                connection=app_connection,
+            )
+            with pytest.raises(HTTPException) as denied:
+                get_medical_record(
+                    patient_id=patients["mariana.souza@email.com"],
+                    doctor=dict(doctor),
+                    connection=app_connection,
+                )
+        finally:
+            app_connection.close()
+
+        with database_engine.connect() as connection:
+            author = connection.exec_driver_sql(
+                """
+                SELECT u.display_name, d.crm_number, d.crm_state
+                FROM clinical_audit_events a
+                JOIN users u ON u.user_id = a.actor_user_id
+                JOIN doctors d ON d.user_id = u.user_id
+                WHERE a.action = 'health_marker.created'
+                  AND a.resource_id = %s
+                """,
+                (created["marker_id"],),
+            ).mappings().one()
+
+        assert [patient["full_name"] for patient in listed] == [
+            "Carlos Eduardo Silva"
+        ]
+        assert record["markers"]["active"][0]["name"] == (
+            "Insuficiência renal leve"
+        )
+        assert denied.value.status_code == 403
+        assert author == {
+            "display_name": "Dra. Helena Costa",
+            "crm_number": "100001",
+            "crm_state": "RN",
+        }
     finally:
         database_engine.dispose()
         with admin_engine.begin() as connection:

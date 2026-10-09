@@ -33,6 +33,42 @@ Pastas na raiz devem usar nomes minúsculos. Código gerado, caches e resultados
 
 Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock.json`.
 
+## Design system do frontend
+
+- A fonte de verdade visual é `docs/design-system.md`; os tokens executáveis
+  ficam em `frontend/styles/design-tokens.css` e usam o prefixo `--ds-*`.
+- O estilo é institucional clínico: claro, calmo e preciso. Use canvas
+  cinza-azulado, superfícies brancas, azul para ação/foco e verde apenas para
+  sucesso ou estado clínico positivo. Fluxos clínicos usam Instrument Sans;
+  não crie uma linguagem editorial própria por área.
+- Implemente mobile-first a partir de 320 px. O CSS-base atende telas pequenas
+  e expansões usam preferencialmente `min-width`; nenhuma tela pode depender de
+  redução posterior por `max-width` para se tornar utilizável.
+- Reutilize primeiro os componentes de `frontend/components/ui/` e os padrões
+  compostos catalogados. Não duplique Button, Card, Badge, Avatar, Tooltip,
+  ClinicalSelect, cabeçalho de seção, busca, item de lista, estado vazio ou
+  diálogo. Campos de seleção usam `ClinicalSelect`, não `<select>` nativo, salvo
+  justificativa explícita de acessibilidade na spec.
+- Cores, tipografia, espaços, raios, sombras, movimento, larguras e camadas do
+  código tocado devem consumir tokens semânticos. Não adicione hex, shadow,
+  radius ou breakpoint isolado sem necessidade concreta e atualização conjunta
+  do guia e dos tokens.
+- Conteúdo principal em dashboards deve usar `--ds-layout-content` como largura
+  máxima desktop; backgrounds podem ocupar a viewport, mas linhas clínicas não
+  devem se esticar por toda a tela.
+- Preserve alvo interativo de 44 px, foco visível, contraste, reduced motion,
+  zoom de texto, quebra de conteúdo e ausência de overflow em 320 px.
+- Em contas com vários contextos, mantenha o seletor no dock inferior flutuante
+  abaixo de 1200 px ou em dispositivos touch, com safe area e espaço rolável
+  reservado; somente desktop com ponteiro fino/hover a partir de 1200 px volta
+  ao cabeçalho. Contas de uma role não reservam esse espaço.
+- O service worker pode armazenar somente a página offline genérica; nunca faça
+  cache de API, HTML autenticado ou dados pessoais/clínicos.
+- Docks com `position: fixed` devem ficar fora de ancestrais sticky/transformados;
+  valide a posição geométrica no viewport, não apenas o valor computado.
+- Toda mudança visual deve testar ao menos a menor viewport afetada e uma
+  viewport ampla; componentes compartilhados exigem regressão nos consumidores.
+
 ## Princípios de engenharia
 
 - **Spec-driven:** nenhuma mudança de comportamento começa sem uma spec revisada e versionada em `docs/specs/`.

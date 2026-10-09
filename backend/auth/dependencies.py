@@ -95,6 +95,30 @@ def require_roles(*allowed_roles: str):
 
 
 require_patient_role = require_roles("patient")
+require_doctor_role = require_roles("doctor")
+
+
+def get_current_doctor(
+    user: dict = Depends(require_doctor_role),
+    connection: Any = Depends(get_connection),
+) -> dict:
+    with cursor_scope(connection, dictionary=True) as cursor:
+        cursor.execute(
+            """
+            SELECT doctor_id, user_id, crm_number, crm_state
+            FROM doctors
+            WHERE user_id = %s AND verification_status = 'verified'
+            """,
+            (user["user_id"],),
+        )
+        doctor = cursor.fetchone()
+
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Perfil profissional inconsistente.",
+        )
+    return doctor
 
 
 def get_current_patient(

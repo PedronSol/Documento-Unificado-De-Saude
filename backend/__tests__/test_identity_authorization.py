@@ -3,7 +3,7 @@ from copy import deepcopy
 import pytest
 from fastapi import HTTPException
 
-from auth.dependencies import get_current_user, require_roles
+from auth.dependencies import get_current_doctor, get_current_user, require_roles
 from security import hash_session_token
 
 
@@ -101,3 +101,35 @@ def test_role_permitida_preserva_identidade():
     }
 
     assert require_patient(user) is user
+
+
+def test_get_current_doctor_resolve_perfil_verificado_do_usuario():
+    connection = ScriptedConnection(
+        {
+            "doctor_id": 5,
+            "user_id": 42,
+            "crm_number": "100001",
+            "crm_state": "RN",
+        }
+    )
+
+    doctor = get_current_doctor(
+        user={"user_id": 42, "roles": ["doctor"]},
+        connection=connection,
+    )
+
+    assert doctor["doctor_id"] == 5
+    assert doctor["crm_number"] == "100001"
+    assert "verification_status = 'verified'" in connection.executed[0][0]
+
+
+def test_get_current_doctor_rejects_inconsistent_verified_profile():
+    connection = ScriptedConnection(None)
+
+    with pytest.raises(HTTPException) as error:
+        get_current_doctor(
+            user={"user_id": 42, "roles": ["doctor"]},
+            connection=connection,
+        )
+
+    assert error.value.status_code == 409

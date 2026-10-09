@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f1f3f6" />
+    <title>Sem conexão · DUS</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        color: #16324e;
+        background: #f1f3f6;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        min-height: 100dvh;
+        margin: 0;
+        padding: 1.25rem;
+        box-sizing: border-box;
+        place-items: center;
+      }
+
+      main {
+        width: min(100%, 26rem);
+        border: 1px solid #dce3eb;
+        border-radius: 1.25rem;
+        background: #fff;
+        padding: clamp(1.5rem, 7vw, 2.5rem);
+        box-shadow: 0 16px 36px rgb(22 50 78 / 8%);
+      }
+
+      p { color: #64748b; line-height: 1.6; }
+
+      a {
+        display: inline-flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.75rem;
+        background: #174fc2;
+        padding: 0 1rem;
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p lang="pt-BR">DOCUMENTO UNIFICADO DE SAÚDE</p>
+      <h1>Sem conexão</h1>
+      <p>Conecte-se à internet para entrar. Dados de saúde não ficam disponíveis offline.</p>
+      <a href="/">Tentar novamente</a>
+    </main>
+  </body>
+</html>

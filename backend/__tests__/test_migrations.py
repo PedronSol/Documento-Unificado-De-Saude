@@ -391,6 +391,124 @@ def test_migration_0004_cria_marcadores_com_historico_e_unicidade_ativa():
     ]
 
 
+def test_migration_0005_cria_grupos_e_vinculos_vigentes_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0005_care_groups.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("care_groups_schema", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.tables = {}
+            self.indexes = []
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_index(self, name, table, columns):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    assert migration.revision == "0005"
+    assert migration.down_revision == "0004"
+    assert set(operations.tables) == {
+        "care_groups",
+        "doctor_care_groups",
+        "patient_care_groups",
+    }
+
+    group_columns = {
+        element.name: element
+        for element in operations.tables["care_groups"]
+        if isinstance(element, sa.Column)
+    }
+    assert set(group_columns) == {
+        "care_group_id",
+        "name",
+        "status",
+        "created_at",
+        "updated_at",
+    }
+    assert group_columns["status"].type.enums == ["active", "inactive"]
+
+    for table, subject, foreign_key in (
+        ("doctor_care_groups", "doctor_id", "fk_doctor_care_groups_doctor"),
+        ("patient_care_groups", "patient_id", "fk_patient_care_groups_patient"),
+    ):
+        elements = operations.tables[table]
+        columns = {
+            element.name: element
+            for element in elements
+            if isinstance(element, sa.Column)
+        }
+        constraints = {
+            element.name: element
+            for element in elements
+            if isinstance(element, sa.Constraint)
+        }
+        assert set(columns) == {
+            "care_group_id",
+            subject,
+            "status",
+            "starts_at",
+            "ends_at",
+            "created_at",
+            "updated_at",
+        }
+        assert columns["status"].type.enums == ["active", "inactive"]
+        assert {
+            f"pk_{table}",
+            f"fk_{table}_group",
+            foreign_key,
+            f"ck_{table}_period",
+        } <= set(constraints)
+
+    assert operations.indexes == [
+        (
+            "idx_doctor_care_groups_authorization",
+            "doctor_care_groups",
+            ["doctor_id", "status", "starts_at", "ends_at", "care_group_id"],
+        ),
+        (
+            "idx_patient_care_groups_authorization",
+            "patient_care_groups",
+            ["patient_id", "status", "starts_at", "ends_at", "care_group_id"],
+        ),
+        (
+            "idx_patient_care_groups_listing",
+            "patient_care_groups",
+            ["care_group_id", "status", "starts_at", "ends_at", "patient_id"],
+        ),
+    ]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
+    seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
+        encoding="utf-8"
+    )
+
+    assert "INSERT IGNORE INTO care_groups" in seed
+    assert "INSERT IGNORE INTO doctor_care_groups" in seed
+    assert "INSERT IGNORE INTO patient_care_groups" in seed
+    assert "Unidade Centro" in seed
+    assert "Unidade Norte" in seed
+    assert "Grupo Inativo de Demonstração" in seed
+
+
 def test_makefile_compose_e_ci_usam_executor_alembic():
     makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
     compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")

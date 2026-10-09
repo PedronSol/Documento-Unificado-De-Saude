@@ -24,7 +24,10 @@ Exemplo: `001-database-migrations.md`.
 | `005-clinical-audit.md` | Auditoria clínica transacional | IMPLEMENTED |
 | `010-health-markers.md` | Marcadores do paciente | IMPLEMENTED |
 | `020-health-documents-ocr.md` | Documentos e OCR | SPEC REVIEW |
-| `030-medical-panel.md` | Painel e autorização médica | SPEC REVIEW |
+| `030-medical-panel.md` | Área médica e grupos de atendimento | IMPLEMENTED |
+| `031-interface-design-system.md` | Design system e interface médica | IMPLEMENTED |
+| `032-mobile-context-dock.md` | Navegação de contexto em mobile | IMPLEMENTED |
+| `033-mobile-pwa.md` | Experiência mobile-first e PWA instalável | IMPLEMENTED |
 | `040-health-summary-sharing.md` | Compartilhamento temporário | SPEC REVIEW |
 
 ## Template
