@@ -271,6 +271,61 @@ test.describe('Página Home', () => {
     await expect(
       page.getByRole('heading', { name: 'Carlos Silva' })
     ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('navigation', { name: 'Contexto de acesso' })).toHaveCount(0);
+    await expect(page.locator('.authenticated-shell')).not.toHaveClass(/has-context-dock/);
+  });
+
+  test('move o seletor de contexto para um dock em mobile e mantém o header no desktop', async ({ page }) => {
+    await page.unroute('**/me');
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: {
+            ...MOCK_USER,
+            roles: ['patient', 'doctor'],
+          },
+          patient_profile: MOCK_PROFILE_RESPONSE.patient_profile,
+        }),
+      })
+    );
+    await page.route('**/medical/patients', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    );
+
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.reload();
+    const contextNav = page.getByRole('navigation', { name: 'Contexto de acesso' });
+    const mobileStyle = await contextNav.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const bounds = element.getBoundingClientRect();
+      return {
+        position: style.position,
+        bottom: bounds.bottom,
+        viewportHeight: window.innerHeight,
+        shellPadding: getComputedStyle(document.querySelector('.authenticated-shell')).paddingBottom,
+      };
+    });
+
+    expect(mobileStyle.position).toBe('fixed');
+    expect(mobileStyle.bottom).toBeLessThanOrEqual(mobileStyle.viewportHeight);
+    expect(parseFloat(mobileStyle.shellPadding)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toBeVisible();
+    await contextNav.getByRole('button', { name: 'Área profissional' }).click();
+    await expect(page.getByRole('heading', { name: 'Pacientes em acompanhamento' })).toBeVisible();
+    await expect(contextNav.getByRole('button', { name: 'Área profissional' })).toHaveAttribute('aria-pressed', 'true');
+    await contextNav.getByRole('button', { name: 'Minha saúde' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toHaveAttribute('aria-pressed', 'true');
+
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('static');
   });
 
   test('preserva avatar e resumo do perfil sem expor CPF', async ({ page }) => {

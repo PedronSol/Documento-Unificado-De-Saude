@@ -2,8 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import HeartPulse from "lucide-react/dist/esm/icons/heart-pulse";
 import LogOut from "lucide-react/dist/esm/icons/log-out";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
+import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 
 import { InstitutionalProfile } from "@/components/identity/institutional-profile";
 import { UserAvatar } from "@/components/identity/user-avatar";
@@ -24,6 +27,12 @@ const CONTEXT_LABEL = {
   patient: "Minha saúde",
   doctor: "Área profissional",
   admin: "Administração",
+};
+
+const CONTEXT_ICON = {
+  patient: HeartPulse,
+  doctor: Stethoscope,
+  admin: ShieldCheck,
 };
 
 
@@ -118,7 +127,11 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
   }
 
   return (
-    <div className="authenticated-shell">
+    <div
+      className={roles.length > 1
+        ? "authenticated-shell has-context-dock"
+        : "authenticated-shell"}
+    >
       <header className="identity-bar">
         <a href="/home" className="identity-brand" aria-label="Documento Unificado de Saúde">
           <span aria-hidden="true">D</span>
@@ -127,16 +140,21 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
 
         {roles.length > 1 ? (
           <nav className="context-switcher" aria-label="Contexto de acesso">
-            {roles.map((role) => (
-              <button
-                key={role}
-                type="button"
-                aria-pressed={context === role}
-                onClick={() => setSelectedContext(role)}
-              >
-                {CONTEXT_LABEL[role]}
-              </button>
-            ))}
+            {roles.map((role) => {
+              const ContextIcon = CONTEXT_ICON[role];
+
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  aria-pressed={context === role}
+                  onClick={() => setSelectedContext(role)}
+                >
+                  <ContextIcon aria-hidden="true" size={17} />
+                  <span className="context-switcher-label">{CONTEXT_LABEL[role]}</span>
+                </button>
+              );
+            })}
           </nav>
         ) : (
           <p className="single-context">

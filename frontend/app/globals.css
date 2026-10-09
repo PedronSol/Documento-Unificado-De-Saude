@@ -530,6 +530,10 @@ select:focus-visible {
   background: var(--app-canvas);
 }
 
+.authenticated-shell.has-context-dock {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
 .identity-bar {
   position: sticky;
   z-index: 10;
@@ -574,28 +578,47 @@ select:focus-visible {
 
 .context-switcher {
   display: flex;
-  gap: 0.25rem;
+  position: fixed;
+  z-index: var(--ds-z-sticky);
+  bottom: max(var(--ds-space-3), env(safe-area-inset-bottom));
+  left: 50%;
+  width: min(calc(100vw - (2 * var(--ds-space-4))), 23rem);
+  justify-content: center;
+  gap: var(--ds-space-1);
   border: 1px solid var(--ui-border);
-  border-radius: 99px;
-  background: var(--ui-surface-muted);
-  padding: 0.23rem;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-surface);
+  padding: var(--ds-space-1);
+  box-shadow: var(--ds-shadow-raised);
+  transform: translateX(-50%);
+  backdrop-filter: blur(12px);
 }
 
 .context-switcher button {
-  min-height: 2rem;
+  display: inline-flex;
+  min-width: 0;
+  min-height: 3rem;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
   border: 0;
-  border-radius: 99px;
+  border-radius: var(--ds-radius-pill);
   background: transparent;
-  padding: 0.35rem 0.8rem;
-  color: #60746d;
-  font-size: 0.72rem;
+  padding: 0 var(--ds-space-2);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-xs);
+  white-space: nowrap;
+}
+
+.context-switcher button svg {
+  flex: 0 0 auto;
 }
 
 .context-switcher button[aria-pressed="true"] {
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(22 50 56 / 12%);
-  color: var(--ui-blue);
-  font-weight: 700;
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
+  font-weight: var(--ds-font-weight-bold);
 }
 
 .identity-actions,
@@ -1913,15 +1936,6 @@ select:focus-visible {
     display: none;
   }
 
-  .context-switcher {
-    justify-self: center;
-  }
-
-  .context-switcher button {
-    padding-inline: 0.55rem;
-    font-size: 0.65rem;
-  }
-
   .logout-action {
     gap: 0.25rem;
     font-size: 0.68rem;
@@ -1962,6 +1976,40 @@ select:focus-visible {
     font-size: 0.5rem;
   }
 
+}
+
+@media (min-width: 37.5rem) {
+  .authenticated-shell.has-context-dock {
+    padding-bottom: 0;
+  }
+
+  .context-switcher {
+    position: static;
+    z-index: auto;
+    width: max-content;
+    justify-self: center;
+    gap: 0.25rem;
+    border-radius: var(--ds-radius-pill);
+    background: var(--ui-surface-muted);
+    padding: 0.23rem;
+    box-shadow: none;
+    transform: none;
+    backdrop-filter: none;
+  }
+
+  .context-switcher button {
+    min-height: 2rem;
+    flex: 0 0 auto;
+    gap: var(--ds-space-2);
+    border-radius: var(--ds-radius-pill);
+    padding: 0.35rem 0.8rem;
+    font-size: 0.72rem;
+  }
+
+  .context-switcher button[aria-pressed="true"] {
+    background: var(--ds-color-surface);
+    box-shadow: 0 1px 3px rgb(22 50 78 / 12%);
+  }
 }
 
 /* Área médica — design system institucional, mobile-first */

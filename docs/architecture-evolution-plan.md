@@ -411,6 +411,8 @@ medicações com histórico.
 - [x] Criar interface médica e testes ponta a ponta.
 - [x] Alinhar a área médica ao design system institucional e documentar tokens,
       componentes e governança visual.
+- [x] Exibir o seletor multirole como dock inferior flutuante em mobile,
+      preservando navegação no cabeçalho em telas amplas.
 
 ### Critérios de conclusão
 
@@ -623,4 +625,5 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-08 | 7 | SPEC APPROVED → IN PROGRESS | branch `feat/medical-panel` | Migration `0005`, autorização por grupos, prontuário auditado, mutações médicas e interface profissional implementados por TDD; validação final e referência de commit pendentes. |
 | 2026-10-08 | 7 | CORREÇÃO VISUAL → SPEC APPROVED | `docs/specs/031-interface-design-system.md` | Alinhamento da área médica e design system solicitados e aprovados; tokens, guia e guardrail visual serão implementados sem alterar contratos funcionais. |
 | 2026-10-08 | 7 | CORREÇÃO VISUAL → IMPLEMENTED | `9ac89b6` | Tokens claro/escuro, guia, governança no `AGENTS.md`, área médica mobile-first, diálogos azuis e `ClinicalSelect` acessível concluídos; RED/GREEN e validação em 320 px registrados. |
+| 2026-10-08 | 7 | DOCK MOBILE → IMPLEMENTED | `8c03fb8`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Seletor multirole virou dock flutuante mobile-first, com safe area, espaço de conteúdo e retorno ao cabeçalho a partir de 600 px; RED/GREEN, toque/teclado, 27 unitários, 14 E2E e build aprovados. |
 | 2026-10-08 | 7 | IN PROGRESS → DONE | `fc2b12e` | Backend com 103 testes no MySQL 8 real, frontend com 21 unitários e 13 E2E, build aprovado; grupos, autorização, auditoria, autoria CRM e interface responsiva concluídos. |

@@ -228,6 +228,9 @@ botão, card ou badge sem uma variante concreta.
 - pill com superfície muted e item ativo sobre surface;
 - `aria-pressed`, Tabs ou semântica equivalente;
 - rótulo e contagem permanecem legíveis em zoom.
+- Para contas com múltiplos contextos, no mobile o seletor vira um dock branco
+  flutuante junto ao rodapé, com ícones, rótulos e área segura; em viewport de
+  600 px ou maior permanece no cabeçalho.
 
 ### Estados obrigatórios
 
