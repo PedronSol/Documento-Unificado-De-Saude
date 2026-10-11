@@ -849,6 +849,69 @@ def test_migration_0009_cria_vinculos_diretos_forward_only():
         migration.downgrade()
 
 
+def test_migration_0010_cria_contas_provisorias_e_reivindicacao_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0010_provisional_patients.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("provisional_patients", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.altered_columns = []
+            self.tables = {}
+            self.statements = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+        def create_foreign_key(self, *args, **options):
+            pass
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_index(self, *args, **options):
+            pass
+
+        def execute(self, statement):
+            self.statements.append(str(statement))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    added = {(table, column.name) for table, column in operations.added_columns}
+    claim_columns = {
+        element.name
+        for element in operations.tables["patient_claims"]
+        if isinstance(element, sa.Column)
+    }
+    assert migration.revision == "0010"
+    assert migration.down_revision == "0009"
+    assert {("users", "claimed_at"), ("users", "provisioned_by_doctor_id")} <= added
+    claimed_at = next(
+        column for table, column in operations.added_columns if column.name == "claimed_at"
+    )
+    assert "UTC_TIMESTAMP" in str(claimed_at.server_default.arg)
+    assert [(t, c, o["nullable"]) for t, c, o in operations.altered_columns] == [
+        ("users", "email", True)
+    ]
+    assert any("claimed_at = created_at" in statement for statement in operations.statements)
+    assert {"token_hash", "account_patient_id", "status", "failed_attempts"} <= claim_columns
+    assert "token" not in claim_columns
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
     seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
         encoding="utf-8"
