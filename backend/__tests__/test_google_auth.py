@@ -88,8 +88,10 @@ class GoogleAuthCursor:
             self.database.audit_events.append(parameters)
         elif sql.startswith("DELETE FROM sessions WHERE expires_at"):
             return
+        elif sql.startswith("UPDATE sessions SET expires_at"):
+            self.rowcount = 0
         elif sql.startswith("INSERT INTO sessions"):
-            token_hash, user_id, expires_at = parameters
+            token_hash, user_id, expires_at, _absolute_expires_at = parameters
             self.database.sessions[token_hash] = {
                 "user_id": user_id,
                 "expires_at": expires_at,
@@ -393,6 +395,7 @@ async def test_known_google_identity_creates_local_session(google_claims):
     }
     assert list(database.sessions.values())[0]["user_id"] == 1
     assert "fresh-signed-google-token" not in str(database.executed)
+    assert "dus_remembered" not in response.headers.get("set-cookie", "")
 
 
 @pytest.mark.parametrize(

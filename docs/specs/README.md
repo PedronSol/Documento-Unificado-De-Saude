@@ -24,6 +24,7 @@ Exemplo: `001-database-migrations.md`.
 | `005-clinical-audit.md` | Auditoria clínica transacional | IMPLEMENTED |
 | `006-patient-onboarding-authentication.md` | Cadastro local de pacientes e Google OIDC opcional | IMPLEMENTED |
 | `007-administrative-access-governance.md` | Governança administrativa e vínculos | IMPLEMENTED |
+| `008-persistent-session.md` | Sessão persistente e login lembrado | IMPLEMENTED |
 | `010-health-markers.md` | Marcadores do paciente | IMPLEMENTED |
 | `020-secure-document-storage.md` | Armazenamento e digitalização segura de documentos | IMPLEMENTED |
 | `021-health-document-ocr.md` | OCR e revisão de documentos | SPEC WRITING |

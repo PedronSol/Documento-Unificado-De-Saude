@@ -3,8 +3,8 @@ from typing import Any, Optional
 
 from fastapi import Cookie, Depends, Header, HTTPException, status
 
-from config import SESSION_COOKIE
-from database import cursor_scope, get_connection
+from config import AppSettings, SESSION_COOKIE, get_settings
+from database import cursor_scope, get_connection, transaction
 from security import hash_session_token
 
 
@@ -58,6 +58,7 @@ def _load_authorized_roles(connection: Any, user_id: int) -> list[str]:
 def get_current_user(
     session_token: Optional[str] = Cookie(default=None, alias=SESSION_COOKIE),
     connection: Any = Depends(get_connection),
+    settings: AppSettings = Depends(get_settings),
 ) -> dict:
     if not session_token:
         raise HTTPException(
@@ -65,6 +66,7 @@ def get_current_user(
             detail="Autenticação necessária.",
         )
 
+    token_hash = hash_session_token(session_token)
     with cursor_scope(connection, dictionary=True) as cursor:
         cursor.execute(
             """
@@ -73,9 +75,10 @@ def get_current_user(
             JOIN users u ON u.user_id = s.user_id
             WHERE s.token_hash = %s
               AND s.expires_at > UTC_TIMESTAMP()
+              AND s.absolute_expires_at > UTC_TIMESTAMP()
               AND u.active = TRUE
             """,
-            (hash_session_token(session_token),),
+            (token_hash,),
         )
         user = cursor.fetchone()
 
@@ -85,7 +88,30 @@ def get_current_user(
             detail="Sessão inválida ou expirada.",
         )
     user["roles"] = _load_authorized_roles(connection, user["user_id"])
+    _renew_session(connection, token_hash, settings)
     return user
+
+
+def _renew_session(connection: Any, token_hash: str, settings: AppSettings) -> None:
+    # Renova no máximo uma vez por hora e nunca além do teto absoluto.
+    with cursor_scope(connection) as cursor:
+        with transaction(connection):
+            cursor.execute(
+                """
+                UPDATE sessions
+                SET expires_at = LEAST(
+                    UTC_TIMESTAMP() + INTERVAL %s HOUR,
+                    absolute_expires_at
+                )
+                WHERE token_hash = %s
+                  AND expires_at < UTC_TIMESTAMP() + INTERVAL %s HOUR
+                """,
+                (
+                    settings.session_idle_hours,
+                    token_hash,
+                    settings.session_idle_hours - 1,
+                ),
+            )
 
 
 def require_roles(*allowed_roles: str):

@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 import mysql.connector
 
@@ -17,6 +17,15 @@ from care.provisional import (
     complete_local_claim,
     lock_claim,
 )
+from auth.remembered import (
+    clear_remembered_cookie,
+    find_remembered_user,
+    first_name,
+    forget_login,
+    mask_email,
+    remember_login,
+    set_remembered_cookie,
+)
 from auth.service import (
     create_google_patient,
     create_local_patient,
@@ -24,7 +33,7 @@ from auth.service import (
     link_google_identity,
     set_session_cookie,
 )
-from config import AppSettings, SESSION_COOKIE, get_settings
+from config import AppSettings, REMEMBERED_LOGIN_COOKIE, SESSION_COOKIE, get_settings
 from database import connection_scope, cursor_scope, get_connection, transaction
 from models import (
     AuthenticationResponse,
@@ -35,6 +44,7 @@ from models import (
     GoogleOnboardingResponse,
     GooglePatientRegistration,
     PatientRegistration,
+    RememberedLoginResponse,
 )
 from patients.service import find_patient_by_user_id
 from security import hash_session_token, verify_password
@@ -395,6 +405,7 @@ def register_patient(
 def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
+    remembered_token: Optional[str] = Cookie(default=None, alias=REMEMBERED_LOGIN_COOKIE),
     settings: AppSettings = Depends(get_settings),
     connection: Any = Depends(get_connection),
 ):
@@ -406,7 +417,97 @@ def login(
         )
         user = cursor.fetchone()
 
-    if not user or not verify_password(form_data.password, user["password_hash"]):
+    return _complete_password_login(
+        response,
+        user=user,
+        password=form_data.password,
+        remembered_token=remembered_token,
+        settings=settings,
+        connection=connection,
+    )
+
+
+@router.post("/login/remembered", response_model=AuthenticationResponse)
+def login_remembered(
+    response: Response,
+    password: str = Form(...),
+    remembered_token: Optional[str] = Cookie(default=None, alias=REMEMBERED_LOGIN_COOKIE),
+    settings: AppSettings = Depends(get_settings),
+    connection: Any = Depends(get_connection),
+):
+    user = None
+    if remembered_token:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            user = find_remembered_user(cursor, remembered_token)
+
+    return _complete_password_login(
+        response,
+        user=user,
+        password=password,
+        remembered_token=remembered_token,
+        settings=settings,
+        connection=connection,
+    )
+
+
+@router.get(
+    "/auth/remembered",
+    response_model=RememberedLoginResponse,
+    responses={204: {"description": "Nenhuma conta lembrada neste aparelho."}},
+)
+def get_remembered_login(
+    remembered_token: Optional[str] = Cookie(default=None, alias=REMEMBERED_LOGIN_COOKIE),
+    settings: AppSettings = Depends(get_settings),
+    connection: Any = Depends(get_connection),
+):
+    if remembered_token:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            user = find_remembered_user(cursor, remembered_token)
+        if user and user["active"]:
+            return {
+                "first_name": first_name(user["display_name"]),
+                "masked_email": mask_email(user["email"]),
+            }
+        _forget_remembered_login(connection, remembered_token)
+
+    empty_response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    if remembered_token:
+        clear_remembered_cookie(empty_response, settings)
+    return empty_response
+
+
+@router.delete("/auth/remembered", status_code=204)
+def delete_remembered_login(
+    response: Response,
+    remembered_token: Optional[str] = Cookie(default=None, alias=REMEMBERED_LOGIN_COOKIE),
+    settings: AppSettings = Depends(get_settings),
+    connection: Any = Depends(get_connection),
+):
+    if remembered_token:
+        _forget_remembered_login(connection, remembered_token)
+    clear_remembered_cookie(response, settings)
+
+
+def _forget_remembered_login(connection: Any, remembered_token: str) -> None:
+    with cursor_scope(connection) as cursor:
+        with transaction(connection):
+            forget_login(cursor, remembered_token)
+
+
+def _complete_password_login(
+    response: Response,
+    *,
+    user: Optional[dict],
+    password: str,
+    remembered_token: Optional[str],
+    settings: AppSettings,
+    connection: Any,
+) -> dict:
+    if (
+        not user
+        or not user["password_hash"]
+        or not verify_password(password, user["password_hash"])
+    ):
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
     if not user["active"]:
         raise HTTPException(status_code=403, detail="Conta inativa.")
@@ -418,7 +519,6 @@ def login(
         "email": user["email"],
         "roles": roles,
     }
-    patient = None
     if "patient" in roles:
         patient = find_patient_by_user_id(connection, user["user_id"])
         if not patient:
@@ -434,10 +534,20 @@ def login(
                 user_id=user["user_id"],
                 settings=settings,
             )
+            new_remembered_token = remember_login(
+                cursor,
+                user_id=user["user_id"],
+                previous_token=remembered_token,
+            )
 
     set_session_cookie(
         response,
         raw_token=session_token,
+        settings=settings,
+    )
+    set_remembered_cookie(
+        response,
+        raw_token=new_remembered_token,
         settings=settings,
     )
     return {"user": identity}

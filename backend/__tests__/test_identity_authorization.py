@@ -4,7 +4,11 @@ import pytest
 from fastapi import HTTPException
 
 from auth.dependencies import get_current_doctor, get_current_user, require_roles
+from config import AppSettings
 from security import hash_session_token
+
+
+SETTINGS = AppSettings.from_mapping({})
 
 
 class ScriptedCursor:
@@ -15,7 +19,7 @@ class ScriptedCursor:
     def execute(self, statement, parameters=None):
         sql = " ".join(statement.split())
         self.database.executed.append((sql, parameters or ()))
-        self.result = deepcopy(self.database.results.pop(0))
+        self.result = deepcopy(self.database.results.pop(0)) if self.database.results else None
 
     def fetchone(self):
         return self.result
@@ -35,6 +39,12 @@ class ScriptedConnection:
     def cursor(self, dictionary=False):
         return ScriptedCursor(self)
 
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
 
 def test_get_current_user_resolve_sessao_e_roles_do_servidor():
     connection = ScriptedConnection(
@@ -47,7 +57,7 @@ def test_get_current_user_resolve_sessao_e_roles_do_servidor():
         {"verification_status": "verified", "professional_status": "active"},
     )
 
-    user = get_current_user("raw-session", connection)
+    user = get_current_user("raw-session", connection, SETTINGS)
 
     assert user == {
         "user_id": 42,
@@ -70,7 +80,7 @@ def test_doctor_pendente_nao_recebe_role_profissional():
         {"verification_status": "pending", "professional_status": "active"},
     )
 
-    user = get_current_user("raw-session", connection)
+    user = get_current_user("raw-session", connection, SETTINGS)
 
     assert user["roles"] == ["patient"]
 
@@ -146,10 +156,11 @@ def test_identidade_com_admin_nunca_recebe_role_clinica_efetiva():
         [{"role": "patient"}, {"role": "doctor"}, {"role": "admin"}],
     )
 
-    user = get_current_user("raw-session", connection)
+    user = get_current_user("raw-session", connection, SETTINGS)
 
     assert user["roles"] == ["admin"]
-    assert len(connection.executed) == 2
+    assert len(connection.executed) == 3
+    assert connection.executed[2][0].startswith("UPDATE sessions SET expires_at")
 
 
 def test_doctor_suspenso_nao_recebe_role_profissional():
@@ -163,6 +174,6 @@ def test_doctor_suspenso_nao_recebe_role_profissional():
         {"verification_status": "verified", "professional_status": "suspended"},
     )
 
-    user = get_current_user("raw-session", connection)
+    user = get_current_user("raw-session", connection, SETTINGS)
 
     assert user["roles"] == []

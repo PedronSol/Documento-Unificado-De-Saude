@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import Request
 
 SESSION_COOKIE = "dus_session"
+REMEMBERED_LOGIN_COOKIE = "dus_remembered"
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,8 @@ class AppSettings:
     cors_origins: tuple[str, ...]
     cookie_secure: bool
     session_cookie: str
-    session_duration_hours: int
+    session_idle_hours: int
+    session_max_hours: int
     public_app_url: str
     google_auth_enabled: bool
     google_client_id: str | None
@@ -58,12 +60,19 @@ class AppSettings:
             raise ValueError(
                 "DOCUMENT_MAX_BYTES deve estar entre 1 e 10485760 bytes."
             )
+        session_idle_hours = _positive_hours(values, "SESSION_IDLE_HOURS", "24")
+        session_max_hours = _positive_hours(values, "SESSION_MAX_HOURS", "168")
+        if session_idle_hours > session_max_hours:
+            raise ValueError(
+                "SESSION_IDLE_HOURS não pode exceder SESSION_MAX_HOURS."
+            )
         return cls(
             database=DatabaseSettings.from_mapping(values),
             cors_origins=cors_origins,
             cookie_secure=values.get("COOKIE_SECURE", "false").lower() == "true",
             session_cookie=SESSION_COOKIE,
-            session_duration_hours=int(values.get("SESSION_DURATION_HOURS", "8")),
+            session_idle_hours=session_idle_hours,
+            session_max_hours=session_max_hours,
             public_app_url=values.get(
                 "PUBLIC_APP_URL",
                 "http://localhost:3000",
@@ -77,6 +86,16 @@ class AppSettings:
             ),
             document_max_bytes=document_max_bytes,
         )
+
+
+def _positive_hours(values: Mapping[str, str], name: str, default: str) -> int:
+    try:
+        hours = int(values.get(name, default))
+    except ValueError as error:
+        raise ValueError(f"{name} deve ser um inteiro positivo.") from error
+    if hours <= 0:
+        raise ValueError(f"{name} deve ser um inteiro positivo.")
+    return hours
 
 
 def get_settings(request: Request):

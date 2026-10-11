@@ -196,6 +196,11 @@ class AuthenticationResponse(BaseModel):
     user: UserIdentity
 
 
+class RememberedLoginResponse(BaseModel):
+    first_name: str
+    masked_email: str
+
+
 class GoogleCredential(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

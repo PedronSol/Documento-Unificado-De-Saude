@@ -733,6 +733,69 @@ select:focus-visible {
   text-underline-offset: var(--ds-space-1);
 }
 
+.access-checking {
+  display: flex;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-3);
+  margin: 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+}
+
+.access-checking .button-spinner {
+  border-color: var(--ds-color-primary-soft);
+  border-top-color: var(--ds-color-primary);
+}
+
+.remembered-account {
+  display: grid;
+  gap: var(--ds-space-1);
+  min-width: 0;
+}
+
+.remembered-account p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.remembered-account-name {
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-lg);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.remembered-account-email {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+}
+
+.use-another-account {
+  min-height: var(--ds-control-min-height);
+  border: 0;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-color-primary);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.use-another-account:hover:not(:disabled) {
+  background: var(--ds-color-primary-soft);
+}
+
+.use-another-account:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .access-checking .button-spinner {
+    animation: none;
+  }
+}
+
 .registration-access-inner {
   width: min(100%, 34rem);
 }

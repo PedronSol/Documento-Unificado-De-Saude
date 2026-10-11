@@ -131,13 +131,36 @@ test.describe('Página de Login', () => {
   });
 
   test('redireciona para /home após login com sucesso', async ({ page }) => {
-    await page.route('**/login', (route) =>
-      route.fulfill({
+    let authenticated = false;
+    await page.route('**/login', (route) => {
+      authenticated = true;
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_LOGIN_RESPONSE),
+      });
+    });
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: authenticated ? 200 : 401,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          authenticated ? MOCK_PROFILE_RESPONSE : { detail: 'Autenticação necessária.' }
+        ),
       })
     );
+    await page.route('**/auth/remembered', (route) => route.fulfill({ status: 204 }));
+
+    await page.goto('/');
+    await waitForHydration(page);
+    await page.getByLabel('E-mail').fill('carlos.silva@email.com');
+    await page.getByRole('textbox', { name: 'Senha' }).fill('senha123');
+    await page.getByRole('button', { name: /Entrar/i }).click();
+
+    await expect(page).toHaveURL('/home', { timeout: 10000 });
+  });
+
+  test('reabre o app em / com sessão válida e vai direto ao início', async ({ page }) => {
     await page.route('**/me', (route) =>
       route.fulfill({
         status: 200,
@@ -147,12 +170,88 @@ test.describe('Página de Login', () => {
     );
 
     await page.goto('/');
-    await waitForHydration(page);
-    await page.getByLabel('E-mail').fill('carlos.silva@email.com');
-    await page.getByRole('textbox', { name: 'Senha' }).fill('senha123');
-    await page.getByRole('button', { name: /Entrar/i }).click();
 
     await expect(page).toHaveURL('/home', { timeout: 10000 });
+  });
+
+  for (const width of [320, 1280]) {
+    test(`pede somente a senha da conta lembrada em ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
+      let authenticated = false;
+      let rememberedBody = '';
+      await page.route('**/me', (route) =>
+        route.fulfill({
+          status: authenticated ? 200 : 401,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            authenticated ? MOCK_PROFILE_RESPONSE : { detail: 'Sessão inválida ou expirada.' }
+          ),
+        })
+      );
+      await page.route('**/auth/remembered', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ first_name: 'Carlos', masked_email: 'c•••@email.com' }),
+        })
+      );
+      await page.route('**/login/remembered', (route) => {
+        authenticated = true;
+        rememberedBody = route.request().postData() ?? '';
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_LOGIN_RESPONSE),
+        });
+      });
+
+      await page.goto('/');
+      await waitForHydration(page);
+
+      await expect(page.getByText('Olá, Carlos')).toBeVisible();
+      await expect(page.getByText('c•••@email.com')).toBeVisible();
+      await expect(page.getByLabel('E-mail')).toHaveCount(0);
+      const anotherAccount = page.getByRole('button', { name: 'Usar outra conta' });
+      expect((await anotherAccount.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+
+      await page.getByRole('textbox', { name: 'Senha' }).fill('senha123');
+      await page.getByRole('button', { name: /Entrar/i }).click();
+
+      await expect(page).toHaveURL('/home', { timeout: 10000 });
+      expect(rememberedBody).toContain('name="password"');
+      expect(rememberedBody).not.toContain('name="username"');
+    });
+  }
+
+  test('usar outra conta esquece o aparelho e volta ao login completo', async ({ page }) => {
+    let forgotten = false;
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Autenticação necessária.' }),
+      })
+    );
+    await page.route('**/auth/remembered', (route) => {
+      if (route.request().method() === 'DELETE') {
+        forgotten = true;
+        return route.fulfill({ status: 204 });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ first_name: 'Carlos', masked_email: 'c•••@email.com' }),
+      });
+    });
+
+    await page.goto('/');
+    await waitForHydration(page);
+    await page.getByRole('button', { name: 'Usar outra conta' }).click();
+
+    await expect(page.getByLabel('E-mail')).toBeFocused();
+    await expect(page.getByText('Olá, Carlos')).toHaveCount(0);
+    expect(forgotten).toBe(true);
   });
 });
 

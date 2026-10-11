@@ -151,8 +151,14 @@ class FakeCursor:
             ]
         elif sql.startswith("DELETE FROM sessions WHERE expires_at"):
             self.rowcount = 0
+        elif sql.startswith("DELETE FROM remembered_logins"):
+            self.rowcount = 0
+        elif sql.startswith("INSERT INTO remembered_logins"):
+            self.rowcount = 1
+        elif sql.startswith("UPDATE sessions SET expires_at"):
+            self.rowcount = 0
         elif sql.startswith("INSERT INTO sessions"):
-            token_hash, user_id, _expires_at = parameters
+            token_hash, user_id, _expires_at, _absolute_expires_at = parameters
             self.database.sessions[token_hash] = user_id
             self.rowcount = 1
         elif sql.startswith("DELETE FROM sessions WHERE token_hash"):

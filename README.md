@@ -71,6 +71,11 @@ público, em `DOCUMENT_STORAGE_ROOT`; `DOCUMENT_MAX_BYTES` limita cada arquivo a
 no máximo 10 MiB. No Compose, o volume privado `document_data` é montado somente
 no backend.
 
+A sessão expira após `SESSION_IDLE_HOURS` (padrão 24) sem uso e nunca dura mais
+que `SESSION_MAX_HOURS` (padrão 168, 7 dias) desde o login. Depois de um login
+por senha, o aparelho lembra a conta por 30 dias e, quando a sessão vence, pede
+somente a senha; "Usar outra conta" esquece o aparelho.
+
 Para executar a aplicação como um todo, deve-se entrar no diretório no qual o projeto foi clonado e executar o comando:
 ```Docker
 docker compose up --build
