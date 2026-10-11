@@ -334,7 +334,7 @@ function VaccineRemoveDialog({
   );
 }
 
-export default function PatientDashboard({ profile, onUnauthenticated }) {
+export default function PatientDashboard({ profile, onUnauthenticated, guardianshipPanel = null }) {
   const vaccinesResource = usePatientResource(
     "/me/vaccines",
     "Não foi possível carregar suas vacinas.",
@@ -489,6 +489,7 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
           isAdult={profile.is_adult}
           onUnauthenticated={onUnauthenticated}
         />
+        {guardianshipPanel}
         {alertsResource.status === "loading" ? (
           <ResourceNotice
             title="Alertas médicos"

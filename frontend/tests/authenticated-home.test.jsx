@@ -3,11 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthenticatedHome } from "@/components/identity/authenticated-home";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, setActingPatient } from "@/lib/api";
 
 
 vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
+  setActingPatient: vi.fn(),
 }));
 
 const patientEnvelope = {
@@ -81,6 +82,7 @@ function mockPatientResources(overrides = {}) {
 describe("AuthenticatedHome", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    setActingPatient.mockReset();
   });
 
   it("carrega os recursos do paciente em endpoints independentes", async () => {
@@ -383,6 +385,37 @@ describe("AuthenticatedHome", () => {
 
     await user.click(screen.getByRole("button", { name: "Minha saúde" }));
     expect(await screen.findByText("BCG reservada")).toBeInTheDocument();
+  });
+
+  it("alterna para o contexto do dependente com o cabeçalho de atuação", async () => {
+    const envelope = {
+      user: { ...patientEnvelope.user, roles: ["patient"] },
+      patient_profile: patientEnvelope.patient_profile,
+      dependents: [
+        {
+          patient_id: 9,
+          guardianship_id: 4,
+          preferred_name: "Lia",
+          full_name: "Lia Prado Ribeiro",
+          avatar_url: null,
+          health_status: "pending",
+          blood_type: null,
+          is_adult: false,
+          age: 9,
+        },
+      ],
+    };
+    mockPatientResources({ "/me": envelope });
+    const user = userEvent.setup();
+    render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "Saúde de Lia" }));
+
+    expect(await screen.findByRole("heading", { name: "Lia" })).toBeInTheDocument();
+    expect(screen.getByText("Saúde de Lia", { selector: "small" })).toBeInTheDocument();
+    expect(setActingPatient).toHaveBeenLastCalledWith(9);
+    await user.click(screen.getByRole("button", { name: "Minha saúde" }));
+    expect(setActingPatient).toHaveBeenLastCalledWith(null);
   });
 
   it("redireciona uma sessão ausente sem manter conteúdo protegido", async () => {
