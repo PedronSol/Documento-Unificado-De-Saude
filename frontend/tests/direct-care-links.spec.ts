@@ -229,3 +229,124 @@ test.describe("Paciente provisório", () => {
     });
   });
 });
+
+
+test.describe("Responsável legal", () => {
+  test("responsável alterna para a saúde do dependente com cabeçalho de atuação", async ({ page }) => {
+    const actingHeaders: string[] = [];
+    const guardianEnvelope = {
+      ...patientEnvelope,
+      dependents: [{
+        patient_id: 41,
+        guardianship_id: 4,
+        preferred_name: "Lia",
+        full_name: "Lia Prado Ribeiro",
+        avatar_url: null,
+        health_status: "pending",
+        blood_type: null,
+        is_adult: false,
+        age: 9,
+      }],
+    };
+    await mockApi(page, async (key, route) => {
+      const acting = route.request().headers()["x-acting-patient"];
+      if (key === "GET /me") {
+        await fulfill(route, guardianEnvelope);
+        return true;
+      }
+      if (key === "GET /me/shares/active") {
+        await fulfill(route, null);
+        return true;
+      }
+      if (key === "GET /me/markers?status=active") {
+        if (acting) {
+          actingHeaders.push(acting);
+        }
+        await fulfill(route, acting === "41" ? [{
+          marker_id: 1,
+          type: "allergy",
+          name: "Amendoim",
+          description: null,
+          dosage: null,
+          frequency: null,
+          status: "active",
+          created_at: "2026-10-10T12:00:00",
+          updated_at: "2026-10-10T12:00:00",
+          removed_at: null,
+        }] : []);
+        return true;
+      }
+      return false;
+    });
+
+    for (const viewport of [{ width: 320, height: 800 }, { width: 1440, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/home");
+      const dependentContext = page.getByRole("button", { name: "Saúde de Lia" });
+      await expect(dependentContext).toBeVisible();
+      if (viewport.width === 320) {
+        expect((await dependentContext.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      }
+      await dependentContext.click();
+      await expect(page.getByRole("heading", { name: "Lia", exact: true })).toBeVisible();
+      await expect(page.getByText("Amendoim")).toBeVisible();
+      await expectNoHorizontalOverflow(page, viewport.width);
+      await page.getByRole("button", { name: "Minha saúde" }).click();
+      await expect(page.getByText("Amendoim")).toHaveCount(0);
+    }
+    expect(new Set(actingHeaders)).toEqual(new Set(["41"]));
+  });
+
+  test("médico informa o responsável de um menor em 320 px", async ({ page }) => {
+    let guardianPayload: unknown = null;
+    await mockApi(page, async (key, route) => {
+      if (key === "GET /me") {
+        await fulfill(route, doctorEnvelope);
+        return true;
+      }
+      if (key === "POST /medical/patient-links") {
+        const body = route.request().postDataJSON();
+        if (!body.patient) {
+          await fulfill(route, { detail: "Paciente não encontrado." }, 404);
+        } else if (!body.guardian) {
+          await fulfill(route, { detail: "Paciente menor exige responsável." }, 409);
+        } else {
+          guardianPayload = body.guardian;
+          await fulfill(route, {
+            result: "provisional_created",
+            patient_id: 41,
+            claim: { token: "g".repeat(43), expires_at: "2026-10-18T12:00:00", recipient: "guardian" },
+          }, 201);
+        }
+        return true;
+      }
+      return false;
+    });
+
+    await page.setViewportSize({ width: 320, height: 1000 });
+    await page.goto("/home");
+    await page.getByLabel("CPF do paciente").fill("529.982.247-25");
+    await page.getByRole("button", { name: "Solicitar acesso" }).click();
+    await page.getByLabel("Nome completo", { exact: true }).fill("Lia Prado Ribeiro");
+    await page.getByLabel("Nome preferido").fill("Lia");
+    await page.getByLabel("Data de nascimento", { exact: true }).fill("2016-05-02");
+    await page.getByRole("button", { name: "Cadastrar paciente provisório" }).click();
+    await page.getByLabel("CPF do responsável").fill("168.995.350-09");
+    await page.getByLabel("Nome completo do responsável").fill("Joana Prado Ribeiro");
+    await page.getByLabel("Data de nascimento do responsável").fill("1986-02-11");
+    await page.getByRole("combobox", { name: "Parentesco" }).click();
+    await page.getByRole("option", { name: "Mãe ou pai" }).click();
+    await expectNoHorizontalOverflow(page, 320);
+    await page.getByRole("button", { name: "Cadastrar paciente provisório" }).click();
+
+    await expect(page.getByLabel("Link para o responsável assumir a conta")).toHaveValue(
+      /&for=guardian$/,
+    );
+    expect(guardianPayload).toEqual({
+      cpf: "168.995.350-09",
+      full_name: "Joana Prado Ribeiro",
+      birth_date: "1986-02-11",
+      relationship: "parent",
+    });
+  });
+});
