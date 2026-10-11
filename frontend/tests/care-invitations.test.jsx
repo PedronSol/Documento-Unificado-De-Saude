@@ -36,7 +36,29 @@ function respondWith(body, status = 200) {
   });
 }
 
-function mockCare({ invitations = [invitation], groups = [group], mutation = 204 } = {}) {
+const careRequest = {
+  link_id: 11,
+  doctor_display_name: "Dr. Rui Lima",
+  crm_number: "998877",
+  crm_state: "RJ",
+  expires_at: "2026-10-18T12:00:00",
+};
+
+const careDoctor = {
+  link_id: 12,
+  doctor_display_name: "Dra. Beatriz Souza",
+  crm_number: "554433",
+  crm_state: "MG",
+  since: "2026-09-01T12:00:00",
+};
+
+function mockCare({
+  invitations = [invitation],
+  groups = [group],
+  requests = [],
+  doctors = [],
+  mutation = 204,
+} = {}) {
   apiFetch.mockImplementation((path, options = {}) => {
     if (options.method) {
       return respondWith(null, mutation);
@@ -46,6 +68,12 @@ function mockCare({ invitations = [invitation], groups = [group], mutation = 204
     }
     if (path === "/me/care-groups") {
       return respondWith(groups);
+    }
+    if (path === "/me/care-requests") {
+      return respondWith(requests);
+    }
+    if (path === "/me/care-doctors") {
+      return respondWith(doctors);
     }
     return respondWith(null, 404);
   });
@@ -158,6 +186,57 @@ describe("CareInvitations", () => {
     expect(
       await screen.findByText("Nenhuma equipe acompanha seu prontuário."),
     ).toBeInTheDocument();
+  });
+
+  it("aceita solicitação direta de médico e revoga médico com acesso", async () => {
+    mockCare({
+      invitations: [],
+      groups: [],
+      requests: [careRequest],
+      doctors: [careDoctor],
+    });
+    const user = userEvent.setup();
+    render(<CareInvitations isAdult onUnauthenticated={vi.fn()} />);
+
+    const request = (await screen.findByText("Dr. Rui Lima")).closest("article");
+    expect(within(request).getByText("CRM 998877/RJ")).toBeInTheDocument();
+    await user.click(
+      within(request).getByRole("button", { name: "Aceitar solicitação de Dr. Rui Lima" }),
+    );
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/me/care-requests/11/accept", {
+        method: "POST",
+      }),
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Solicitação aceita. O médico passa a acessar seu prontuário.",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Revogar acesso de Dra. Beatriz Souza" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Revogar acesso" }));
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/me/care-doctors/12", {
+        method: "DELETE",
+      }),
+    );
+  });
+
+  it("recusa solicitação direta de médico", async () => {
+    mockCare({ invitations: [], groups: [], requests: [careRequest] });
+    const user = userEvent.setup();
+    render(<CareInvitations isAdult onUnauthenticated={vi.fn()} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Recusar solicitação de Dr. Rui Lima" }),
+    );
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/me/care-requests/11/reject", {
+        method: "POST",
+      }),
+    );
   });
 
   it("encaminha sessão expirada", async () => {
