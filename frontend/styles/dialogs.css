@@ -1,0 +1,470 @@
+/* Diálogos clínicos, ClinicalSelect e diálogo de confirmação. */
+.modal-backdrop {
+  position: fixed;
+  z-index: var(--ds-z-overlay);
+  inset: 0;
+  background: var(--ds-color-overlay);
+  backdrop-filter: blur(5px);
+  animation: dialog-overlay-in var(--ds-motion-fast) ease-out;
+}
+
+.clinical-dialog {
+  position: fixed;
+  z-index: var(--ds-z-dialog);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 92dvh;
+  overflow-y: auto;
+  border: 1px solid var(--ds-color-border);
+  border-bottom: 0;
+  border-radius: var(--ds-radius-dialog) var(--ds-radius-dialog) 0 0;
+  outline: none;
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text);
+  box-shadow: var(--ds-shadow-raised);
+  animation: dialog-content-in-mobile var(--ds-motion-normal) var(--ds-ease-standard);
+}
+
+.clinical-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-color-border);
+  padding: var(--ds-space-5) var(--ds-space-4) var(--ds-space-4);
+}
+
+.clinical-dialog-heading>div {
+  min-width: 0;
+}
+
+.dialog-kicker {
+  margin: 0 0 var(--ds-space-2);
+  color: var(--ds-color-primary);
+  font-size: var(--ds-font-size-2xs);
+  font-weight: var(--ds-font-weight-bold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+}
+
+.clinical-dialog h2 {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--ds-color-text);
+  font-family: var(--ds-font-interface);
+  font-size: clamp(var(--ds-font-size-lg), 7vw, var(--ds-font-size-2xl));
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: var(--ds-line-tight);
+}
+
+.dialog-description {
+  max-width: 31rem;
+  margin: var(--ds-space-2) 0 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-body);
+}
+
+.clinical-dialog .dialog-close {
+  display: grid;
+  width: var(--ds-control-min-height);
+  height: var(--ds-control-min-height);
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-muted);
+  transition:
+    border-color var(--ds-motion-fast) var(--ds-ease-standard),
+    background var(--ds-motion-fast) var(--ds-ease-standard),
+    color var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.clinical-dialog .dialog-close:hover {
+  border-color: var(--ds-color-primary-border);
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
+}
+
+.clinical-dialog .dialog-close:focus-visible {
+  outline: 3px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.clinical-dialog form {
+  display: grid;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-4) var(--ds-space-4)
+    max(var(--ds-space-5), env(safe-area-inset-bottom));
+}
+
+.dialog-field {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-2);
+}
+
+.clinical-dialog .dialog-field label {
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0;
+}
+
+.clinical-dialog input,
+.clinical-dialog textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ds-control-min-height);
+  margin: 0;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+  outline: none;
+  background: var(--ds-color-surface-muted);
+  padding: var(--ds-space-3);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+  transition:
+    border-color var(--ds-motion-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-motion-fast) var(--ds-ease-standard),
+    background var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.clinical-dialog input:focus,
+.clinical-dialog textarea:focus {
+  border-color: var(--ds-color-focus);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-focus);
+}
+
+.clinical-dialog input:disabled,
+.clinical-dialog textarea:disabled {
+  border-color: var(--ds-color-border);
+  background: var(--ds-color-surface-muted);
+  color: var(--ds-color-text-subtle);
+}
+
+.clinical-dialog textarea {
+  min-height: 6.2rem;
+  resize: vertical;
+  line-height: var(--ds-line-body);
+}
+
+.clinical-select-trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+  outline: none;
+  background: var(--ds-color-surface-muted);
+  padding: 0 var(--ds-space-3);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+  text-align: left;
+  transition:
+    border-color var(--ds-motion-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-motion-fast) var(--ds-ease-standard),
+    background var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.clinical-select-trigger:hover {
+  border-color: var(--ds-color-primary-border);
+  background: var(--ds-color-surface);
+}
+
+.clinical-select-trigger:focus-visible,
+.clinical-select-trigger[data-state="open"] {
+  border-color: var(--ds-color-focus);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-focus);
+}
+
+.clinical-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.clinical-select-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--ds-color-text-subtle);
+  transition: transform var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.clinical-select-trigger[data-state="open"] .clinical-select-icon {
+  transform: rotate(180deg);
+}
+
+.clinical-select-content {
+  z-index: var(--ds-z-dropdown);
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
+  overflow: hidden;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface-raised);
+  color: var(--ds-color-text);
+  box-shadow: var(--ds-shadow-raised);
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: clinical-select-in var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.clinical-select-viewport {
+  padding: var(--ds-space-1);
+}
+
+.clinical-select-item {
+  position: relative;
+  display: flex;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  border-radius: var(--ds-radius-sm);
+  outline: none;
+  padding: var(--ds-space-2) var(--ds-space-3) var(--ds-space-2) 2.35rem;
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+  line-height: 1.25;
+  user-select: none;
+}
+
+.clinical-select-item[data-highlighted] {
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
+}
+
+.clinical-select-item[data-state="checked"] {
+  color: var(--ds-color-primary);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.clinical-select-item[data-disabled] {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.clinical-select-indicator {
+  position: absolute;
+  left: var(--ds-space-3);
+  display: inline-flex;
+  color: var(--ds-color-primary);
+}
+
+.clinical-select-scroll-button {
+  display: grid;
+  height: 2rem;
+  place-items: center;
+  background: var(--ds-color-surface-raised);
+  color: var(--ds-color-text-muted);
+}
+
+@keyframes clinical-select-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-0.2rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.marker-dialog {
+  width: 100%;
+}
+
+.dialog-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-4);
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-1);
+  border-top: 1px solid var(--ds-color-border);
+  padding-top: var(--ds-space-4);
+}
+
+.dialog-actions button {
+  min-height: var(--ds-control-min-height);
+  border-radius: var(--ds-radius-control);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-bold);
+  transition:
+    transform var(--ds-motion-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-motion-fast) var(--ds-ease-standard),
+    background var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.dialog-actions button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.dialog-secondary {
+  border: 1px solid var(--ds-color-border-strong);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-muted);
+}
+
+.dialog-secondary:hover {
+  background: var(--ds-color-surface-muted);
+}
+
+.dialog-primary {
+  border: 1px solid var(--ds-color-primary);
+  background: var(--ds-color-primary);
+  color: var(--ds-color-on-primary);
+}
+
+.dialog-primary:hover {
+  background: var(--ds-color-primary-hover);
+}
+
+.dialog-danger {
+  border: 1px solid var(--ds-color-danger);
+  background: var(--ds-color-danger);
+  color: var(--ds-color-on-primary);
+}
+
+.dialog-danger:hover {
+  background: var(--ds-color-danger-hover);
+}
+
+.dialog-actions button:focus-visible {
+  outline: 3px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.dialog-actions button:disabled,
+.dialog-close:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.dialog-error {
+  margin: 0;
+}
+
+.clinical-confirm-dialog {
+  position: fixed;
+  z-index: var(--ds-z-dialog);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  outline: none;
+  border: 1px solid var(--ds-color-border);
+  border-bottom: 0;
+  border-radius: var(--ds-radius-dialog) var(--ds-radius-dialog) 0 0;
+  background: var(--ds-color-surface);
+  padding: var(--ds-space-5) var(--ds-space-4)
+    max(var(--ds-space-5), env(safe-area-inset-bottom));
+  color: var(--ds-color-text);
+  box-shadow: var(--ds-shadow-raised);
+  animation: dialog-content-in-mobile var(--ds-motion-normal) var(--ds-ease-standard);
+}
+
+.clinical-confirm-dialog h2 {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--ds-color-text);
+  font-family: var(--ds-font-interface);
+  font-size: var(--ds-font-size-xl);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: var(--ds-line-tight);
+}
+
+.clinical-confirm-dialog>.dialog-description {
+  margin: var(--ds-space-3) 0 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-body);
+}
+
+@keyframes dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-content-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 0.75rem)) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@media (min-width: 37.5rem) {
+  .clinical-dialog {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    width: min(calc(100vw - var(--ds-space-8)), 39rem);
+    max-height: calc(100dvh - var(--ds-space-8));
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--ds-color-border);
+    border-radius: var(--ds-radius-dialog);
+    animation: dialog-content-in var(--ds-motion-normal) var(--ds-ease-standard);
+  }
+
+  .marker-dialog {
+    width: min(calc(100vw - var(--ds-space-8)), 42rem);
+  }
+
+  .clinical-dialog-heading {
+    gap: var(--ds-space-8);
+    padding: var(--ds-space-8) var(--ds-space-8) var(--ds-space-5);
+  }
+
+  .clinical-dialog form {
+    gap: var(--ds-space-5);
+    padding: var(--ds-space-5) var(--ds-space-8) var(--ds-space-8);
+  }
+
+  .dialog-row {
+    grid-template-columns: 0.8fr 1.2fr;
+  }
+
+  .dialog-actions {
+    grid-template-columns: auto auto;
+    justify-content: end;
+    gap: var(--ds-space-3);
+  }
+
+  .clinical-confirm-dialog {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    width: min(calc(100vw - var(--ds-space-8)), 30rem);
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--ds-color-border);
+    border-radius: var(--ds-radius-dialog);
+    padding: var(--ds-space-8);
+    animation: dialog-content-in var(--ds-motion-normal) var(--ds-ease-standard);
+  }
+}

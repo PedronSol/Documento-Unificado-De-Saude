@@ -1,0 +1,84 @@
+/* Histórico de vacinação. */
+.vaccine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  gap: 0.75rem;
+}
+
+.vaccine-entry {
+  position: relative;
+  min-height: 14rem;
+  border: 1px solid #e5e9ef;
+  border-radius: 0.9rem;
+  background: #f7f8fa;
+  padding: 1.3rem;
+}
+
+.vaccine-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #0d896d;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.vaccine-status[data-status="pending"] {
+  color: #936b25;
+}
+
+.vaccine-status[data-status="overdue"] {
+  color: var(--danger);
+}
+
+.vaccine-entry h3 {
+  margin: 0.8rem 0 0.3rem;
+  color: #102341;
+  font-family: var(--sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.vaccine-entry p,
+.vaccine-entry small {
+  display: block;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.vaccine-entry small {
+  margin-top: 0.65rem;
+  color: #809088;
+  font-size: 0.65rem;
+}
+
+.vaccine-actions {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.vaccine-actions button,
+.clinical-dialog header button {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: #71847d;
+}
+
+.vaccine-actions button:hover {
+  background: var(--green-wash);
+  color: var(--green-dark);
+}
+
+.vaccine-actions button:last-child:hover {
+  background: #f8eae6;
+  color: var(--danger);
+}

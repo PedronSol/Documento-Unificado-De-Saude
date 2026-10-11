@@ -318,16 +318,22 @@ rota. Este step reorganiza somente o frontend; ele não muda contratos de API.
 
 ### CSS modularizado
 
-28. `app/globals.css` é dividido em arquivos por responsabilidade em `styles/`:
-    `base.css` (reset, tipografia, utilitários globais, safe area), `shell.css`
-    (cabeçalho, menu da conta, dock e seletor), `auth.css`, `patient.css`,
-    `vaccines.css`, `alerts.css`, `documents.css`, `markers.css`,
-    `sharing.css`, `medical.css`, `admin.css` e `settings.css`. Arquivos
-    pequenos demais podem ser unidos à área consumidora em vez de criados.
-29. `app/globals.css` passa a conter somente os `@import` em ordem fixa:
-    `design-tokens.css`, `base.css`, `shell.css` e depois as features. A ordem
-    preserva a cascata atual; nenhuma regra muda de seletor, valor ou ordem
-    relativa dentro de uma mesma especificidade.
+28. `app/globals.css` é dividido em arquivos por responsabilidade em `styles/`,
+    cortados em blocos contíguos do arquivo original para que a cascata seja
+    idêntica: `theme.css` (variantes, variáveis shadcn/Tailwind, tema escuro e
+    `@layer base`), `documents.css`, `base.css`, `auth.css` (inclui os
+    utilitários históricos `.eyebrow` e `.form-error`), `shell.css`,
+    `identity.css`, `settings.css`, `patient.css`, `markers.css`,
+    `vaccines.css`, `dialogs.css`, `states.css`, `responsive.css` (ajustes
+    transversais por viewport que precisam vir depois das features que
+    ajustam), `medical.css`, `admin.css` e `dependents.css`.
+29. `app/globals.css` passa a conter somente comentário e `@import` em ordem
+    fixa: Tailwind, `design-tokens.css`, `theme.css`, `documents.css` e os
+    demais na ordem acima. `documents.css` precede a base porque
+    `.clinical-dialog` precisa continuar vencendo `.document-dialog`; a única
+    mudança de posição em relação ao original é a dos blocos de tema, que não
+    competem com seletores de classe. Concatenados, os arquivos reproduzem o
+    CSS original linha a linha (ignorando linhas em branco).
 30. Os nomes de classe atuais são preservados; não há migração para CSS Modules
     nesta entrega, evitando alteração de markup e de seletores de teste.
 31. Cada regra pertence a exatamente um arquivo. Regras duplicadas encontradas
@@ -659,6 +665,7 @@ o módulo não existe.
 | 13 | `tests/use-api-resource.test.jsx`: `errorStatus` ausente (2 falhas) | hook expõe o status do erro | — | 13.3 |
 | 14 | `tests/medical-record.test.jsx`: `Failed to resolve import "@/components/medical/medical-record"`; lista médica ainda com botão | `MedicalRecordView` por ID de rota com estados `403`/`404`/ID inválido; lista com links | dashboard médico dividido em carteira, prontuário, ações de provisório e formatação | 13.3 |
 | 15 | REFACTOR coberto pela suíte existente | — | dashboard do paciente vira composição de `VaccinationHistory`, `AlertsSection`, `DocumentsSection`, `HealthMarkers`; marcadores e documentos divididos em diálogos e listas | 13.3 |
+| 16 | `tests/design-system.test.js`: `globals.css` ainda continha regras e não importava `styles/*` | divisão em 16 arquivos contíguos e índice de imports | guardrails passam a ler os arquivos na ordem da cascata | 13.4 |
 
 ## Verificações executadas
 
@@ -676,6 +683,14 @@ o módulo não existe.
   `npm run build` com `/medical/patients/[patientId]`. O wrapper de rota
   `MedicalRecordArea` recebeu teste logo após sua criação (caracterização), não
   antes; a regra de prontuário que ele compõe teve RED próprio no ciclo 14.
+- 13.4: `npm test` (235 passed), `npx playwright test` (41 passed); concatenação dos arquivos idêntica ao CSS original (4262 linhas não
+  vazias); capturas de página inteira de login, cadastro, paciente,
+  dependentes, menor, área médica, prontuário, admin e configurações em
+  320 px e 1280 px idênticas pixel a pixel entre o CSS original e o dividido
+  (`next build` + `next start`).
+- Observação fora do escopo: em 320 px, contas com quatro ou mais contextos
+  (por exemplo, paciente+médico com dois dependentes) têm rótulos do dock
+  sobrepostos; o comportamento já existia antes deste step.
 
 ## Plano de execução
 

@@ -10,7 +10,12 @@ function read(relativePath) {
 
 
 const tokens = read("../styles/design-tokens.css");
-const globals = read("../app/globals.css");
+const globalsEntry = read("../app/globals.css");
+const styleImports = [...globalsEntry.matchAll(/@import '\.\.\/styles\/([\w-]+\.css)';/g)]
+  .map(([, file]) => file);
+// Feature files concatenated in cascade order, as the bundler inlines them.
+const globals = [globalsEntry, ...styleImports.map((file) => read(`../styles/${file}`))]
+  .join("\n");
 const guide = read("../../docs/design-system.md");
 const agentRules = read("../../AGENTS.md");
 const clinicalSelect = read("../components/ui/clinical-select.jsx");
@@ -205,5 +210,23 @@ describe("contrato do design system", () => {
     expect(dependentStyles).not.toMatch(/@media \(max-width/);
     expect(dependentStyles).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(dependentStyles).not.toMatch(/rgb\(/);
+  });
+
+  it("mantém globals.css apenas como índice ordenado de imports", () => {
+    const statements = globalsEntry
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(statements.every((line) => line.startsWith("@import "))).toBe(true);
+    expect(styleImports.slice(0, 3)).toEqual(["design-tokens.css", "theme.css", "documents.css"]);
+    expect(styleImports).toEqual(expect.arrayContaining([
+      "base.css", "auth.css", "shell.css", "patient.css", "markers.css",
+      "vaccines.css", "dialogs.css", "medical.css", "admin.css", "dependents.css",
+    ]));
+    for (const file of styleImports) {
+      expect(read(`../styles/${file}`)).not.toBe("");
+    }
   });
 });

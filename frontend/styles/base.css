@@ -1,0 +1,52 @@
+/* Aliases legados sobre tokens, elementos HTML e foco visível. */
+:root {
+  --page-gutter: var(--ds-layout-gutter);
+  --app-canvas: var(--ds-color-canvas);
+  --ui-surface: var(--ds-color-surface);
+  --ui-surface-muted: var(--ds-color-surface-muted);
+  --ui-border: var(--ds-color-border);
+  --ui-blue: var(--ds-color-primary);
+  --ui-heading: var(--ds-color-text);
+  --ink: var(--ds-color-text);
+  --ink-soft: var(--ds-color-text-muted);
+  --paper: var(--ds-color-warm-surface);
+  --paper-deep: var(--ds-color-warm-surface-deep);
+  --line: #d8ded5;
+  --green: var(--ds-color-success);
+  --green-dark: var(--ds-color-success);
+  --green-wash: var(--ds-color-success-soft);
+  --warning-wash: var(--ds-color-warning-soft);
+  --danger: var(--ds-color-danger);
+  --serif: var(--ds-font-editorial);
+  --sans: var(--ds-font-interface);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--ds-color-focus);
+  outline-offset: 3px;
+}
