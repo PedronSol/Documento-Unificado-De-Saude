@@ -1,7 +1,9 @@
 from pathlib import Path
 
+from admin.router import router as admin_router
 from alerts.router import router as alerts_router
 from auth.router import router as auth_router
+from care.router import router as care_router
 from config import AppSettings
 from documents.router import router as documents_router
 from markers.router import router as markers_router
@@ -66,7 +68,9 @@ def test_domain_routers_own_the_current_routes():
     router_paths = {
         route.path
         for router in (
+            admin_router,
             auth_router,
+            care_router,
             patients_router,
             vaccines_router,
             alerts_router,
@@ -79,6 +83,25 @@ def test_domain_routers_own_the_current_routes():
     }
 
     assert router_paths == {
+        "/admin/doctor-invitations",
+        "/admin/doctor-invitations/{invitation_id}",
+        "/admin/doctors",
+        "/admin/doctors/{doctor_id}",
+        "/admin/doctors/{doctor_id}/status",
+        "/admin/users",
+        "/admin/care-groups",
+        "/admin/care-groups/{group_id}",
+        "/admin/care-groups/{group_id}/doctors/{doctor_id}",
+        "/admin/care-groups/{group_id}/patient-invitations",
+        "/admin/care-groups/{group_id}/patient-invitations/{invitation_id}",
+        "/admin/care-groups/{group_id}/patients/{user_id}",
+        "/admin/audit-events",
+        "/me/care-invitations",
+        "/me/care-invitations/{invitation_id}/accept",
+        "/me/care-invitations/{invitation_id}/reject",
+        "/me/care-groups",
+        "/me/care-groups/{group_id}",
+        "/auth/google/doctor-invitation",
         "/auth/patient-registration",
         "/auth/google",
         "/auth/google/patient-registration",
