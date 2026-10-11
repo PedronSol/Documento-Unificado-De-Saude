@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import ClipboardPlus from "lucide-react/dist/esm/icons/clipboard-plus";
@@ -13,7 +13,12 @@ import UsersRound from "lucide-react/dist/esm/icons/users-round";
 import { UserAvatar } from "@/components/identity/user-avatar";
 import { HEALTH_STATUS } from "@/components/medical/medical-format";
 import { PatientLinkPanel } from "@/components/medical/patient-link-panel";
-import { apiFetch, readApiError } from "@/lib/api";
+import { InfiniteListFooter } from "@/components/ui/infinite-list-footer";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import {
+  DEFAULT_PAGE_SIZE,
+  usePaginatedResource,
+} from "@/hooks/use-paginated-resource";
 
 
 const PATIENTS_ERROR = "Não foi possível carregar seus pacientes.";
@@ -88,147 +93,66 @@ function PatientList({ patients }) {
 
 export function DoctorDashboard({ user, onUnauthenticated }) {
   const [query, setQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
   const [hasEditedSearch, setHasEditedSearch] = useState(false);
-  const [patientsResource, setPatientsResource] = useState({
-    status: "loading",
-    data: [],
-  });
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const searchTimerRef = useRef(null);
-  const searchControllerRef = useRef(null);
-  const searchRequestIdRef = useRef(0);
-  const searchStartedForQueryRef = useRef(null);
+  const guidance = getPatientSearchGuidance(query);
+  // The roster search is filtered and paginated on the server (spec 038);
+  // superseded searches are cancelled (spec 030).
+  const patients = usePaginatedResource("/medical/patients", {
+    fallback: PATIENTS_ERROR,
+    params: { query: appliedQuery },
+    pageSize,
+    abortStale: true,
+    onUnauthenticated,
+  });
 
-  function cancelPatientSearch() {
+  function clearSearchTimer() {
     if (searchTimerRef.current !== null) {
       window.clearTimeout(searchTimerRef.current);
       searchTimerRef.current = null;
     }
-    searchRequestIdRef.current += 1;
-    searchControllerRef.current?.abort();
-    searchControllerRef.current = null;
   }
 
-  const loadPatients = useCallback(async (search = "") => {
-    const requestId = ++searchRequestIdRef.current;
-    searchControllerRef.current?.abort();
-    const controller = new AbortController();
-    searchControllerRef.current = controller;
-    setPatientsResource((current) => ({ ...current, status: "loading" }));
-    const normalized = search.trim();
-    searchStartedForQueryRef.current = normalized;
-    const path = normalized
-      ? `/medical/patients?query=${encodeURIComponent(normalized)}`
-      : "/medical/patients";
-    try {
-      const response = await apiFetch(path, { signal: controller.signal });
-      if (requestId !== searchRequestIdRef.current) {
-        return;
-      }
-      if (response.status === 401) {
-        onUnauthenticated();
-        return;
-      }
-      if (!response.ok) {
-        const { message } = await readApiError(response, PATIENTS_ERROR);
-        if (requestId === searchRequestIdRef.current) {
-          setPatientsResource({ status: "error", data: [], error: message });
-        }
-        return;
-      }
-      const data = await response.json();
-      if (requestId !== searchRequestIdRef.current) {
-        return;
-      }
-      setPatientsResource({
-        status: "ready",
-        data: Array.isArray(data) ? data : [],
-      });
-    } catch {
-      if (controller.signal.aborted || requestId !== searchRequestIdRef.current) {
-        return;
-      }
-      setPatientsResource({ status: "error", data: [], error: PATIENTS_ERROR });
-    } finally {
-      if (requestId === searchRequestIdRef.current) {
-        searchControllerRef.current = null;
-      }
-    }
-  }, [onUnauthenticated]);
-
   useEffect(() => {
-    loadPatients();
-  }, [loadPatients]);
-
-  useEffect(() => {
-    if (!hasEditedSearch || getPatientSearchGuidance(query)) {
+    if (!hasEditedSearch || guidance) {
       return undefined;
     }
-
     const timer = window.setTimeout(() => {
       searchTimerRef.current = null;
-      loadPatients(query);
+      setAppliedQuery(query.trim());
     }, PATIENT_SEARCH_DEBOUNCE_MS);
     searchTimerRef.current = timer;
-
     return () => {
       window.clearTimeout(timer);
       if (searchTimerRef.current === timer) {
         searchTimerRef.current = null;
       }
     };
-  }, [hasEditedSearch, loadPatients, query]);
-
-  useEffect(() => () => {
-    if (searchTimerRef.current !== null) {
-      window.clearTimeout(searchTimerRef.current);
-    }
-    searchControllerRef.current?.abort();
-    searchRequestIdRef.current += 1;
-  }, []);
+  }, [guidance, hasEditedSearch, query]);
 
   function submitSearch(event) {
     event.preventDefault();
-    if (getPatientSearchGuidance(query)) {
-      cancelPatientSearch();
-      searchStartedForQueryRef.current = null;
-      setHasEditedSearch(true);
-      setPatientsResource({ status: "idle", data: [] });
+    setHasEditedSearch(true);
+    if (guidance) {
       return;
     }
-
+    clearSearchTimer();
     const normalized = query.trim();
-    if (
-      searchStartedForQueryRef.current === normalized &&
-      patientsResource.status !== "error"
-    ) {
-      if (searchTimerRef.current !== null) {
-        window.clearTimeout(searchTimerRef.current);
-        searchTimerRef.current = null;
-      }
-      return;
+    if (normalized !== appliedQuery) {
+      setAppliedQuery(normalized);
+    } else if (patients.status === "error") {
+      patients.reload();
     }
-
-    cancelPatientSearch();
-    loadPatients(query);
   }
 
   function handleSearchChange(event) {
-    const nextQuery = event.target.value;
-    cancelPatientSearch();
-    searchStartedForQueryRef.current = null;
-    setQuery(nextQuery);
+    setQuery(event.target.value);
     setHasEditedSearch(true);
-    if (getPatientSearchGuidance(nextQuery)) {
-      setPatientsResource({ status: "idle", data: [] });
-    } else {
-      setPatientsResource((current) => ({ ...current, status: "loading" }));
-    }
   }
 
-  function retryPatientSearch() {
-    searchStartedForQueryRef.current = null;
-    loadPatients(query);
-  }
+  const showResults = !(hasEditedSearch && guidance);
 
   return (
     <main className="doctor-main">
@@ -244,7 +168,7 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
         <div className="medical-roster-seal">
           <ShieldCheck aria-hidden="true" size={22} />
           <span>Escopo protegido</span>
-          <strong>{patientsResource.data.length.toString().padStart(2, "0")}</strong>
+          <strong>{patients.total.toString().padStart(2, "0")}</strong>
         </div>
       </section>
 
@@ -275,29 +199,44 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
           ) : null}
         </form>
 
-        {patientsResource.status === "loading" ? (
+        {showResults && (patients.total > 10 || appliedQuery) && patients.status === "ready" ? (
+          <ListToolbar
+            searchLabel={null}
+            query=""
+            onQueryChange={() => {}}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            total={patients.total}
+          />
+        ) : null}
+        {showResults && patients.status === "loading" ? (
           <div className="medical-list-state" role="status">
             <HeartPulse aria-hidden="true" size={22} />
             Carregando pacientes autorizados…
           </div>
         ) : null}
-        {patientsResource.status === "error" ? (
+        {showResults && patients.status === "error" ? (
           <div className="medical-list-state medical-list-error" role="alert">
-            <p>{patientsResource.error}</p>
-            <button type="button" onClick={retryPatientSearch}>
+            <p>{patients.error}</p>
+            <button type="button" onClick={patients.reload}>
               <RefreshCw aria-hidden="true" size={16} />
               Tentar novamente
             </button>
           </div>
         ) : null}
-        {patientsResource.status === "ready" ? (
-          <PatientList patients={patientsResource.data} />
+        {showResults && patients.status === "ready" ? (
+          <>
+            <PatientList patients={patients.items} />
+            {patients.items.length > 0 ? (
+              <InfiniteListFooter resource={patients} itemLabel="pacientes" />
+            ) : null}
+          </>
         ) : null}
       </section>
 
       <PatientLinkPanel
         onUnauthenticated={onUnauthenticated}
-        onPatientsChanged={() => loadPatients(query)}
+        onPatientsChanged={patients.reload}
       />
     </main>
   );

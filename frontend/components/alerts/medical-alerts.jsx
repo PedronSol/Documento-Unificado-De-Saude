@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Heart, Pill, ShieldAlert } from "lucide-react";
 
-export function MedicalAlerts({ alerts }) {
+export function MedicalAlerts({ alerts, withHeader = true }) {
   const typeConfig = {
     allergy: {
       icon: ShieldAlert,
@@ -61,12 +61,14 @@ export function MedicalAlerts({ alerts }) {
       transition={{ duration: 0.4, delay: 0.3 }}
     >
       <Card className="patient-module patient-alerts border shadow-sm border-destructive/20 bg-destructive/5">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base lg:text-lg font-semibold">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            Alertas Médicos
-          </CardTitle>
-        </CardHeader>
+        {withHeader ? (
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base lg:text-lg font-semibold">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Alertas Médicos
+            </CardTitle>
+          </CardHeader>
+        ) : null}
         <CardContent className="pt-0">
           <motion.div
             variants={container}

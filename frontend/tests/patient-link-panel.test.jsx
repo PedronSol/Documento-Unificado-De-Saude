@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PatientLinkPanel } from "@/components/medical/patient-link-panel";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -49,6 +50,7 @@ function renderPanel(props = {}) {
 describe("PatientLinkPanel", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("solicita acesso pelo CPF e informa que depende do aceite", async () => {
@@ -334,5 +336,14 @@ describe("PatientLinkPanel", () => {
     expect(
       await screen.findByText("Nenhuma solicitação aguardando o paciente."),
     ).toBeInTheDocument();
+  });
+
+  it("pede as solicitações pendentes paginadas", async () => {
+    mockLinks();
+    renderPanel();
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith(
+      "/medical/patient-links?status=pending&page=1&page_size=20",
+    ));
   });
 });

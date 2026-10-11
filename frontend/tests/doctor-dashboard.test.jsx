@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DoctorDashboard } from "@/components/medical/doctor-dashboard";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -83,6 +84,7 @@ function deferred() {
 
 describe("DoctorDashboard", () => {
   it("oferece o painel de adicionar paciente na área profissional", async () => {
+    installPagedApiMock(apiFetch);
     apiFetch.mockImplementation(() => respondWith([patient]));
     render(
       <DoctorDashboard
@@ -99,6 +101,7 @@ describe("DoctorDashboard", () => {
   beforeEach(() => {
     vi.useRealTimers();
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("busca automaticamente após 300 ms sem consultar prefixos curtos", async () => {
@@ -126,7 +129,7 @@ describe("DoctorDashboard", () => {
     expect(apiFetch).toHaveBeenCalledTimes(1);
     await act(async () => vi.advanceTimersByTimeAsync(1));
 
-    expect(apiFetch.mock.calls[1][0]).toBe("/medical/patients?query=Carlos");
+    expect(apiFetch.mock.calls[1][0]).toBe("/medical/patients?page=1&page_size=20&query=Carlos");
     vi.useRealTimers();
   });
 
@@ -150,12 +153,12 @@ describe("DoctorDashboard", () => {
     fireEvent.change(input, { target: { value: "000.111.222-22" } });
     await act(async () => vi.advanceTimersByTimeAsync(300));
     expect(apiFetch.mock.calls[1][0]).toBe(
-      "/medical/patients?query=000.111.222-22",
+      "/medical/patients?page=1&page_size=20&query=000.111.222-22",
     );
 
     fireEvent.change(input, { target: { value: "" } });
     await act(async () => vi.advanceTimersByTimeAsync(300));
-    expect(apiFetch.mock.calls[2][0]).toBe("/medical/patients");
+    expect(apiFetch.mock.calls[2][0]).toBe("/medical/patients?page=1&page_size=20");
     vi.useRealTimers();
   });
 
@@ -177,7 +180,7 @@ describe("DoctorDashboard", () => {
     await act(async () => vi.advanceTimersByTimeAsync(300));
 
     expect(apiFetch).toHaveBeenCalledTimes(2);
-    expect(apiFetch.mock.calls[1][0]).toBe("/medical/patients?query=Carlos");
+    expect(apiFetch.mock.calls[1][0]).toBe("/medical/patients?page=1&page_size=20&query=Carlos");
     fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
     expect(apiFetch).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
@@ -235,14 +238,14 @@ describe("DoctorDashboard", () => {
     );
 
     expect(await screen.findByText("Carlos Eduardo Silva")).toBeInTheDocument();
-    expect(apiFetch.mock.calls[0][0]).toBe("/medical/patients");
+    expect(apiFetch.mock.calls[0][0]).toBe("/medical/patients?page=1&page_size=20");
     expect(screen.queryByText("00011122222")).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Buscar paciente"), "Carlos");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
     await waitFor(() =>
       expect(apiFetch.mock.calls.some(([path]) =>
-        path === "/medical/patients?query=Carlos",
+        path === "/medical/patients?page=1&page_size=20&query=Carlos",
       )).toBe(true),
     );
 

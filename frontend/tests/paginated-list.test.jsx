@@ -96,12 +96,23 @@ describe("InfiniteListFooter", () => {
 
     rerender(
       <InfiniteListFooter
-        resource={resource({ hasNext: false, items: [{ id: 1 }], total: 1 })}
+        resource={resource({ hasNext: false, page: 3, total: 45, items: new Array(45).fill(0).map((_, id) => ({ id })) })}
         itemLabel="vacinas"
       />,
     );
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("1 de 1 vacinas carregadas");
+    expect(screen.getByRole("status")).toHaveTextContent("45 de 45 vacinas carregadas");
+  });
+
+  it("não anuncia progresso em lista curta de uma página", () => {
+    render(
+      <InfiniteListFooter
+        resource={resource({ hasNext: false, page: 1, items: [{ id: 1 }], total: 1 })}
+        itemLabel="vacinas"
+      />,
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("funciona sem IntersectionObserver usando o botão", async () => {

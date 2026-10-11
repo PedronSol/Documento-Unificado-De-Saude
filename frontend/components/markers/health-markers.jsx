@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import History from "lucide-react/dist/esm/icons/history";
 import Plus from "lucide-react/dist/esm/icons/plus";
 
 import { MarkerCollection } from "@/components/markers/marker-collection";
 import { MarkerDialog, RemoveMarkerDialog } from "@/components/markers/marker-dialogs";
-import { TYPE_ORDER } from "@/components/markers/marker-types";
+import { TYPE_OPTIONS, TYPE_ORDER } from "@/components/markers/marker-types";
+import { PaginatedList } from "@/components/ui/paginated-list";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { apiFetch, readApiError } from "@/lib/api";
 
 const EMPTY_FORM = {
@@ -60,68 +62,35 @@ export function HealthMarkers({
   const formTriggerRef = useRef(null);
   const removeTriggerRef = useRef(null);
 
-  const loadActiveMarkers = useCallback(async () => {
-    setActiveResource((current) => ({ ...current, status: "loading" }));
-    try {
-      const response = await apiFetch(`${basePath}?status=active`);
-      if (response.status === 401) {
-        onUnauthenticated();
-        return;
-      }
-      if (!response.ok) {
-        setActiveResource({
-          status: "error",
-          data: [],
-          error: (await readApiError(response, LOAD_ACTIVE_ERROR)).message,
-        });
-        return;
-      }
-      const data = await response.json();
-      setActiveResource({
-        status: "ready",
-        data: Array.isArray(data) ? data : [],
-      });
-    } catch {
-      setActiveResource({ status: "error", data: [], error: LOAD_ACTIVE_ERROR });
-    }
-  }, [basePath, onUnauthenticated]);
+  // Patient: server-paginated lists (spec 038). Medical record: the full
+  // timeline arrives embedded and is kept in local state.
+  const serverMode = !hasInitialTimeline;
+  const [historyRequested, setHistoryRequested] = useState(false);
+  const activeList = usePaginatedList(serverMode ? `${basePath}?status=active` : null, {
+    fallback: LOAD_ACTIVE_ERROR,
+    initialFilters: { type: "" },
+    onUnauthenticated,
+  });
+  const historyList = usePaginatedList(
+    serverMode && historyRequested ? `${basePath}?status=removed` : null,
+    {
+      fallback: LOAD_HISTORY_ERROR,
+      initialFilters: { type: "" },
+      onUnauthenticated,
+    },
+  );
 
-  const loadHistoryMarkers = useCallback(async () => {
-    setHistoryResource((current) => ({ ...current, status: "loading" }));
-    try {
-      const response = await apiFetch(`${basePath}?status=removed`);
-      if (response.status === 401) {
-        onUnauthenticated();
-        return;
-      }
-      if (!response.ok) {
-        setHistoryResource({
-          status: "error",
-          data: [],
-          error: (await readApiError(response, LOAD_HISTORY_ERROR)).message,
-        });
-        return;
-      }
-      const data = await response.json();
-      setHistoryResource({
-        status: "ready",
-        data: Array.isArray(data) ? data : [],
-      });
-    } catch {
-      setHistoryResource({ status: "error", data: [], error: LOAD_HISTORY_ERROR });
+  function reloadServerLists() {
+    activeList.resource.reload();
+    if (historyRequested) {
+      historyList.resource.reload();
     }
-  }, [basePath, onUnauthenticated]);
-
-  useEffect(() => {
-    if (!hasInitialTimeline) {
-      loadActiveMarkers();
-    }
-  }, [hasInitialTimeline, loadActiveMarkers]);
+  }
 
   function selectView(nextView) {
     setView(nextView);
-    if (nextView === "removed" && historyResource.status === "idle") {
-      loadHistoryMarkers();
+    if (nextView === "removed" && serverMode) {
+      setHistoryRequested(true);
     }
   }
 
@@ -189,6 +158,11 @@ export function HealthMarkers({
         return;
       }
       const saved = await response.json();
+      if (serverMode) {
+        reloadServerLists();
+        setIsFormOpen(false);
+        return;
+      }
       setActiveResource((current) => ({
         status: "ready",
         data: sortActiveMarkers(
@@ -225,27 +199,28 @@ export function HealthMarkers({
         setRemoveError((await readApiError(response, REMOVE_ERROR)).message);
         return;
       }
+      if (serverMode) {
+        reloadServerLists();
+        setMarkerToRemove(null);
+        return;
+      }
       setActiveResource((current) => ({
         status: "ready",
         data: current.data.filter(
           (marker) => marker.marker_id !== markerToRemove.marker_id,
         ),
       }));
-      setHistoryResource((current) =>
-        hasInitialTimeline
-          ? {
-              status: "ready",
-              data: [
-                {
-                  ...markerToRemove,
-                  status: "removed",
-                  removed_at: new Date().toISOString(),
-                },
-                ...current.data,
-              ],
-            }
-          : { status: "idle", data: [] },
-      );
+      setHistoryResource((current) => ({
+        status: "ready",
+        data: [
+          {
+            ...markerToRemove,
+            status: "removed",
+            removed_at: new Date().toISOString(),
+          },
+          ...current.data,
+        ],
+      }));
       setMarkerToRemove(null);
     } catch {
       setRemoveError(REMOVE_ERROR);
@@ -255,6 +230,18 @@ export function HealthMarkers({
   }
 
   const currentResource = view === "active" ? activeResource : historyResource;
+  const currentList = view === "active" ? activeList : historyList;
+  const activeCount = serverMode ? activeList.resource.total : activeResource.data.length;
+  const collection = (markers) => (
+    <MarkerCollection
+      markers={markers}
+      canEdit={isAdult}
+      onEdit={openEditMarker}
+      onRemove={openRemoveMarker}
+      variant={variant}
+      view={view}
+    />
+  );
 
   return (
     <section
@@ -298,7 +285,7 @@ export function HealthMarkers({
           onClick={() => selectView("active")}
         >
           Ativos
-          <span>{activeResource.data.length}</span>
+          <span>{activeCount}</span>
         </button>
         <button
           type="button"
@@ -310,34 +297,28 @@ export function HealthMarkers({
         </button>
       </div>
 
-      {currentResource.status === "loading" || currentResource.status === "idle" ? (
-        <p className="marker-resource-state" role="status">
-          {view === "active"
-            ? "Carregando marcadores…"
-            : "Carregando histórico…"}
-        </p>
-      ) : null}
-      {currentResource.status === "error" ? (
-        <div className="form-error marker-resource-error" role="alert">
-          <p>{currentResource.error}</p>
-          <button
-            type="button"
-            onClick={view === "active" ? loadActiveMarkers : loadHistoryMarkers}
-          >
-            Tentar novamente
-          </button>
-        </div>
-      ) : null}
-      {currentResource.status === "ready" ? (
-        <MarkerCollection
-          markers={currentResource.data}
-          canEdit={isAdult}
-          onEdit={openEditMarker}
-          onRemove={openRemoveMarker}
-          variant={variant}
-          view={view}
+      {serverMode ? (
+        <PaginatedList
+          key={view}
+          list={currentList}
+          searchLabel={view === "active" ? "Buscar marcadores" : "Buscar no histórico"}
+          filters={[{
+            id: `marker-${view}-type-filter`,
+            label: "Tipo",
+            value: currentList.filters.type,
+            onChange: (value) => currentList.setFilter("type", value),
+            options: TYPE_OPTIONS,
+          }]}
+          itemLabel="marcadores"
+          loadingText={view === "active" ? "Carregando marcadores…" : "Carregando histórico…"}
+          emptyText=""
+          retryLabel="Tentar novamente"
+          renderEmpty={() => collection([])}
+          renderItems={collection}
         />
-      ) : null}
+      ) : (
+        collection(currentResource.data)
+      )}
 
       <MarkerDialog
         error={formError}

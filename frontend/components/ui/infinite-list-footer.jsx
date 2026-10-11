@@ -8,8 +8,10 @@ import { useEffect, useRef } from "react";
 // readers, zoom and browsers without IntersectionObserver (spec 038).
 export function InfiniteListFooter({ resource, itemLabel }) {
   const sentinelRef = useRef(null);
-  const { hasNext, isLoadingMore, items, loadMore, loadMoreError, total } = resource;
+  const { hasNext, isLoadingMore, items, loadMore, loadMoreError, page, total } = resource;
   const autoLoad = hasNext && !isLoadingMore && !loadMoreError;
+  // Progress is announced only for lists that span more than one page.
+  const announceProgress = hasNext || page > 1;
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -28,9 +30,11 @@ export function InfiniteListFooter({ resource, itemLabel }) {
   return (
     <div className="infinite-list-footer">
       <div ref={sentinelRef} className="infinite-list-sentinel" aria-hidden="true" />
-      <p className="infinite-list-progress" role="status" aria-live="polite">
-        {items.length} de {total} {itemLabel} carregadas
-      </p>
+      {announceProgress ? (
+        <p className="infinite-list-progress" role="status" aria-live="polite">
+          {items.length} de {total} {itemLabel} carregadas
+        </p>
+      ) : null}
       {loadMoreError ? (
         <div className="form-error infinite-list-error" role="alert">
           <p>{loadMoreError}</p>

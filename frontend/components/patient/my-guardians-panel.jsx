@@ -4,7 +4,8 @@ import { useState } from "react";
 import UsersRound from "lucide-react/dist/esm/icons/users-round";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useApiResource } from "@/hooks/use-api-resource";
+import { PaginatedList } from "@/components/ui/paginated-list";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { apiFetch, readApiError } from "@/lib/api";
 
 
@@ -20,11 +21,10 @@ export function MyGuardiansPanel({ isAdult, onUnauthenticated }) {
   const [error, setError] = useState("");
   const [releasing, setReleasing] = useState(null);
 
-  const guardiansResource = useApiResource("/me/guardians", {
+  const guardiansList = usePaginatedList("/me/guardians", {
     fallback: GENERIC_ERROR,
     onUnauthenticated,
   });
-  const guardians = Array.isArray(guardiansResource.data) ? guardiansResource.data : [];
 
   async function mutate(path, method) {
     setIsSaving(true);
@@ -39,7 +39,7 @@ export function MyGuardiansPanel({ isAdult, onUnauthenticated }) {
         setError((await readApiError(response, GENERIC_ERROR)).message);
         return false;
       }
-      guardiansResource.reload();
+      guardiansList.resource.reload();
       return true;
     } catch {
       setError(GENERIC_ERROR);
@@ -49,7 +49,8 @@ export function MyGuardiansPanel({ isAdult, onUnauthenticated }) {
     }
   }
 
-  if (guardians.length === 0) {
+  const { resource } = guardiansList;
+  if (resource.status !== "ready" || (resource.total === 0 && !guardiansList.isFiltered)) {
     return null;
   }
 
@@ -71,50 +72,58 @@ export function MyGuardiansPanel({ isAdult, onUnauthenticated }) {
       {error && !releasing ? <p className="form-error" role="alert">{error}</p> : null}
 
       <div className="care-group-list">
-        {guardians.map((guardian) => (
-          <article
-            className={guardian.awaiting_my_confirmation ? "care-card care-card-pending" : "care-card"}
-            key={guardian.guardianship_id}
-          >
-            <div className="care-card-copy">
-              <p>
-                {RELATIONSHIP_LABEL[guardian.relationship]}
-                {guardian.awaiting_my_confirmation ? " · aguardando sua confirmação" : ""}
-              </p>
-              <h4>{guardian.guardian_display_name}</h4>
-            </div>
-            <div className="care-card-actions">
-              {guardian.awaiting_my_confirmation ? (
-                <button
-                  type="button"
-                  className="care-accept"
-                  disabled={isSaving}
-                  aria-label={`Confirmar ${guardian.guardian_display_name} como responsável`}
-                  onClick={() => mutate(
-                    `/me/guardianships/${guardian.guardianship_id}/confirm`,
-                    "POST",
-                  )}
-                >
-                  Confirmar
-                </button>
-              ) : null}
-              {isAdult && guardian.status === "active" ? (
-                <button
-                  type="button"
-                  className="care-reject"
-                  disabled={isSaving}
-                  aria-label={`Desvincular ${guardian.guardian_display_name}`}
-                  onClick={() => {
-                    setError("");
-                    setReleasing(guardian);
-                  }}
-                >
-                  Desvincular
-                </button>
-              ) : null}
-            </div>
-          </article>
-        ))}
+        <PaginatedList
+          list={guardiansList}
+          searchLabel="Buscar responsáveis"
+          itemLabel="responsáveis"
+          loadingText="Carregando responsáveis…"
+          emptyText=""
+          retryLabel="Recarregar responsáveis"
+          renderItems={(items) => items.map((guardian) => (
+            <article
+              className={guardian.awaiting_my_confirmation ? "care-card care-card-pending" : "care-card"}
+              key={guardian.guardianship_id}
+            >
+              <div className="care-card-copy">
+                <p>
+                  {RELATIONSHIP_LABEL[guardian.relationship]}
+                  {guardian.awaiting_my_confirmation ? " · aguardando sua confirmação" : ""}
+                </p>
+                <h4>{guardian.guardian_display_name}</h4>
+              </div>
+              <div className="care-card-actions">
+                {guardian.awaiting_my_confirmation ? (
+                  <button
+                    type="button"
+                    className="care-accept"
+                    disabled={isSaving}
+                    aria-label={`Confirmar ${guardian.guardian_display_name} como responsável`}
+                    onClick={() => mutate(
+                      `/me/guardianships/${guardian.guardianship_id}/confirm`,
+                      "POST",
+                    )}
+                  >
+                    Confirmar
+                  </button>
+                ) : null}
+                {isAdult && guardian.status === "active" ? (
+                  <button
+                    type="button"
+                    className="care-reject"
+                    disabled={isSaving}
+                    aria-label={`Desvincular ${guardian.guardian_display_name}`}
+                    onClick={() => {
+                      setError("");
+                      setReleasing(guardian);
+                    }}
+                  >
+                    Desvincular
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        />
       </div>
 
       <ConfirmDialog

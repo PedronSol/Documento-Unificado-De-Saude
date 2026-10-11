@@ -155,4 +155,27 @@ describe("usePaginatedResource", () => {
     expect(result.current.status).toBe("idle");
     expect(apiFetch).not.toHaveBeenCalled();
   });
+
+  it("cancela a requisição anterior quando pedido", async () => {
+    const stale = deferred();
+    vi.mocked(apiFetch)
+      .mockReturnValueOnce(stale.promise)
+      .mockReturnValueOnce(page([{ id: 2 }]));
+    const { result, rerender } = renderHook(
+      ({ query }) => usePaginatedResource("/medical/patients", {
+        fallback: FALLBACK,
+        params: { query },
+        abortStale: true,
+      }),
+      { initialProps: { query: "Carlos" } },
+    );
+
+    rerender({ query: "Helena" });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    const [, firstOptions] = vi.mocked(apiFetch).mock.calls[0];
+    expect(firstOptions.signal.aborted).toBe(true);
+    expect(vi.mocked(apiFetch).mock.calls[1][1].signal.aborted).toBe(false);
+    expect(result.current.items).toEqual([{ id: 2 }]);
+  });
 });

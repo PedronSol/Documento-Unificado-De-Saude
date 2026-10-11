@@ -55,7 +55,7 @@ describe("PaginatedList", () => {
 
     expect(screen.getByText("BCG")).toBeInTheDocument();
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("1 de 1 vacinas carregadas");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("mostra a barra quando há mais de 10 itens", () => {

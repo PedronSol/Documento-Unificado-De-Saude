@@ -44,6 +44,7 @@ export function usePaginatedResource(path, {
   params = {},
   pageSize = DEFAULT_PAGE_SIZE,
   onUnauthenticated = expireSession,
+  abortStale = false,
 }) {
   const paramsKey = JSON.stringify(params);
   const [state, setState] = useState(() => ({
@@ -56,12 +57,13 @@ export function usePaginatedResource(path, {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const fetchPage = useCallback(async (page) => {
-    const response = await apiFetch(buildPageUrl(path, {
+  const fetchPage = useCallback(async (page, signal) => {
+    const url = buildPageUrl(path, {
       page,
       pageSize,
       params: JSON.parse(paramsKey),
-    }));
+    });
+    const response = signal ? await apiFetch(url, { signal }) : await apiFetch(url);
     if (response.status === 401) {
       onUnauthenticated();
       return { unauthenticated: true };
@@ -78,12 +80,14 @@ export function usePaginatedResource(path, {
       return undefined;
     }
     const generation = ++generationRef.current;
+    // Optional cancellation of the superseded request (medical search, spec 030).
+    const controller = abortStale ? new AbortController() : null;
     loadingMoreRef.current = false;
     setState({ ...EMPTY, status: "loading" });
 
     (async () => {
       try {
-        const result = await fetchPage(1);
+        const result = await fetchPage(1, controller?.signal);
         if (generation !== generationRef.current || result.unauthenticated) {
           return;
         }
@@ -100,12 +104,13 @@ export function usePaginatedResource(path, {
           hasNext: result.body.has_next,
         });
       } catch {
-        if (generation === generationRef.current) {
+        if (generation === generationRef.current && !controller?.signal.aborted) {
           setState({ ...EMPTY, status: "error", error: fallback });
         }
       }
     })();
-  }, [fallback, fetchPage, path, requestVersion]);
+    return () => controller?.abort();
+  }, [abortStale, fallback, fetchPage, path, requestVersion]);
 
   useEffect(() => () => {
     generationRef.current += 1;

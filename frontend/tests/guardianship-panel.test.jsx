@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GuardianshipPanel } from "@/components/patient/guardianship-panel";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -59,6 +60,7 @@ function mockGuardianships({ accept = 204 } = {}) {
 describe("GuardianshipPanel", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("aceita guarda confirmando a data de nascimento do dependente", async () => {
@@ -191,5 +193,13 @@ describe("GuardianshipPanel", () => {
       `${window.location.origin}/patient-claim#token=${"t".repeat(43)}`,
     );
     expect(apiFetch).toHaveBeenCalledWith("/me/dependents/12/claim-link", { method: "POST" });
+  });
+
+  it("pede a lista paginada ao servidor", async () => {
+    apiFetch.mockImplementation(() => Promise.resolve({ ok: true, status: 200, json: async () => [] }));
+
+    render(<GuardianshipPanel dependents={[]} onChanged={vi.fn()} onUnauthenticated={vi.fn()} />);
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/me/guardianships?status=pending&page=1&page_size=20"));
   });
 });

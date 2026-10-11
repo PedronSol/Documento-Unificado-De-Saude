@@ -6,7 +6,8 @@ import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useApiResource } from "@/hooks/use-api-resource";
+import { PaginatedList } from "@/components/ui/paginated-list";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { apiFetch, readApiError } from "@/lib/api";
 import { DEPENDENTS_PATH, dependentPath } from "@/lib/areas";
 
@@ -26,11 +27,12 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
   const [renouncing, setRenouncing] = useState(null);
   const [transfers, setTransfers] = useState({});
 
-  const pendingResource = useApiResource("/me/guardianships?status=pending", {
+  const pendingList = usePaginatedList("/me/guardianships?status=pending", {
     fallback: GENERIC_ERROR,
     onUnauthenticated,
   });
-  const pending = Array.isArray(pendingResource.data) ? pendingResource.data : [];
+  const pendingVisible = pendingList.resource.status === "ready"
+    && (pendingList.resource.total > 0 || pendingList.isFiltered);
 
   async function mutate(path, options, errors = {}) {
     setIsSaving(true);
@@ -45,7 +47,7 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
         setError((await readApiError(response, GENERIC_ERROR, errors)).message);
         return false;
       }
-      pendingResource.reload();
+      pendingList.resource.reload();
       onChanged();
       return true;
     } catch {
@@ -111,7 +113,7 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
     }
   }
 
-  if (pending.length === 0 && dependents.length === 0) {
+  if (!pendingVisible && dependents.length === 0) {
     return null;
   }
 
@@ -127,59 +129,67 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
 
       {error && !renouncing ? <p className="form-error" role="alert">{error}</p> : null}
 
-      {pending.length > 0 ? (
+      {pendingVisible ? (
         <div className="care-group-list">
           <h3>Pedidos de guarda</h3>
-          {pending.map((guardianship) => {
-            const name = guardianship.dependent_preferred_name;
-            const fieldId = `guardianship-birth-${guardianship.guardianship_id}`;
-            return (
-              <article className="care-card care-card-pending" key={guardianship.guardianship_id}>
-                <div className="care-card-copy">
-                  <p>{RELATIONSHIP_LABEL[guardianship.relationship]}</p>
-                  <h4>{guardianship.dependent_full_name}</h4>
-                  {guardianship.requested_by ? (
-                    <p>Solicitado por {guardianship.requested_by}</p>
-                  ) : null}
-                  <div className="patient-link-field">
-                    <label htmlFor={fieldId}>Data de nascimento de {name}</label>
-                    <input
-                      id={fieldId}
-                      type="date"
-                      value={birthDates[guardianship.guardianship_id] || ""}
-                      onChange={(event) => setBirthDates((current) => ({
-                        ...current,
-                        [guardianship.guardianship_id]: event.target.value,
-                      }))}
-                    />
-                  </div>
+          <PaginatedList
+            list={pendingList}
+            searchLabel="Buscar pedidos"
+            itemLabel="pedidos"
+            loadingText="Carregando pedidos…"
+            emptyText=""
+            retryLabel="Recarregar pedidos"
+            renderItems={(items) => items.map((guardianship) => {
+          const name = guardianship.dependent_preferred_name;
+          const fieldId = `guardianship-birth-${guardianship.guardianship_id}`;
+          return (
+            <article className="care-card care-card-pending" key={guardianship.guardianship_id}>
+              <div className="care-card-copy">
+                <p>{RELATIONSHIP_LABEL[guardianship.relationship]}</p>
+                <h4>{guardianship.dependent_full_name}</h4>
+                {guardianship.requested_by ? (
+                  <p>Solicitado por {guardianship.requested_by}</p>
+                ) : null}
+                <div className="patient-link-field">
+                  <label htmlFor={fieldId}>Data de nascimento de {name}</label>
+                  <input
+                    id={fieldId}
+                    type="date"
+                    value={birthDates[guardianship.guardianship_id] || ""}
+                    onChange={(event) => setBirthDates((current) => ({
+                      ...current,
+                      [guardianship.guardianship_id]: event.target.value,
+                    }))}
+                  />
                 </div>
-                <div className="care-card-actions">
-                  <button
-                    type="button"
-                    className="care-accept"
-                    disabled={isSaving}
-                    aria-label={`Aceitar guarda de ${name}`}
-                    onClick={() => accept(guardianship)}
-                  >
-                    Aceitar
-                  </button>
-                  <button
-                    type="button"
-                    className="care-reject"
-                    disabled={isSaving}
-                    aria-label={`Recusar guarda de ${name}`}
-                    onClick={() => mutate(
-                      `/me/guardianships/${guardianship.guardianship_id}/reject`,
-                      { method: "POST" },
-                    )}
-                  >
-                    Recusar
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+              </div>
+              <div className="care-card-actions">
+                <button
+                  type="button"
+                  className="care-accept"
+                  disabled={isSaving}
+                  aria-label={`Aceitar guarda de ${name}`}
+                  onClick={() => accept(guardianship)}
+                >
+                  Aceitar
+                </button>
+                <button
+                  type="button"
+                  className="care-reject"
+                  disabled={isSaving}
+                  aria-label={`Recusar guarda de ${name}`}
+                  onClick={() => mutate(
+                    `/me/guardianships/${guardianship.guardianship_id}/reject`,
+                    { method: "POST" },
+                  )}
+                >
+                  Recusar
+                </button>
+              </div>
+            </article>
+          );
+            })}
+          />
         </div>
       ) : null}
 

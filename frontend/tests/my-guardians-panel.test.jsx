@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MyGuardiansPanel } from "@/components/patient/my-guardians-panel";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -48,6 +49,7 @@ function mockGuardians(guardians) {
 describe("MyGuardiansPanel", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("titular adulto desvincula responsável após confirmação", async () => {
@@ -108,7 +110,15 @@ describe("MyGuardiansPanel", () => {
     mockGuardians([]);
     const { container } = render(<MyGuardiansPanel isAdult onUnauthenticated={vi.fn()} />);
 
-    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/me/guardians"));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/me/guardians?page=1&page_size=20"));
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("pede a lista paginada ao servidor", async () => {
+    apiFetch.mockImplementation(() => Promise.resolve({ ok: true, status: 200, json: async () => [] }));
+
+    render(<MyGuardiansPanel isAdult onUnauthenticated={vi.fn()} />);
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/me/guardians?page=1&page_size=20"));
   });
 });

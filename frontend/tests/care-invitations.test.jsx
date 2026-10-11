@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CareInvitations } from "@/components/patient/care-invitations";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -84,6 +85,7 @@ function mockCare({
 describe("CareInvitations", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("mostra convite com equipe médica e aceita com recarga dos vínculos", async () => {
@@ -110,7 +112,7 @@ describe("CareInvitations", () => {
       "Convite aceito. A equipe passa a acessar seu prontuário.",
     );
     expect(
-      apiFetch.mock.calls.filter(([path]) => path === "/me/care-groups"),
+      apiFetch.mock.calls.filter(([path]) => path === "/me/care-groups?page=1&page_size=20"),
     ).toHaveLength(2);
   });
 

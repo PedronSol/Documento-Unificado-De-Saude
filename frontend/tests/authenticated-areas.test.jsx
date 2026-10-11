@@ -137,9 +137,9 @@ describe("área do paciente", () => {
     ).toBeInTheDocument();
     expect(apiFetch).toHaveBeenCalledWith("/me");
     expect(apiFetch).toHaveBeenCalledWith("/me/vaccines?page=1&page_size=20");
-    expect(apiFetch).toHaveBeenCalledWith("/me/alerts");
+    expect(apiFetch).toHaveBeenCalledWith("/me/alerts?page=1&page_size=20");
     expect(apiFetch).toHaveBeenCalledWith("/me/documents?page=1&page_size=20");
-    expect(apiFetch).toHaveBeenCalledWith("/me/markers?status=active");
+    expect(apiFetch).toHaveBeenCalledWith("/me/markers?status=active&page=1&page_size=20");
     expect(apiFetch).toHaveBeenCalledWith("/me/shares/active");
     expect(await screen.findByText("Losartana")).toBeInTheDocument();
   });
@@ -305,12 +305,12 @@ describe("área do paciente", () => {
     renderArea(<PatientArea />);
 
     await screen.findByText("Losartana");
-    expect(apiFetch).not.toHaveBeenCalledWith("/me/markers?status=removed");
+    expect(requestedPaths().some((path) => path.startsWith("/me/markers?status=removed"))).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Histórico" }));
 
     await waitFor(() =>
-      expect(apiFetch).toHaveBeenCalledWith("/me/markers?status=removed"),
+      expect(apiFetch).toHaveBeenCalledWith("/me/markers?status=removed&page=1&page_size=20"),
     );
     expect(await screen.findByText("Removido em 01/09/2026")).toBeInTheDocument();
   });
@@ -442,7 +442,7 @@ describe("área do paciente", () => {
     mockPatientResources();
     const originalImplementation = apiFetch.getMockImplementation();
     apiFetch.mockImplementation((path, options) => (
-      path === "/me/markers?status=active"
+      stripPaging(path) === "/me/markers?status=active"
         ? Promise.reject(new TypeError("Failed to fetch"))
         : originalImplementation(path, options)
     ));
@@ -603,6 +603,7 @@ const guardianIdentity = {
 describe("shell autenticado", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
     navigation.replace = vi.fn();
     useSessionStore.getState().reset();
   });
@@ -840,8 +841,8 @@ describe("redirecionamento por papel", () => {
     await waitFor(() =>
       expect(requestedPaths().sort()).toEqual([
         "/me",
-        "/medical/patient-links?status=pending",
-        "/medical/patients",
+        "/medical/patient-links?status=pending&page=1&page_size=20",
+        "/medical/patients?page=1&page_size=20",
       ]),
     );
   });
