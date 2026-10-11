@@ -3,11 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthenticatedHome } from "@/components/identity/authenticated-home";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, setActingPatient } from "@/lib/api";
 
 
 vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
+  setActingPatient: vi.fn(),
 }));
 
 const patientEnvelope = {
@@ -81,6 +82,7 @@ function mockPatientResources(overrides = {}) {
 describe("AuthenticatedHome", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    setActingPatient.mockReset();
   });
 
   it("carrega os recursos do paciente em endpoints independentes", async () => {
@@ -306,7 +308,7 @@ describe("AuthenticatedHome", () => {
 
   it("carrega a área profissional sem renderizar o dashboard do paciente", async () => {
     apiFetch.mockImplementation((path) => {
-      if (path === "/medical/patients") {
+      if (path.startsWith("/medical/")) {
         return respondWith([]);
       }
       return respondWith({
@@ -328,33 +330,44 @@ describe("AuthenticatedHome", () => {
     expect(screen.getAllByText(/Dr. Rui Lima/)).toHaveLength(2);
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
     expect(screen.queryByText("BCG reservada")).not.toBeInTheDocument();
-    expect(
-      apiFetch.mock.calls.some(([path]) => path === "/medical/patients"),
-    ).toBe(true);
-    expect(apiFetch).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(apiFetch.mock.calls.map(([path]) => path).sort()).toEqual([
+        "/me",
+        "/medical/patient-links?status=pending",
+        "/medical/patients",
+      ]),
+    );
   });
 
-  it("mostra estado institucional para administração sem consultar conteúdo clínico", async () => {
-    apiFetch.mockReturnValue(
-      respondWith({
-        user: {
-          user_id: 8,
-          display_name: "Alex Ferreira",
-          email: "admin@example.com",
-          roles: ["admin"],
-        },
-        patient_profile: null,
-      }),
-    );
+  it("abre a área administrativa sem consultar conteúdo clínico", async () => {
+    apiFetch.mockImplementation((path) => respondWith(
+      path === "/me"
+        ? {
+          user: {
+            user_id: 8,
+            display_name: "Alex Ferreira",
+            email: "admin@example.com",
+            roles: ["admin"],
+          },
+          patient_profile: null,
+        }
+        : { items: [], page: 1, has_next: false },
+    ));
 
     render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
 
     expect(
-      await screen.findByRole("heading", { name: "Administração" }),
+      await screen.findByRole("heading", { name: "Governança administrativa" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Alex Ferreira")).toHaveLength(2);
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
-    expect(apiFetch).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/admin/doctors"),
+    );
+    expect(
+      apiFetch.mock.calls.every(
+        ([path]) => path === "/me" || path.startsWith("/admin/"),
+      ),
+    ).toBe(true);
   });
 
   it("alterna uma conta combinada somente entre contextos autorizados", async () => {
@@ -372,6 +385,57 @@ describe("AuthenticatedHome", () => {
 
     await user.click(screen.getByRole("button", { name: "Minha saúde" }));
     expect(await screen.findByText("BCG reservada")).toBeInTheDocument();
+  });
+
+  it("alterna para o contexto do dependente com o cabeçalho de atuação", async () => {
+    const envelope = {
+      user: { ...patientEnvelope.user, roles: ["patient"] },
+      patient_profile: patientEnvelope.patient_profile,
+      dependents: [
+        {
+          patient_id: 9,
+          guardianship_id: 4,
+          preferred_name: "Lia",
+          full_name: "Lia Prado Ribeiro",
+          avatar_url: null,
+          health_status: "pending",
+          blood_type: null,
+          is_adult: false,
+          age: 9,
+        },
+      ],
+    };
+    mockPatientResources({ "/me": envelope });
+    const user = userEvent.setup();
+    render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "Saúde de Lia" }));
+
+    expect(await screen.findByRole("heading", { name: "Lia" })).toBeInTheDocument();
+    expect(screen.getByText("Saúde de Lia", { selector: "small" })).toBeInTheDocument();
+    expect(setActingPatient).toHaveBeenLastCalledWith(9);
+    await user.click(screen.getByRole("button", { name: "Minha saúde" }));
+    expect(setActingPatient).toHaveBeenLastCalledWith(null);
+  });
+
+  it("mostra os responsáveis do próprio paciente", async () => {
+    mockPatientResources({
+      "/me/guardians": [
+        {
+          guardianship_id: 4,
+          guardian_display_name: "Joana Prado Ribeiro",
+          relationship: "parent",
+          status: "active",
+          awaiting_my_confirmation: false,
+        },
+      ],
+    });
+    render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Meus responsáveis" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Joana Prado Ribeiro")).toBeInTheDocument();
   });
 
   it("redireciona uma sessão ausente sem manter conteúdo protegido", async () => {

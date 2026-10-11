@@ -59,3 +59,31 @@ def _serialize_snapshot(snapshot: dict | None) -> str | None:
     if snapshot is None:
         return None
     return json.dumps(snapshot, ensure_ascii=False, sort_keys=True)
+
+
+def record_administrative_event(
+    cursor: Any,
+    *,
+    actor_user_id: int,
+    managing_admin_user_id: int,
+    action: str,
+    target_type: str,
+    target_id: int,
+    details: dict | None = None,
+) -> None:
+    cursor.execute(
+        """
+        INSERT INTO administrative_audit_events (
+            actor_user_id, managing_admin_user_id, action, target_type,
+            target_id, details, occurred_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, UTC_TIMESTAMP(6))
+        """,
+        (
+            actor_user_id,
+            managing_admin_user_id,
+            action,
+            target_type,
+            target_id,
+            _serialize_snapshot(details),
+        ),
+    )

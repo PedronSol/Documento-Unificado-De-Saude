@@ -44,7 +44,7 @@ def test_get_current_user_resolve_sessao_e_roles_do_servidor():
             "email": "helena@example.com",
         },
         [{"role": "patient"}, {"role": "doctor"}],
-        {"verification_status": "verified"},
+        {"verification_status": "verified", "professional_status": "active"},
     )
 
     user = get_current_user("raw-session", connection)
@@ -67,7 +67,7 @@ def test_doctor_pendente_nao_recebe_role_profissional():
             "email": "paula@example.com",
         },
         [{"role": "patient"}, {"role": "doctor"}],
-        {"verification_status": "pending"},
+        {"verification_status": "pending", "professional_status": "active"},
     )
 
     user = get_current_user("raw-session", connection)
@@ -121,6 +121,7 @@ def test_get_current_doctor_resolve_perfil_verificado_do_usuario():
     assert doctor["doctor_id"] == 5
     assert doctor["crm_number"] == "100001"
     assert "verification_status = 'verified'" in connection.executed[0][0]
+    assert "professional_status = 'active'" in connection.executed[0][0]
 
 
 def test_get_current_doctor_rejects_inconsistent_verified_profile():
@@ -133,3 +134,35 @@ def test_get_current_doctor_rejects_inconsistent_verified_profile():
         )
 
     assert error.value.status_code == 409
+
+
+def test_identidade_com_admin_nunca_recebe_role_clinica_efetiva():
+    connection = ScriptedConnection(
+        {
+            "user_id": 9,
+            "display_name": "Conta Inconsistente",
+            "email": "inconsistente@example.com",
+        },
+        [{"role": "patient"}, {"role": "doctor"}, {"role": "admin"}],
+    )
+
+    user = get_current_user("raw-session", connection)
+
+    assert user["roles"] == ["admin"]
+    assert len(connection.executed) == 2
+
+
+def test_doctor_suspenso_nao_recebe_role_profissional():
+    connection = ScriptedConnection(
+        {
+            "user_id": 7,
+            "display_name": "Dra. Paula Reis",
+            "email": "paula@example.com",
+        },
+        [{"role": "doctor"}],
+        {"verification_status": "verified", "professional_status": "suspended"},
+    )
+
+    user = get_current_user("raw-session", connection)
+
+    assert user["roles"] == []

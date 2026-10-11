@@ -85,6 +85,8 @@ def patient_row(**overrides):
         "health_status": "updated",
         "blood_type": "A+",
         "birth_date": date(1985, 4, 12),
+        "account_claimed_at": datetime(2026, 1, 1, 12, 0),
+        "provisioned_by_doctor_id": None,
         **overrides,
     }
 
@@ -132,7 +134,8 @@ def test_medical_list_returns_only_sql_authorized_patient_allowlist():
     assert "dcg.status = 'active'" in statement
     assert "pcg.status = 'active'" in statement
     assert "LIMIT 50" in statement
-    assert parameters == (3,)
+    assert "dpl.status = 'active'" in statement
+    assert parameters == (3, 3)
     assert "cpf" not in result[0]
 
 
@@ -147,7 +150,7 @@ def test_medical_search_normalizes_formatted_cpf_without_returning_it():
 
     statement, parameters = connection.executed[0]
     assert "u.cpf = %s" in statement
-    assert parameters == (3, "00011122222")
+    assert parameters == (3, 3, "00011122222")
     assert "cpf" not in result[0]
 
 
@@ -178,7 +181,7 @@ def test_direct_patient_access_returns_403_for_missing_or_unlinked_patient():
     statement, parameters = connection.executed[0]
     assert "p.patient_id = %s" in statement
     assert "EXISTS" in statement
-    assert parameters == (99, 3)
+    assert parameters == (99, 3, 3)
 
 
 def test_medical_record_returns_allowlisted_timeline_and_audits_view():
@@ -334,21 +337,23 @@ def test_medical_marker_update_and_suspension_preserve_doctor_authorship():
     )
 
 
-def test_medical_marker_mutation_rejects_minor_before_writing():
+def test_medical_marker_mutation_allows_authorized_minor_record():
     connection = MedicalConnection(
-        fetchone_results=[patient_row(user_id=7, birth_date=date(2020, 1, 1))],
+        fetchone_results=[
+            patient_row(user_id=7, birth_date=date(2020, 1, 1)),
+            marker_row(name="Asma"),
+        ],
     )
 
-    with pytest.raises(HTTPException) as error:
-        add_medical_marker(
-            patient_id=10,
-            marker=MarkerCreateUpdate(type="condition", name="Asma"),
-            doctor={"doctor_id": 3, "user_id": 8},
-            connection=connection,
-        )
+    result = add_medical_marker(
+        patient_id=10,
+        marker=MarkerCreateUpdate(type="condition", name="Asma"),
+        doctor={"doctor_id": 3, "user_id": 8},
+        connection=connection,
+    )
 
-    assert error.value.status_code == 403
-    assert not any(
+    assert result["name"] == "Asma"
+    assert any(
         statement.startswith("INSERT INTO health_markers")
         for statement, _ in connection.executed
     )

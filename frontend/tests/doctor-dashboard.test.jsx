@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,10 @@ import { apiFetch } from "@/lib/api";
 
 vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
+}));
+
+vi.mock("@/components/medical/patient-link-panel", () => ({
+  PatientLinkPanel: () => <section aria-label="Adicionar paciente" />,
 }));
 
 const patient = {
@@ -64,6 +68,20 @@ function deferred() {
 
 
 describe("DoctorDashboard", () => {
+  it("oferece o painel de adicionar paciente na área profissional", async () => {
+    apiFetch.mockImplementation(() => respondWith([patient]));
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dra. Helena Costa" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "Adicionar paciente" }),
+    ).toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.useRealTimers();
     apiFetch.mockReset();
@@ -290,6 +308,76 @@ describe("DoctorDashboard", () => {
     expect(apiFetch).toHaveBeenCalledWith(
       "/medical/patients/10/markers",
       expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("corrige dados e gera novo link para paciente provisório do próprio médico", async () => {
+    const provisionalRecord = {
+      ...record,
+      patient: {
+        ...record.patient,
+        account_status: "provisional",
+        manages_provisional: true,
+      },
+    };
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/medical/patients/10" && !options.method) {
+        return respondWith(provisionalRecord);
+      }
+      if (path === "/medical/patients/10/provisional-profile") {
+        return respondWith({
+          ...provisionalRecord.patient,
+          full_name: "Carlos Eduardo Silva Lima",
+        });
+      }
+      if (path === "/medical/patients/10/claim-link") {
+        return respondWith({
+          token: "n".repeat(43),
+          expires_at: "2026-10-18T12:00:00",
+          recipient: "guardian",
+        }, 201);
+      }
+      return respondWith([patient]);
+    });
+    const user = userEvent.setup();
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dr. Marcos Nunes" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Abrir prontuário de Carlos Silva" }),
+    );
+    expect(await screen.findByText("Conta provisória")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Corrigir dados" }));
+    const dialog = await screen.findByRole("dialog");
+    const fullName = within(dialog).getByLabelText("Nome completo");
+    await user.clear(fullName);
+    await user.type(fullName, "Carlos Eduardo Silva Lima");
+    await user.click(within(dialog).getByRole("button", { name: "Salvar correção" }));
+    await waitFor(() =>
+      expect(
+        apiFetch.mock.calls.find(([path]) => path === "/medical/patients/10/provisional-profile"),
+      ).toBeTruthy(),
+    );
+    const correction = apiFetch.mock.calls.find(
+      ([path]) => path === "/medical/patients/10/provisional-profile",
+    );
+    expect(correction[1].method).toBe("PATCH");
+    expect(JSON.parse(correction[1].body)).toEqual({
+      full_name: "Carlos Eduardo Silva Lima",
+      preferred_name: "Carlos Silva",
+    });
+    expect(
+      await screen.findByRole("heading", { name: "Carlos Eduardo Silva Lima" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Gerar novo link" }));
+    expect(await screen.findByLabelText("Link para o responsável assumir a conta")).toHaveValue(
+      `${window.location.origin}/patient-claim#token=${"n".repeat(43)}&for=guardian`,
     );
   });
 

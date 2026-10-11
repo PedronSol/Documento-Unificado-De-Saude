@@ -1,7 +1,9 @@
 from pathlib import Path
 
+from admin.router import router as admin_router
 from alerts.router import router as alerts_router
 from auth.router import router as auth_router
+from care.router import router as care_router
 from config import AppSettings
 from documents.router import router as documents_router
 from markers.router import router as markers_router
@@ -66,7 +68,9 @@ def test_domain_routers_own_the_current_routes():
     router_paths = {
         route.path
         for router in (
+            admin_router,
             auth_router,
+            care_router,
             patients_router,
             vaccines_router,
             alerts_router,
@@ -79,6 +83,45 @@ def test_domain_routers_own_the_current_routes():
     }
 
     assert router_paths == {
+        "/admin/doctor-invitations",
+        "/admin/doctor-invitations/{invitation_id}",
+        "/admin/doctors",
+        "/admin/doctors/{doctor_id}",
+        "/admin/doctors/{doctor_id}/status",
+        "/admin/users",
+        "/admin/care-groups",
+        "/admin/care-groups/{group_id}",
+        "/admin/care-groups/{group_id}/doctors/{doctor_id}",
+        "/admin/care-groups/{group_id}/patient-invitations",
+        "/admin/care-groups/{group_id}/patient-invitations/{invitation_id}",
+        "/admin/care-groups/{group_id}/patients/{user_id}",
+        "/admin/audit-events",
+        "/me/care-invitations",
+        "/me/care-invitations/{invitation_id}/accept",
+        "/me/care-invitations/{invitation_id}/reject",
+        "/me/care-groups",
+        "/me/care-groups/{group_id}",
+        "/me/care-requests",
+        "/me/care-requests/{link_id}/accept",
+        "/me/care-requests/{link_id}/reject",
+        "/me/care-doctors",
+        "/me/care-doctors/{link_id}",
+        "/medical/patient-links",
+        "/medical/patient-links/{link_id}",
+        "/medical/patients/{patient_id}/provisional-profile",
+        "/medical/patients/{patient_id}/claim-link",
+        "/auth/patient-claim/local",
+        "/auth/google/patient-claim",
+        "/me/dependents",
+        "/me/guardianships",
+        "/me/guardianships/{guardianship_id}/accept",
+        "/me/guardianships/{guardianship_id}/reject",
+        "/me/guardianships/{guardianship_id}",
+        "/me/guardianships/{guardianship_id}/confirm",
+        "/me/guardians",
+        "/me/guardians/{guardianship_id}",
+        "/me/dependents/{patient_id}/claim-link",
+        "/auth/google/doctor-invitation",
         "/auth/patient-registration",
         "/auth/google",
         "/auth/google/patient-registration",
@@ -115,7 +158,11 @@ def test_cors_allows_share_token_header_only_for_configured_origins():
     cors = application.user_middleware[0]
     assert cors.kwargs["allow_origins"] == ["https://app.example"]
     assert cors.kwargs["allow_credentials"] is True
-    assert cors.kwargs["allow_headers"] == ["Content-Type", "X-Share-Token"]
+    assert cors.kwargs["allow_headers"] == [
+        "Content-Type",
+        "X-Share-Token",
+        "X-Acting-Patient",
+    ]
 
 
 def test_main_is_only_the_composition_root():

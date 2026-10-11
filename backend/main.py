@@ -4,9 +4,11 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from admin.router import router as admin_router
 from alerts.router import router as alerts_router
 from auth.google import GoogleIdentityVerifier, build_google_identity_verifier
 from auth.router import router as auth_router
+from care.router import router as care_router
 from config import AppSettings
 from database import ConnectionFactory, create_connection
 from documents.router import router as documents_router
@@ -48,9 +50,11 @@ def create_app(
         allow_origins=list(settings.cors_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Share-Token"],
+        allow_headers=["Content-Type", "X-Share-Token", "X-Acting-Patient"],
     )
     application.include_router(auth_router)
+    application.include_router(admin_router)
+    application.include_router(care_router)
     application.include_router(patients_router)
     application.include_router(vaccines_router)
     application.include_router(alerts_router)

@@ -21,6 +21,10 @@ const dialogStyles = globals.slice(
   globals.indexOf(".modal-backdrop"),
   globals.indexOf(".home-state"),
 );
+const adminStyles = globals.includes("/* Área administrativa")
+  ? globals.slice(globals.indexOf("/* Área administrativa"))
+  : "";
+const confirmDialog = read("../components/ui/confirm-dialog.jsx");
 const markerSwitchStyles = globals.slice(
   globals.indexOf(".marker-view-switch {"),
   globals.indexOf(".marker-groups,"),
@@ -32,6 +36,23 @@ const markerEmptyStyles = globals.slice(
 
 
 describe("contrato do design system", () => {
+  it("constrói governança e equipes de cuidado somente com tokens mobile-first", () => {
+    expect(adminStyles).toContain(".admin-main");
+    expect(adminStyles).toContain(".care-card");
+    expect(adminStyles).toContain(".patient-link-item");
+    expect(adminStyles).toContain(".claim-link-card");
+    expect(adminStyles).toContain(".provisional-actions");
+    expect(adminStyles).toContain(".patient-link-guardian");
+    expect(adminStyles).toContain("var(--ds-layout-content)");
+    expect(adminStyles).toContain("var(--ds-control-min-height)");
+    expect(adminStyles).toContain("@media (min-width:");
+    expect(adminStyles).not.toMatch(/@media \(max-width/);
+    expect(adminStyles).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(adminStyles).not.toMatch(/rgb\(/);
+    expect(confirmDialog).toContain("clinical-confirm-dialog");
+    expect(guide).toContain("ConfirmDialog");
+  });
+
   it("publica tokens semânticos claros e escuros para todas as fundações", () => {
     expect(tokens).toContain("--ds-color-canvas");
     expect(tokens).toContain("--ds-color-primary");

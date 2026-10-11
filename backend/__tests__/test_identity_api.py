@@ -48,10 +48,16 @@ class FakeCursor:
                 {"role": role}
                 for role in self.database.roles.get(parameters[0], [])
             ]
-        elif sql.startswith("SELECT verification_status FROM doctors"):
+        elif "FROM patient_guardianships g" in sql:
+            self.result = []
+        elif sql.startswith(
+            "SELECT verification_status, professional_status FROM doctors"
+        ):
             status = self.database.doctors.get(parameters[0])
             self.result = (
-                {"verification_status": status} if status is not None else None
+                {"verification_status": status, "professional_status": "active"}
+                if status is not None
+                else None
             )
         elif sql.startswith("SELECT u.user_id, u.display_name, u.email"):
             user_id = self.database.sessions.get(parameters[0])
@@ -512,6 +518,7 @@ def test_me_retorna_somente_identidade_e_perfil_normalizado(identity_database):
             "is_adult": True,
             "age": 36,
         },
+        "dependents": [],
     }
     assert not any(
         "FROM vaccines" in statement

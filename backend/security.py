@@ -54,3 +54,11 @@ def create_share_token() -> str:
 
 def hash_share_token(token: str) -> str:
     return _hash_token(token)
+
+
+def create_invitation_token() -> str:
+    return _create_token()
+
+
+def hash_invitation_token(token: str) -> str:
+    return _hash_token(token)

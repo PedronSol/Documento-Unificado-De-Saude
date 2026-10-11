@@ -23,7 +23,7 @@ Exemplo: `001-database-migrations.md`.
 | `004-resource-contracts-authorization.md` | Contratos e autorização por recurso | IMPLEMENTED |
 | `005-clinical-audit.md` | Auditoria clínica transacional | IMPLEMENTED |
 | `006-patient-onboarding-authentication.md` | Cadastro local de pacientes e Google OIDC opcional | IMPLEMENTED |
-| `007-administrative-access-governance.md` | Governança administrativa e vínculos | SPEC WRITING |
+| `007-administrative-access-governance.md` | Governança administrativa e vínculos | IMPLEMENTED |
 | `010-health-markers.md` | Marcadores do paciente | IMPLEMENTED |
 | `020-secure-document-storage.md` | Armazenamento seguro de documentos | SPEC REVIEW |
 | `021-health-document-ocr.md` | OCR e revisão de documentos | SPEC WRITING |
@@ -31,6 +31,7 @@ Exemplo: `001-database-migrations.md`.
 | `031-interface-design-system.md` | Design system e interface médica | IMPLEMENTED |
 | `032-mobile-context-dock.md` | Navegação de contexto em mobile | IMPLEMENTED |
 | `033-mobile-pwa.md` | Experiência mobile-first e PWA instalável | IMPLEMENTED |
+| `036-doctor-assisted-patient-registration.md` | Cadastro assistido de pacientes e responsáveis legais | IMPLEMENTED |
 | `040-health-summary-sharing.md` | Compartilhamento temporário | IMPLEMENTED |
 
 ## Template

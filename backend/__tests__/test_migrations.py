@@ -92,6 +92,60 @@ def test_cli_injeta_engine_e_caso_de_uso_de_migration(tmp_path):
     }
 
 
+def test_cli_create_admin_le_senha_por_prompt_e_injeta_caso_de_uso():
+    engine = FakeEngine()
+    received = {}
+
+    def create_admin_use_case(received_engine, **values):
+        received["engine"] = received_engine
+        received.update(values)
+
+    database_tasks.main(
+        [
+            "create-admin",
+            "--email",
+            "gestora@example.com",
+            "--cpf",
+            "52998224725",
+            "--name",
+            "Gestora Principal",
+        ],
+        environ={"DB_NAME": "health_test"},
+        engine_builder=lambda settings, *, include_database=True: engine,
+        create_admin_use_case=create_admin_use_case,
+        password_prompt=lambda: "senha-admin-segura",
+    )
+
+    assert received == {
+        "engine": engine,
+        "email": "gestora@example.com",
+        "cpf": "52998224725",
+        "display_name": "Gestora Principal",
+        "password": "senha-admin-segura",
+    }
+
+
+def test_cli_create_admin_nao_aceita_senha_por_argumento():
+    with pytest.raises(SystemExit):
+        database_tasks.main(
+            [
+                "create-admin",
+                "--email",
+                "gestora@example.com",
+                "--cpf",
+                "52998224725",
+                "--name",
+                "Gestora Principal",
+                "--password",
+                "senha-admin-segura",
+            ],
+            environ={},
+            engine_builder=lambda settings, *, include_database=True: FakeEngine(),
+            create_admin_use_case=lambda *args, **kwargs: None,
+            password_prompt=lambda: "nunca-usada",
+        )
+
+
 def test_seed_executa_sql_por_conexao_injetada_em_desenvolvimento(tmp_path):
     seed_path = tmp_path / "development.sql"
     seed_path.write_text(
@@ -649,6 +703,303 @@ def test_migration_0007_cria_identidades_externas_e_senha_opcional_forward_only(
     assert operations.indexes == [
         ("idx_external_identities_user", "external_identities", ["user_id"])
     ]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_migration_0008_cria_governanca_administrativa_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0008_administrative_governance.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location(
+        "administrative_governance_schema", migration_path
+    )
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.tables = {}
+            self.foreign_keys = []
+            self.indexes = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_foreign_key(self, name, source, referent, local, remote, **options):
+            self.foreign_keys.append((name, source, referent, local, remote))
+
+        def create_index(self, name, table, columns, **options):
+            self.indexes.append((name, table, columns))
+
+        def create_unique_constraint(self, name, table, columns):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    added = {(table, column.name): column for table, column in operations.added_columns}
+
+    def column_names(table):
+        return {
+            element.name
+            for element in operations.tables[table]
+            if isinstance(element, sa.Column)
+        }
+
+    assert migration.revision == "0008"
+    assert migration.down_revision == "0007"
+    assert added[("doctors", "created_by_admin_user_id")].nullable is True
+    assert added[("doctors", "professional_status")].type.enums == [
+        "active",
+        "suspended",
+        "deactivated",
+    ]
+    assert added[("care_groups", "managed_by_admin_user_id")].nullable is True
+    assert (
+        "uq_care_groups_admin_name",
+        "care_groups",
+        ["managed_by_admin_user_id", "name"],
+    ) in operations.indexes
+    assert {
+        "doctor_invitations",
+        "care_group_patient_invitations",
+        "administrative_audit_events",
+    } <= set(operations.tables)
+    assert {"token_hash", "created_by_admin_user_id", "status", "expires_at"} <= (
+        column_names("doctor_invitations")
+    )
+    assert "token" not in column_names("doctor_invitations")
+    assert {"pending_key", "patient_id", "care_group_id", "status"} <= (
+        column_names("care_group_patient_invitations")
+    )
+    assert "patient_id" not in column_names("administrative_audit_events")
+    invitation_status = next(
+        element
+        for element in operations.tables["care_group_patient_invitations"]
+        if isinstance(element, sa.Column) and element.name == "status"
+    )
+    assert "expired" in invitation_status.type.enums
+    assert {"actor_user_id", "managing_admin_user_id", "details"} <= (
+        column_names("administrative_audit_events")
+    )
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_migration_0009_cria_vinculos_diretos_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0009_direct_care_links.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("direct_care_links", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.tables = {}
+            self.indexes = []
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_index(self, name, table, columns, **options):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    elements = operations.tables["doctor_patient_links"]
+    columns = {
+        element.name: element for element in elements if isinstance(element, sa.Column)
+    }
+    constraints = {
+        element.name for element in elements if isinstance(element, sa.Constraint)
+    }
+    assert migration.revision == "0009"
+    assert migration.down_revision == "0008"
+    assert columns["origin"].type.enums == ["request", "provisional"]
+    assert columns["status"].type.enums == [
+        "pending",
+        "active",
+        "rejected",
+        "expired",
+        "cancelled",
+        "revoked",
+    ]
+    assert columns["open_key"].computed is not None
+    assert "uq_doctor_patient_links_open" in constraints
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_migration_0010_cria_contas_provisorias_e_reivindicacao_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0010_provisional_patients.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("provisional_patients", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.altered_columns = []
+            self.tables = {}
+            self.statements = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+        def create_foreign_key(self, *args, **options):
+            pass
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_index(self, *args, **options):
+            pass
+
+        def execute(self, statement):
+            self.statements.append(str(statement))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    added = {(table, column.name) for table, column in operations.added_columns}
+    claim_columns = {
+        element.name
+        for element in operations.tables["patient_claims"]
+        if isinstance(element, sa.Column)
+    }
+    assert migration.revision == "0010"
+    assert migration.down_revision == "0009"
+    assert {("users", "claimed_at"), ("users", "provisioned_by_doctor_id")} <= added
+    claimed_at = next(
+        column for table, column in operations.added_columns if column.name == "claimed_at"
+    )
+    assert "UTC_TIMESTAMP" in str(claimed_at.server_default.arg)
+    assert [(t, c, o["nullable"]) for t, c, o in operations.altered_columns] == [
+        ("users", "email", True)
+    ]
+    assert any("claimed_at = created_at" in statement for statement in operations.statements)
+    assert {"token_hash", "account_patient_id", "status", "failed_attempts"} <= claim_columns
+    assert "token" not in claim_columns
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_migration_0011_cria_guarda_legal_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0011_patient_guardianships.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("patient_guardianships", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.tables = {}
+            self.added_columns = []
+            self.altered_columns = []
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+        def create_foreign_key(self, *args, **options):
+            pass
+
+        def create_index(self, *args, **options):
+            pass
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    columns = {
+        element.name: element
+        for element in operations.tables["patient_guardianships"]
+        if isinstance(element, sa.Column)
+    }
+    assert migration.revision == "0011"
+    assert migration.down_revision == "0010"
+    assert columns["relationship"].type.enums == ["parent", "legal_guardian"]
+    assert columns["status"].type.enums == [
+        "pending",
+        "active",
+        "rejected",
+        "renounced",
+        "released",
+    ]
+    assert columns["open_key"].computed is not None
+    assert ("patient_claims", "guardianship_id") in {
+        (table, column.name) for table, column in operations.added_columns
+    }
+    claim_type = next(o for t, c, o in operations.altered_columns if c == "claim_type")
+    assert claim_type["type_"].enums == ["self", "guardian"]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
+def test_migration_0012_adiciona_transferencia_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0012_claim_transfer.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("claim_transfer", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.altered_columns = []
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    [(table, column, options)] = operations.altered_columns
+    assert migration.revision == "0012"
+    assert migration.down_revision == "0011"
+    assert (table, column) == ("patient_claims", "claim_type")
+    assert options["type_"].enums == ["self", "guardian", "transfer"]
     with pytest.raises(NotImplementedError, match="forward-only"):
         migration.downgrade()
 

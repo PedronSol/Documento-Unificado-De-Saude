@@ -9,10 +9,13 @@ import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Settings from "lucide-react/dist/esm/icons/settings";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import UserRound from "lucide-react/dist/esm/icons/user-round";
 
 import { InstitutionalProfile } from "@/components/identity/institutional-profile";
 import { UserAvatar } from "@/components/identity/user-avatar";
-import { apiFetch } from "@/lib/api";
+import { GuardianshipPanel } from "@/components/patient/guardianship-panel";
+import { MyGuardiansPanel } from "@/components/patient/my-guardians-panel";
+import { apiFetch, setActingPatient } from "@/lib/api";
 
 
 const PatientDashboard = dynamic(
@@ -23,6 +26,11 @@ const PatientDashboard = dynamic(
 const DoctorDashboard = dynamic(
   () => import("@/components/medical/doctor-dashboard"),
   { loading: () => <p className="home-loading">Preparando área profissional…</p> },
+);
+
+const AdminDashboard = dynamic(
+  () => import("@/components/admin/admin-dashboard"),
+  { loading: () => <p className="home-loading">Preparando área administrativa…</p> },
 );
 
 const CONTEXT_LABEL = {
@@ -38,26 +46,27 @@ const CONTEXT_ICON = {
 };
 
 
-function ContextSwitcher({ roles, context, onSelect }) {
+function ContextSwitcher({ contexts, context, onSelect }) {
   return (
     <nav className="context-switcher" aria-label="Contexto de acesso">
-      {roles.map((role) => {
-        const ContextIcon = CONTEXT_ICON[role];
-
-        return (
-          <button
-            key={role}
-            type="button"
-            aria-pressed={context === role}
-            onClick={() => onSelect(role)}
-          >
-            <ContextIcon aria-hidden="true" size={17} />
-            <span className="context-switcher-label">{CONTEXT_LABEL[role]}</span>
-          </button>
-        );
-      })}
+      {contexts.map(({ key, label, icon: ContextIcon }) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={context === key}
+          onClick={() => onSelect(key)}
+        >
+          <ContextIcon aria-hidden="true" size={17} />
+          <span className="context-switcher-label">{label}</span>
+        </button>
+      ))}
     </nav>
   );
+}
+
+
+function dependentKey(dependent) {
+  return `dependent:${dependent.patient_id}`;
 }
 
 
@@ -120,6 +129,7 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
     let active = true;
 
     async function loadIdentity() {
+      setActingPatient(null);
       setResult({ status: "loading", data: null });
       try {
         const response = await apiFetch("/me");
@@ -174,6 +184,22 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
 
   const envelope = result.data;
   const roles = envelope.user.roles;
+  const dependents = roles.includes("patient") ? envelope.dependents || [] : [];
+  const contexts = [
+    ...roles.map((role) => ({
+      key: role,
+      label: CONTEXT_LABEL[role],
+      icon: CONTEXT_ICON[role],
+    })),
+    ...dependents.map((dependent) => ({
+      key: dependentKey(dependent),
+      label: `Saúde de ${dependent.preferred_name}`,
+      icon: UserRound,
+    })),
+  ];
+  const activeDependent = dependents.find(
+    (dependent) => dependentKey(dependent) === selectedContext,
+  );
   const defaultContext = roles.includes("patient") && envelope.patient_profile
     ? "patient"
     : roles.includes("doctor")
@@ -181,9 +207,20 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
       : roles.includes("admin")
         ? "admin"
         : null;
-  const context = selectedContext && roles.includes(selectedContext)
+  const context = activeDependent
     ? selectedContext
-    : defaultContext;
+    : selectedContext && roles.includes(selectedContext)
+      ? selectedContext
+      : defaultContext;
+
+  const contextLabel = contexts.find((item) => item.key === context)?.label;
+
+  function selectContext(key) {
+    const dependent = dependents.find((item) => dependentKey(item) === key);
+    // Set before rendering so the dependent dashboard never fetches own data.
+    setActingPatient(dependent ? dependent.patient_id : null);
+    setSelectedContext(key);
+  }
   const avatarName = context === "patient" && envelope.patient_profile
     ? envelope.patient_profile.preferred_name
     : envelope.user.display_name;
@@ -191,13 +228,14 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
     ? envelope.patient_profile?.avatar_url
     : null;
   async function logout() {
+    setActingPatient(null);
     await apiFetch("/logout", { method: "POST" });
     onUnauthenticated();
   }
 
   return (
     <div
-      className={roles.length > 1
+      className={contexts.length > 1
         ? "authenticated-shell has-context-dock"
         : "authenticated-shell"}
     >
@@ -207,9 +245,9 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
           <strong>DUS</strong>
         </a>
 
-        {roles.length === 1 ? (
+        {contexts.length === 1 ? (
           <p className="single-context">
-            {context ? CONTEXT_LABEL[context] : "Nenhum perfil liberado"}
+            {contextLabel || "Nenhum perfil liberado"}
           </p>
         ) : null}
 
@@ -224,27 +262,53 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
             />
             <div className="identity-account-copy">
               <span>{avatarName}</span>
-              <small>{context ? CONTEXT_LABEL[context] : "Identidade autenticada"}</small>
+              <small>{contextLabel || "Identidade autenticada"}</small>
             </div>
           </div>
         </div>
       </header>
 
-      {roles.length > 1 && (
+      {contexts.length > 1 && (
         <ContextSwitcher
-          roles={roles}
+          contexts={contexts}
           context={context}
-          onSelect={setSelectedContext}
+          onSelect={selectContext}
         />
       )}
 
-      {context === "patient" ? (
+      {activeDependent ? (
         <PatientDashboard
+          key={context}
+          // The guardian acts for the dependent; backend enforces it per request.
+          profile={{ ...activeDependent, is_adult: true }}
+          onUnauthenticated={onUnauthenticated}
+        />
+      ) : context === "patient" ? (
+        <PatientDashboard
+          key="patient"
           profile={envelope.patient_profile}
           onUnauthenticated={onUnauthenticated}
+          guardianshipPanel={(
+            <>
+              <GuardianshipPanel
+                dependents={dependents}
+                onChanged={() => setRequestVersion((value) => value + 1)}
+                onUnauthenticated={onUnauthenticated}
+              />
+              <MyGuardiansPanel
+                isAdult={envelope.patient_profile.is_adult}
+                onUnauthenticated={onUnauthenticated}
+              />
+            </>
+          )}
         />
       ) : context === "doctor" ? (
         <DoctorDashboard
+          user={envelope.user}
+          onUnauthenticated={onUnauthenticated}
+        />
+      ) : context === "admin" ? (
+        <AdminDashboard
           user={envelope.user}
           onUnauthenticated={onUnauthenticated}
         />

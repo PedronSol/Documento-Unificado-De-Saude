@@ -163,6 +163,7 @@ botão, card ou badge sem uma variante concreta.
 | `Progress` | Progresso determinado; precisa de valor textual acessível |
 | `Separator` | Separação visual, não estrutura de conteúdo |
 | `ClinicalSelect` | Dropdown de seleção única com check, teclado e superfície clara |
+| `ConfirmDialog` | Confirmação Radix AlertDialog com foco inicial em cancelar, erro inline e retorno de foco ao acionador |
 
 ### Padrões compostos
 
@@ -222,6 +223,8 @@ botão, card ou badge sem uma variante concreta.
 - em telas pequenas, folha inferior com ações visíveis;
 - em telas amplas, painel centralizado;
 - ação destrutiva é explícita e nunca recebe foco inicial automaticamente.
+- confirmações simples reutilizam `ConfirmDialog`; formulários usam Radix
+  Dialog com `clinical-dialog`.
 
 **Tabs ou seletor segmentado**
 
