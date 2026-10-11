@@ -76,7 +76,7 @@ export function AdminAudit({ onUnauthenticated }) {
           </li>
         ))}
       </ol>
-      <LoadMore resource={events} label="Carregar mais eventos" />
+      <LoadMore resource={events} itemLabel="eventos" />
     </section>
   );
 }

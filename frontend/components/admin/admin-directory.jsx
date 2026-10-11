@@ -4,6 +4,8 @@ import { useState } from "react";
 import Search from "lucide-react/dist/esm/icons/search";
 
 import { adminRequest, useAdminPage } from "@/components/admin/admin-resources";
+import { InfiniteListFooter } from "@/components/ui/infinite-list-footer";
+import { usePaginatedResource } from "@/hooks/use-paginated-resource";
 import { ClinicalSelect } from "@/components/ui/clinical-select";
 
 
@@ -24,14 +26,21 @@ function searchGuidance(query) {
 
 
 export function AdminDirectory({ onUnauthenticated }) {
+  // The group picker lists up to the largest page so every own group fits.
   const groups = useAdminPage(
     "/admin/care-groups",
     onUnauthenticated,
     "Não foi possível carregar os grupos.",
+    { initialPageSize: 100 },
   );
   const [groupId, setGroupId] = useState("");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState({ status: "idle", items: [] });
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const results = usePaginatedResource(submittedQuery ? "/admin/users" : null, {
+    fallback: "Não foi possível consultar o diretório.",
+    params: { query: submittedQuery },
+    onUnauthenticated,
+  });
   const [guidance, setGuidance] = useState("");
   const [invitingId, setInvitingId] = useState(null);
   const [feedback, setFeedback] = useState("");
@@ -48,19 +57,12 @@ export function AdminDirectory({ onUnauthenticated }) {
     if (message) {
       return;
     }
-    setResults({ status: "loading", items: [] });
-    const result = await adminRequest(
-      `/admin/users?query=${encodeURIComponent(query.trim())}`,
-    );
-    if (result.unauthenticated) {
-      onUnauthenticated();
-      return;
+    const normalized = query.trim();
+    if (normalized === submittedQuery) {
+      results.reload();
+    } else {
+      setSubmittedQuery(normalized);
     }
-    if (result.error) {
-      setResults({ status: "error", items: [] });
-      return;
-    }
-    setResults({ status: "ready", items: result.data.items });
   }
 
   async function invite(person) {
@@ -173,6 +175,9 @@ export function AdminDirectory({ onUnauthenticated }) {
           </article>
         ))}
       </div>
+      {results.status === "ready" && results.items.length > 0 ? (
+        <InfiniteListFooter resource={results} itemLabel="usuários" />
+      ) : null}
     </section>
   );
 }

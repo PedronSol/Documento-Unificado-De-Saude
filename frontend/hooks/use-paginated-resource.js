@@ -152,6 +152,11 @@ export function usePaginatedResource(path, {
   }, [fallback, fetchPage]);
 
   const reload = useCallback(() => setRequestVersion((value) => value + 1), []);
+  // Local patch of one loaded item (for example an admin status change).
+  const replaceItem = useCallback((key, item) => setState((previous) => ({
+    ...previous,
+    items: previous.items.map((existing) => (existing[key] === item[key] ? item : existing)),
+  })), []);
 
-  return { ...state, loadMore, reload };
+  return { ...state, loadMore, reload, replaceItem };
 }

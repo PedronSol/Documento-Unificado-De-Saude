@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 import { apiFetch } from "@/lib/api";
+import { stripPaging } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -68,11 +69,12 @@ function respondWith(body, status = 200) {
 }
 
 function page(items) {
-  return { items, page: 1, has_next: false };
+  return { items, page: 1, page_size: 20, total: items.length, has_next: false };
 }
 
 function mockAdmin(overrides = {}) {
-  apiFetch.mockImplementation((path, options = {}) => {
+  apiFetch.mockImplementation((requestPath, options = {}) => {
+    const path = stripPaging(requestPath);
     const key = `${options.method || "GET"} ${path}`;
     const responses = {
       "GET /admin/doctor-invitations": page([]),
@@ -139,6 +141,14 @@ function calledWith(method, path) {
 describe("AdminDashboard", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+  });
+
+  it("pede as listas administrativas paginadas", async () => {
+    mockAdmin();
+    renderDashboard();
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/admin/doctors?page=1&page_size=20"));
+    expect(apiFetch).toHaveBeenCalledWith("/admin/doctor-invitations?page=1&page_size=20");
   });
 
   it("carrega somente recursos administrativos", async () => {
@@ -226,6 +236,7 @@ describe("AdminDashboard", () => {
     await user.click(screen.getByRole("button", { name: "Buscar" }));
 
     const result = (await screen.findByText("Carlos da Silva")).closest("article");
+    expect(apiFetch).toHaveBeenCalledWith("/admin/users?page=1&page_size=20&query=carl");
     expect(within(result).getByText("***.222.333-**")).toBeInTheDocument();
     await user.click(
       within(result).getByRole("button", { name: "Convidar Carlos da Silva" }),

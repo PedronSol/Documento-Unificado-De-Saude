@@ -767,7 +767,7 @@ describe("redirecionamento por papel", () => {
 
   it("abre a área administrativa sem consultar conteúdo clínico", async () => {
     apiFetch.mockImplementation((path) => respondWith(
-      path === "/me" ? adminIdentity : { items: [], page: 1, has_next: false },
+      path === "/me" ? adminIdentity : { items: [], page: 1, page_size: 20, total: 0, has_next: false },
     ));
 
     renderArea(<AdminArea />, { pathname: "/admin" });
@@ -775,7 +775,7 @@ describe("redirecionamento por papel", () => {
     expect(
       await screen.findByRole("heading", { name: "Governança administrativa" }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/admin/doctors"));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/admin/doctors?page=1&page_size=20"));
     expect(
       requestedPaths().every((path) => path === "/me" || path.startsWith("/admin/")),
     ).toBe(true);

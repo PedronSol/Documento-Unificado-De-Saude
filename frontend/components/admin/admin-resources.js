@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
+import {
+  DEFAULT_PAGE_SIZE,
+  usePaginatedResource,
+} from "@/hooks/use-paginated-resource";
 import { apiFetch, readApiError } from "@/lib/api";
 
 
@@ -45,49 +49,17 @@ export async function adminRequest(path, { method, body, errors = {} } = {}) {
 }
 
 
-export function useAdminPage(path, onUnauthenticated, errorMessage) {
-  const [resource, setResource] = useState({
-    status: "loading",
-    items: [],
-    page: 1,
-    hasNext: false,
+export function useAdminPage(
+  path,
+  onUnauthenticated,
+  errorMessage,
+  { initialPageSize = DEFAULT_PAGE_SIZE } = {},
+) {
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const resource = usePaginatedResource(path, {
+    fallback: errorMessage,
+    pageSize,
+    onUnauthenticated,
   });
-
-  const load = useCallback(async (page = 1) => {
-    setResource((current) => ({ ...current, status: "loading" }));
-    const separator = path.includes("?") ? "&" : "?";
-    const result = await adminRequest(
-      page === 1 ? path : `${path}${separator}page=${page}`,
-    );
-    if (result.unauthenticated) {
-      onUnauthenticated();
-      return;
-    }
-    if (result.error) {
-      setResource((current) => ({ ...current, status: "error", error: errorMessage }));
-      return;
-    }
-    setResource((current) => ({
-      status: "ready",
-      items: page === 1 ? result.data.items : [...current.items, ...result.data.items],
-      page,
-      hasNext: result.data.has_next,
-    }));
-  }, [errorMessage, onUnauthenticated, path]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  return {
-    ...resource,
-    reload: () => load(1),
-    loadMore: () => load(resource.page + 1),
-    replaceItem: (key, item) => setResource((current) => ({
-      ...current,
-      items: current.items.map((existing) => (
-        existing[key] === item[key] ? item : existing
-      )),
-    })),
-  };
+  return { ...resource, pageSize, setPageSize };
 }

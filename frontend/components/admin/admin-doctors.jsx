@@ -480,7 +480,7 @@ export function AdminDoctors({ onUnauthenticated }) {
             </article>
           ))}
         </div>
-        <LoadMore resource={doctors} label="Carregar mais médicos" />
+        <LoadMore resource={doctors} itemLabel="médicos" />
       </section>
 
       <section className="admin-panel" aria-labelledby="invitations-title">
@@ -528,7 +528,7 @@ export function AdminDoctors({ onUnauthenticated }) {
             </article>
           ))}
         </div>
-        <LoadMore resource={invitations} label="Carregar mais convites" />
+        <LoadMore resource={invitations} itemLabel="convites" />
       </section>
 
       <ConfirmDialog

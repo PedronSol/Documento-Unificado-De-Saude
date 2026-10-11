@@ -178,4 +178,15 @@ describe("usePaginatedResource", () => {
     expect(vi.mocked(apiFetch).mock.calls[1][1].signal.aborted).toBe(false);
     expect(result.current.items).toEqual([{ id: 2 }]);
   });
+
+  it("substitui um item carregado sem recarregar", async () => {
+    vi.mocked(apiFetch).mockReturnValue(page([{ id: 1, status: "pending" }, { id: 2 }]));
+    const { result } = renderHook(() => usePaginatedResource("/admin/doctors", { fallback: FALLBACK }));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    act(() => result.current.replaceItem("id", { id: 1, status: "verified" }));
+
+    expect(result.current.items).toEqual([{ id: 1, status: "verified" }, { id: 2 }]);
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+  });
 });
