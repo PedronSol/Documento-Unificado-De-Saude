@@ -28,10 +28,13 @@ def _load_authorized_roles(connection: Any, user_id: int) -> list[str]:
         )
         roles = [row["role"] for row in cursor.fetchall()]
 
+        if "admin" in roles:
+            return ["admin"]
+
         if "doctor" in roles:
             cursor.execute(
                 """
-                SELECT verification_status
+                SELECT verification_status, professional_status
                 FROM doctors
                 WHERE user_id = %s
                 """,
@@ -43,7 +46,10 @@ def _load_authorized_roles(connection: Any, user_id: int) -> list[str]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Perfil profissional inconsistente.",
                 )
-            if doctor["verification_status"] != "verified":
+            if (
+                doctor["verification_status"] != "verified"
+                or doctor["professional_status"] != "active"
+            ):
                 roles.remove("doctor")
 
     return roles
@@ -107,7 +113,9 @@ def get_current_doctor(
             """
             SELECT doctor_id, user_id, crm_number, crm_state
             FROM doctors
-            WHERE user_id = %s AND verification_status = 'verified'
+            WHERE user_id = %s
+              AND verification_status = 'verified'
+              AND professional_status = 'active'
             """,
             (user["user_id"],),
         )
@@ -147,3 +155,6 @@ def require_adult(patient: dict = Depends(get_current_patient)) -> dict:
             detail="Menores de idade não podem alterar o prontuário.",
         )
     return patient
+
+
+require_admin_role = require_roles("admin")
