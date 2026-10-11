@@ -191,6 +191,13 @@ test.describe('Página Home', () => {
         body: JSON.stringify(MOCK_DOCUMENTS),
       })
     );
+    await page.route(/\/me\/care-(invitations|groups)$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    );
     await page.route('**/me/markers**', async (route) => {
       const request = route.request();
       const url = new URL(request.url());
