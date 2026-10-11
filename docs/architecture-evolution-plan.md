@@ -2,7 +2,8 @@
 
 ## Objetivo
 
-Preparar o Documento Unificado de Saúde para marcadores clínicos, área médica,
+Preparar o Documento Unificado de Saúde para cadastro real de pacientes,
+governança administrativa sem acesso clínico, marcadores, área médica,
 compartilhamento por QR-Code e documentos com OCR sem transformar o projeto em
 uma arquitetura maior do que o problema atual exige.
 
@@ -19,6 +20,8 @@ entrar em implementação depois que sua spec estiver escrita e revisada.
 - Não serão introduzidos microserviços, Redis, filas externas, event sourcing ou
   ORM sem uma necessidade comprovada por uma spec.
 - Backend, frontend, banco e testes fazem parte da mesma entrega vertical.
+- Autenticação federada comprova identidade, mas somente o backend concede role
+  e escopo; `admin` permanece uma conta institucional sem acesso clínico.
 
 ## Princípios obrigatórios
 
@@ -98,7 +101,7 @@ o comportamento, incluindo autorização, migrações e tratamento de erros.
   `docs/specs/003-unified-identity-roles-frontend.md`, incluindo modais,
   formulários, feedback, loading, vazio e erro.
 - A modernização fica limitada ao fluxo afetado; superfícies sem relação com a
-  entrega permanecem no Step 11 para evitar redesign não planejado.
+  entrega permanecem no Step 13 para evitar redesign não planejado.
 
 ## Workflow de cada entrega
 
@@ -137,32 +140,45 @@ flowchart TD
     S6[Step 6: Marcadores de saúde]
     S7[Step 7: Área médica e grupos]
     S8[Step 8: Compartilhamento e QR-Code]
-    S9[Step 9: Armazenamento de documentos]
-    S10[Step 10: OCR e revisão]
-    S11[Step 11: Organização do frontend]
-    S12[Step 12: Consolidação operacional]
+    S9[Step 9: Cadastro local e Google opcional]
+    S10[Step 10: Governança administrativa e vínculos]
+    S11[Step 11: Armazenamento de documentos]
+    S12[Step 12: OCR e revisão]
+    S13[Step 13: Organização do frontend]
+    S14[Step 14: Consolidação operacional]
 
     S0 --> S1
     S0 --> S2
     S1 --> S3
     S2 --> S3
     S3 --> S4
-    S3 --> S11
     S4 --> S5
-    S4 --> S11
     S5 --> S6
-    S5 --> S9
     S6 --> S7
     S6 --> S8
     S4 --> S7
+    S3 --> S9
+    S4 --> S9
+    S5 --> S10
+    S7 --> S10
     S9 --> S10
+    S5 --> S11
     S7 --> S11
-    S8 --> S11
     S10 --> S11
-    S7 --> S12
-    S8 --> S12
-    S10 --> S12
     S11 --> S12
+    S3 --> S13
+    S4 --> S13
+    S7 --> S13
+    S8 --> S13
+    S9 --> S13
+    S10 --> S13
+    S12 --> S13
+    S7 --> S14
+    S8 --> S14
+    S9 --> S14
+    S10 --> S14
+    S12 --> S14
+    S13 --> S14
 ```
 
 ### Leitura da árvore
@@ -172,10 +188,18 @@ flowchart TD
 - Auditoria vem antes das features clínicas para evitar dados sem autoria.
 - Área médica depende de autorização e marcadores.
 - QR-Code depende do resumo clínico fornecido pelos marcadores.
+- Somente pacientes possuem autocadastro, por conta local ou Google opcional;
+  nenhum desses caminhos concede `doctor` ou `admin`.
+- Governança administrativa depende de pacientes cadastrados, grupos existentes
+  e auditoria, mas não concede ao admin acesso ao prontuário.
+- O vínculo criado pelo admin permanece pendente até aceite do paciente; somente
+  então o médico verificado passa a acessar o prontuário.
+- Armazenamento de documentos depende da governança para entregar leitura ao
+  médico vinculado sem abrir acesso administrativo.
 - OCR depende primeiro do armazenamento seguro de documentos.
 - A organização do frontend começa após identidade e contratos, mas suas telas
   são concluídas incrementalmente com cada feature.
-- O Step 12 consolida o que já foi testado em cada step; testes não são adiados
+- O Step 14 consolida o que já foi testado em cada step; testes não são adiados
   para o final.
 
 ## Tracker geral
@@ -191,10 +215,12 @@ flowchart TD
 | 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
 | 7 | Área médica e grupos | 4, 6 | DONE | `fc2b12e` |
 | 8 | Compartilhamento e QR-Code | 6 | DONE | `333df01` |
-| 9 | Armazenamento de documentos | 5 | PLANNED | — |
-| 10 | OCR e revisão | 9 | PLANNED | — |
-| 11 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
-| 12 | Consolidação operacional | 7, 8, 10, 11 | PLANNED | — |
+| 9 | Cadastro local de pacientes e Google opcional | 3, 4 | DONE | `00303f3` |
+| 10 | Governança administrativa e vínculos | 5, 7, 9 | SPEC WRITING | `docs/specs/007-administrative-access-governance.md` |
+| 11 | Armazenamento de documentos | 5, 7, 10 | SPEC REVIEW | `docs/specs/020-secure-document-storage.md` |
+| 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
+| 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
+| 14 | Consolidação operacional | 7–13 | PLANNED | — |
 
 ## Step 0 — Baseline de specs e TDD
 
@@ -447,11 +473,91 @@ revogação.
 - Expiração e revogação têm efeito imediato.
 - Nenhum dado clínico é retornado para token inválido.
 
-## Step 9 — Armazenamento seguro de documentos
+## Step 9 — Cadastro de pacientes e autenticação
 
-**Objetivo:** armazenar arquivos sem acoplar binários ao banco.
+**Objetivo:** permitir autocadastro exclusivamente de pacientes por e-mail e
+senha ou, opcionalmente, Google OIDC, mantendo roles profissionais sob
+provisionamento confiável.
 
-**Dependências:** Step 5.
+**Dependências:** Steps 3 e 4.
+
+### Tarefas
+
+- [x] Revisar e aprovar `docs/specs/006-patient-onboarding-authentication.md`.
+- [x] Escrever o primeiro teste RED do cadastro local transacional.
+- [x] Permitir cadastro local com e-mail normalizado, senha protegida e role
+      fixa `patient`, sem criar identidade externa.
+- [x] Escrever testes para token Google válido, expirado, adulterado, audience e
+      issuer incorretos antes da integração.
+- [x] Criar identidade externa única por `(issuer, subject)` sem usar e-mail como
+      chave federada.
+- [x] Permitir cadastro público somente com role fixa `patient` nos dois
+      caminhos.
+- [x] Coletar e validar os dados cadastrais que o provedor não fornece.
+- [x] Preservar o login local existente e normalizar e-mail consistentemente.
+- [x] Criar sessão HTTP-only local depois de autenticar ou concluir o cadastro.
+- [x] Impedir autodeclaração de `doctor` e `admin` em qualquer payload.
+- [x] Cobrir cadastro, login, conflito de CPF/e-mail e erros no frontend em
+      320 px e viewport ampla.
+
+### Critérios de conclusão
+
+- Um paciente novo consegue criar sua conta sem intervenção no banco.
+- Um paciente consegue se cadastrar, entrar e continuar usando conta local sem
+  vínculo Google.
+- Google é uma alternativa de autenticação, e o backend concede apenas
+  `patient` em qualquer caminho público.
+- `doctor` e `admin` continuam impossíveis de obter por autocadastro.
+- Senha em texto puro e token do provedor nunca são persistidos; a sessão local
+  não é substituída pelo token Google.
+
+## Step 10 — Governança administrativa e vínculos de cuidado
+
+**Objetivo:** permitir que cada admin provisione e gerencie somente seus
+médicos e vínculos, sem acesso direto a qualquer informação clínica.
+
+**Dependências:** Steps 5, 7 e 9.
+
+### Tarefas
+
+- [ ] Concluir e aprovar `docs/specs/007-administrative-access-governance.md`.
+- [ ] Definir bootstrap seguro das contas administrativas, sem cadastro público.
+- [ ] Tornar `admin` exclusiva e impedir coexistência com `patient` ou `doctor`.
+- [ ] Fazer o admin emitir convite profissional de uso único; o médico pode
+      autenticar sua identidade com Google, mas nunca criar o próprio cadastro.
+- [ ] Registrar `created_by_admin_user_id` em médicos e
+      `managed_by_admin_user_id` em grupos/vínculos administrados.
+- [ ] Permitir que admin cadastre, corrija, verifique, suspenda e desative somente
+      médicos criados por ele.
+- [ ] Criar diretório administrativo paginado de usuários ativos com allowlist
+      exclusivamente cadastral e sem qualquer join clínico.
+- [ ] Permitir que o admin convide qualquer paciente ativo para um grupo sob sua
+      gestão, sem alterar o cadastro do paciente.
+- [ ] Manter o vínculo `pending` até aceite do paciente; recusa ou revogação não
+      concede acesso.
+- [ ] Bloquear o médico de criar o próprio vínculo ou ampliar seu grupo.
+- [ ] Criar auditoria administrativa separada, sem snapshots clínicos.
+- [ ] Criar área administrativa e caixa de convites do paciente seguindo o design
+      system, com testes de ownership cruzado entre admins.
+
+### Critérios de conclusão
+
+- Admin não consegue abrir perfil clínico, vacina, marcador, documento ou
+  qualquer outro recurso do prontuário.
+- Conta administrativa não acumula role clínica.
+- Admin altera somente médicos, grupos e vínculos sob sua responsabilidade.
+- Identidade Google do médico somente completa convite previamente emitido pelo
+  admin responsável e não concede role por conta própria.
+- Consulta global retorna somente dados cadastrais mínimos de usuários ativos.
+- Somente aceite do paciente ativa o acesso de médicos verificados do grupo.
+- Toda concessão, correção, suspensão e revogação administrativa é auditada.
+
+## Step 11 — Armazenamento seguro de documentos
+
+**Objetivo:** armazenar arquivos sem acoplar binários ao banco e entregá-los
+somente ao paciente proprietário ou a médico com vínculo ativo.
+
+**Dependências:** Steps 5, 7 e 10.
 
 ### Tarefas
 
@@ -463,22 +569,26 @@ revogação.
 - [ ] Validar extensão, MIME real, tamanho e integridade básica.
 - [ ] Criar estados `uploaded`, `processing`, `needs_review`, `confirmed`,
       `failed` e `removed`.
-- [ ] Proteger download por autorização.
+- [ ] Proteger lista e download do paciente por ownership.
+- [ ] Proteger lista e download médico por perfil verificado e vínculo ativo.
+- [ ] Negar explicitamente todo acesso administrativo a metadados e binários.
 - [ ] Implementar remoção lógica e limpeza física controlada.
-- [ ] Auditar upload, download e remoção.
+- [ ] Auditar upload, download, remoção e listagem médica.
 
 ### Critérios de conclusão
 
 - Arquivos não são públicos nem previsíveis.
 - Binários não são armazenados no MySQL.
 - Paciente não acessa documento alheio.
+- Médico acessa somente documentos de paciente com vínculo ativo.
+- Admin da aplicação não acessa metadados nem conteúdo clínico.
 
-## Step 10 — OCR e revisão manual
+## Step 12 — OCR e revisão manual
 
 **Objetivo:** processar documentos de modo assíncrono e confirmar dados antes de
 inseri-los no histórico.
 
-**Dependências:** Step 9.
+**Dependências:** Step 11.
 
 ### Tarefas
 
@@ -500,16 +610,16 @@ inseri-los no histórico.
 - Reprocessamento não duplica biomarcadores.
 - Dados somente entram no histórico após confirmação.
 
-## Step 11 — Organização incremental do frontend
+## Step 13 — Organização incremental do frontend
 
 **Objetivo:** separar navegação e estado por papel e feature.
 
-**Dependências:** Steps 3 e 4; conclusão acompanha Steps 7, 8 e 10.
+**Dependências:** Steps 3 e 4; conclusão acompanha Steps 7 a 12.
 
 ### Tarefas
 
 - [ ] Escrever testes de navegação e papel antes de reorganizar rotas.
-- [ ] Criar áreas `patient`, `medical` e `share`.
+- [ ] Criar áreas `patient`, `medical`, `admin` e `share`.
 - [ ] Separar componentes por feature.
 - [ ] Manter `apiFetch` como cliente HTTP central.
 - [ ] Criar hooks somente quando houver lógica reutilizada.
@@ -526,11 +636,11 @@ inseri-los no histórico.
 - Papel controla navegação, mas segurança permanece no backend.
 - Cada feature possui loading, vazio, erro e confirmação testados.
 
-## Step 12 — Consolidação operacional
+## Step 14 — Consolidação operacional
 
 **Objetivo:** consolidar integrações, saúde da aplicação e pipeline final.
 
-**Dependências:** Steps 7, 8, 10 e 11.
+**Dependências:** Steps 7 a 13.
 
 ### Tarefas
 
@@ -591,7 +701,12 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | Identificador interno | `BIGINT AUTO_INCREMENT`; CPF permanece único | APROVADA |
 | Dados existentes | Dados atuais são demonstrativos e recriáveis | APROVADA |
 | Migrações | Alembic; SQLAlchemy somente na infraestrutura | APROVADA |
-| Roles | Múltiplas `roles` concedidas pelo servidor por identidade | APROVADA |
+| Roles | `patient`+`doctor` permitidas; `admin` exclusiva e concedida pelo servidor | APROVADA |
+| Autocadastro | Somente paciente; conta local ou Google opcional; role fixa no backend | APROVADA |
+| Provisionamento profissional | Médico cadastrado por admin responsável; sem autocadastro | APROVADA |
+| Ownership administrativo | Admin altera somente médicos, grupos e vínculos sob sua gestão | APROVADA |
+| Sigilo clínico | Admin consulta diretório cadastral mínimo, nunca prontuário | APROVADA |
+| Ativação do vínculo | Convite administrativo exige aceite do paciente | APROVADA |
 | Arquivos | Local em desenvolvimento; contrato compatível com S3 | APROVADA |
 | OCR | Worker com jobs no MySQL, sem Redis inicialmente | APROVADA |
 | Arquitetura | Monólito modular | APROVADA |
@@ -638,3 +753,11 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-08 | 7 | BUSCA REATIVA DE PACIENTES → DONE | `docs/specs/030-medical-panel.md`, [PR #7](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/7) | Debounce de 300 ms, critérios de busca, CPF completo, limpeza, botão sem duplicação e descarte de respostas obsoletas implementados por TDD; 33 unitários, 17 E2E e build aprovados. |
 | 2026-10-08 | 7 | IN PROGRESS → DONE | `fc2b12e` | Backend com 103 testes no MySQL 8 real, frontend com 21 unitários e 13 E2E, build aprovado; grupos, autorização, auditoria, autoria CRM e interface responsiva concluídos. |
 | 2026-10-09 | 8 | SPEC APPROVED → DONE | `333df01` | Compartilhamento temporário com token entregue uma vez, revogação, allowlist pública, auditoria e interface QR concluído por strict TDD; 128 testes backend no MySQL 8, 41 unitários, 19 E2E e build aprovados. |
+| 2026-10-10 | 11 (anteriormente 9) | PLANNED → SPEC REVIEW | `docs/specs/020-secure-document-storage.md` | Armazenamento foi separado do OCR; contratos, validação, atomicidade, ownership, auditoria, limpeza física e impacto no frontend foram detalhados. Implementação aguarda dependências e aprovação. |
+| 2026-10-10 | Roadmap | REPLANEJADO | D009 e Steps 9–14 | Cadastro real, provisionamento profissional, ownership administrativo e consentimento estavam ausentes; duas entregas foram inseridas antes de documentos e os steps posteriores foram renumerados. |
+| 2026-10-10 | 9 | PLANNED → SPEC REVIEW | `docs/specs/006-patient-onboarding-authentication.md` | Autocadastro exclusivo de pacientes, sessão local e bloqueio de elevação de role detalhados; implementação aguarda aprovação. |
+| 2026-10-10 | 9 | SPEC REVIEW REAVALIADA | `docs/specs/006-patient-onboarding-authentication.md` | Cadastro local por e-mail e senha tornou-se uma alternativa completa ao Google OIDC; Google passou a ser opcional e não é necessário para usar a plataforma. |
+| 2026-10-10 | 9 | SPEC REVIEW → SPEC APPROVED | `docs/specs/006-patient-onboarding-authentication.md` | Cadastro local e Google opcional aprovados para implementação; primeiro ciclo TDD começa pelo endpoint local transacional. |
+| 2026-10-10 | 9 | SPEC APPROVED → IN PROGRESS | testes backend/frontend do Step 9 | Cadastro local, Google opcional, vinculação explícita, migration `0007` e interface `/register` implementados por ciclos RED/GREEN; validação final e referência de commit pendentes. |
+| 2026-10-10 | 10 | PLANNED → SPEC WRITING | `docs/specs/007-administrative-access-governance.md` | Ownership por admin, diretório cadastral mínimo, convite com aceite e auditoria administrativa registrados para revisão posterior ao Step 9. |
+| 2026-10-10 | 11 | SPEC REVIEW REAVALIADA | `docs/specs/020-secure-document-storage.md` | Acesso de leitura do médico vinculado e negação absoluta à role admin incorporados; migration prevista passou de `0007` para `0009`. |

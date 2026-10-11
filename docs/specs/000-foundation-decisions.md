@@ -16,7 +16,7 @@ consistentes para evitar retrabalho e abstrações concorrentes.
 
 ## Objetivos
 
-- Registrar as decisões que orientam os Steps 1 a 12.
+- Registrar as decisões que orientam os Steps 1 a 14.
 - Explicitar alternativas rejeitadas e decisões ainda abertas.
 - Preservar um monólito modular e uma infraestrutura pequena.
 
@@ -72,13 +72,14 @@ depende de Alembic ou SQLAlchemy.
 
 ### D005 — User roles
 
-**Decisão revisada:** uma identidade pode possuir uma ou mais `roles` entre
-`patient`, `doctor` e `admin`. As `roles` são concedidas pelo backend e nunca
-autodeclaradas pelo cliente.
+**Decisão revisada:** uma identidade pode possuir `patient`, `doctor` ou ambas;
+`admin` é exclusiva e não pode coexistir com role clínica na mesma conta. As
+`roles` são concedidas pelo backend e nunca autodeclaradas pelo cliente.
 
 **Motivo:** o Step 3 confirmou um consumidor concreto para múltiplas `roles`: um
 `doctor` também pode usar a mesma identidade como `patient`. Perfis clínico e
-profissional permanecem separados, mas não exigem contas duplicadas.
+profissional permanecem separados, mas não exigem contas duplicadas. Admin usa
+conta institucional separada para que a gestão nunca herde acesso clínico.
 
 **Convenção:** models e classes usam inglês e singular (`User`, `Role`,
 `Patient`, `Doctor`, `Session`); tabelas e coleções usam inglês e plural
@@ -108,6 +109,28 @@ documentos e compartilhamentos possuem endpoints próprios.
 
 **Motivo:** impede que login e `/me` se tornem um payload de dashboard crescente.
 
+### D009 — Cadastro, provisionamento e sigilo por papel
+
+**Decisão aprovada:** somente pacientes possuem autocadastro público. O paciente
+pode criar uma conta local com e-mail e senha ou escolher Google OpenID Connect;
+nenhuma vinculação Google é obrigatória. Em ambos os caminhos o backend concede
+somente a role `patient`. Médicos são cadastrados por admin; contas admin não
+possuem cadastro público.
+
+Cada admin usa uma conta institucional exclusiva e gerencia somente os médicos,
+grupos e vínculos sob sua responsabilidade. Ele pode consultar uma allowlist
+cadastral de usuários ativos
+para localizar o paciente e formar o vínculo, mas nunca acessa perfil clínico,
+vacina, marcador, alerta, documento, OCR ou qualquer conteúdo do prontuário.
+
+O vínculo criado pelo admin permanece pendente até aceite do paciente. Somente
+paciente e médico verificado com vínculo ativo acessam informações clínicas no
+escopo previsto por cada recurso. Auditoria administrativa permanece separada
+da auditoria clínica.
+
+**Motivo:** autenticação externa não pode conceder privilégio profissional, e a
+gestão operacional de identidades não justifica quebrar o sigilo do prontuário.
+
 ## Segurança e autorização
 
 - CPF e CRM não serão usados como identificadores internos em URLs.
@@ -127,11 +150,12 @@ os testes de migração e os testes de autenticação por `role`.
 - [x] D002 aprovada.
 - [x] D003 aprovada: dados atuais são demonstrativos e recriáveis.
 - [x] D004 revisada e aprovada: Alembic com SQLAlchemy apenas na infraestrutura.
-- [x] D005 revisada: múltiplas `roles` por identidade quando existirem perfis
-      concretos.
+- [x] D005 revisada: `patient` e `doctor` podem coexistir; `admin` é exclusiva.
 - [x] D006 aprovada: sem provedor obrigatório neste momento.
 - [x] D007 aprovada: sem provedor obrigatório neste momento.
 - [x] D008 aprovada.
+- [x] D009 aprovada: autocadastro exclusivo de paciente, provisionamento de
+      médico por admin com ownership e nenhum acesso clínico administrativo.
 - [x] Status alterado para `SPEC APPROVED`.
 
 ## Questões para revisão
@@ -147,3 +171,7 @@ os testes de migração e os testes de autenticação por `role`.
 - D004 revisada em 2026-10-02 para substituir o executor próprio por Alembic.
 - D005 revisada em 2026-10-02 para permitir `roles` concedidas pelo servidor a
   uma única identidade.
+- D005 revisada novamente em 2026-10-10 para tornar `admin` incompatível com
+  roles clínicas na mesma conta.
+- D009 aprovada em 2026-10-10; o aceite do paciente foi adotado como condição
+  para ativar o vínculo administrativamente proposto.

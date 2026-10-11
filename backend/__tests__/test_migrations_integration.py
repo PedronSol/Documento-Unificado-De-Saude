@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, Response
+from fastapi.testclient import TestClient
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -17,6 +18,7 @@ from database_admin import seed_database
 from database_config import DatabaseSettings, create_database_engine
 from migration_service import upgrade_database
 from markers.router import add_marker, delete_marker
+from main import create_app
 from medical.router import (
     add_medical_marker,
     get_medical_record,
@@ -100,6 +102,20 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 f"WHERE table_schema='{database_name}' "
                 "AND table_name='health_shares'"
             ).scalar_one()
+            external_identities_table_count = connection.exec_driver_sql(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                f"WHERE table_schema='{database_name}' "
+                "AND table_name='external_identities'"
+            ).scalar_one()
+            password_hash_nullable = connection.exec_driver_sql(
+                """
+                SELECT is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'users'
+                  AND column_name = 'password_hash'
+                """
+            ).scalar_one()
             care_group_count = connection.exec_driver_sql(
                 "SELECT COUNT(*) FROM care_groups"
             ).scalar_one()
@@ -122,7 +138,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 "SELECT COUNT(*) FROM patients"
             ).scalar_one()
 
-        assert revision == "0006"
+        assert revision == "0007"
         assert patient_count > 0
         assert user_counts["total"] == 7
         assert user_counts["unique_cpfs"] == 7
@@ -131,9 +147,130 @@ def test_aplica_alembic_e_seed_em_mysql_real():
         assert audit_table_count == 1
         assert markers_table_count == 1
         assert shares_table_count == 1
+        assert external_identities_table_count == 1
+        assert password_hash_nullable == "YES"
         assert care_group_count == 3
         assert pending_doctor_roles == 0
         assert patient_count_after_second_upgrade == patient_count
+    finally:
+        database_engine.dispose()
+        with admin_engine.begin() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
+        admin_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="Requer MySQL real com RUN_DB_INTEGRATION=1",
+)
+def test_cadastros_local_e_google_persistem_atomicamente_no_mysql():
+    database_name = f"dus_registration_test_{uuid4().hex[:12]}"
+    settings = DatabaseSettings(
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3307")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "root"),
+        database=database_name,
+    )
+    admin_engine = create_database_engine(settings, include_database=False)
+    with admin_engine.begin() as connection:
+        connection.exec_driver_sql(
+            f"CREATE DATABASE `{database_name}` "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+
+    database_engine = create_database_engine(settings)
+    try:
+        upgrade_database(database_engine, PROJECT_ROOT / "db" / "alembic.ini")
+        app_settings = AppSettings.from_mapping(
+            {
+                "DB_HOST": settings.host,
+                "DB_PORT": str(settings.port),
+                "DB_USER": settings.user,
+                "DB_PASSWORD": settings.password,
+                "DB_NAME": settings.database,
+                "GOOGLE_AUTH_ENABLED": "true",
+                "GOOGLE_CLIENT_ID": "client-id.apps.googleusercontent.com",
+            }
+        )
+        application = create_app(
+            settings=app_settings,
+            google_identity_verifier=lambda _credential: {
+                "iss": "https://accounts.google.com",
+                "sub": "mysql-google-subject",
+                "email": "google.patient@example.com",
+                "email_verified": True,
+                "name": "Paciente Google",
+            },
+        )
+
+        with TestClient(application) as client:
+            local_response = client.post(
+                "/auth/patient-registration",
+                json={
+                    "email": "local.patient@example.com",
+                    "password": "senha-local-segura",
+                    "cpf": "52998224725",
+                    "display_name": "Paciente Local",
+                    "preferred_name": "Local",
+                    "birth_date": "1990-01-10",
+                },
+            )
+            google_response = client.post(
+                "/auth/google/patient-registration",
+                json={
+                    "credential": "fake-signed-token",
+                    "cpf": "16899535009",
+                    "preferred_name": "Google",
+                    "birth_date": "1992-09-20",
+                },
+            )
+            google_profile_response = client.get("/me")
+
+        assert local_response.status_code == 201
+        assert google_response.status_code == 201
+        assert google_profile_response.status_code == 200
+        assert google_profile_response.json()["patient_profile"]["blood_type"] is None
+        with database_engine.connect() as connection:
+            users = connection.exec_driver_sql(
+                """
+                SELECT email, password_hash
+                FROM users
+                ORDER BY email
+                """
+            ).mappings().all()
+            roles = connection.exec_driver_sql(
+                "SELECT role FROM user_roles ORDER BY user_id"
+            ).scalars().all()
+            external_identities = connection.exec_driver_sql(
+                """
+                SELECT provider, issuer, subject
+                FROM external_identities
+                """
+            ).mappings().all()
+            audit_actions = connection.exec_driver_sql(
+                """
+                SELECT action
+                FROM clinical_audit_events
+                ORDER BY audit_event_id
+                """
+            ).scalars().all()
+
+        assert [user["email"] for user in users] == [
+            "google.patient@example.com",
+            "local.patient@example.com",
+        ]
+        assert users[0]["password_hash"] is None
+        assert users[1]["password_hash"].startswith("pbkdf2_sha256$")
+        assert roles == ["patient", "patient"]
+        assert external_identities == [
+            {
+                "provider": "google",
+                "issuer": "https://accounts.google.com",
+                "subject": "mysql-google-subject",
+            }
+        ]
+        assert audit_actions == ["patient.registered", "patient.registered"]
     finally:
         database_engine.dispose()
         with admin_engine.begin() as connection:
@@ -242,7 +379,7 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 """
             ).scalars().all()
 
-        assert revision == "0006"
+        assert revision == "0007"
         assert user["display_name"] == "Ana da Silva"
         assert user["email"] == "ana@example.com"
         assert user["password_hash"] == "hash-legado"

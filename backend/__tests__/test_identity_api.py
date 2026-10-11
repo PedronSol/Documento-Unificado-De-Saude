@@ -316,6 +316,18 @@ async def test_login_de_paciente_retorna_somente_identidade_sem_dashboard(
     )
 
 
+async def test_login_local_normaliza_email_sem_exigir_google(
+    client, identity_database
+):
+    response = await client.post(
+        "/login",
+        data={"username": " ANA@EXAMPLE.COM ", "password": VALID_PASSWORD},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["email"] == "ana@example.com"
+
+
 async def test_usuario_pode_atualizar_seu_nome_de_exibicao(client, identity_database):
     identity_database.create_session(1)
     client.cookies.set(SESSION_COOKIE, "valid-session")

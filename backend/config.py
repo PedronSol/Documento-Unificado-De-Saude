@@ -33,6 +33,8 @@ class AppSettings:
     session_cookie: str
     session_duration_hours: int
     public_app_url: str
+    google_auth_enabled: bool
+    google_client_id: str | None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, str]) -> "AppSettings":
@@ -51,6 +53,10 @@ class AppSettings:
                 "PUBLIC_APP_URL",
                 "http://localhost:3000",
             ).rstrip("/"),
+            google_auth_enabled=(
+                values.get("GOOGLE_AUTH_ENABLED", "false").lower() == "true"
+            ),
+            google_client_id=values.get("GOOGLE_CLIENT_ID") or None,
         )
 
 

@@ -221,7 +221,7 @@ select:focus-visible {
 .login-shell {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--page-gutter);
   padding: var(--page-gutter);
   background: var(--app-canvas);
@@ -230,11 +230,11 @@ select:focus-visible {
 .login-intro {
   position: relative;
   display: flex;
-  min-height: 100vh;
+  min-height: auto;
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  padding: clamp(2rem, 5vw, 5.5rem);
+  padding: var(--ds-space-8) clamp(var(--ds-space-5), 7vw, var(--ds-space-12)) var(--ds-space-10);
   border-radius: 1.2rem;
   background-color: #17376b;
   background-image: radial-gradient(ellipse at 78% 18%, #3466b9 0, transparent 42%),
@@ -298,7 +298,7 @@ select:focus-visible {
 .login-intro-copy {
   max-width: 41rem;
   margin-block: auto;
-  padding-block: 5rem;
+  padding-block: var(--ds-space-16) var(--ds-space-12);
 }
 
 .eyebrow {
@@ -316,11 +316,11 @@ select:focus-visible {
 }
 
 .login-intro h1 {
-  max-width: 10ch;
+  max-width: 12ch;
   margin: 0;
   color: #f5f3e8;
   font-family: var(--sans);
-  font-size: clamp(3.4rem, 6.5vw, 6.65rem);
+  font-size: clamp(3rem, 11vw, 5rem);
   font-weight: 650;
   letter-spacing: -0.055em;
   line-height: 0.98;
@@ -336,7 +336,7 @@ select:focus-visible {
 
 .credential-lines {
   display: flex;
-  max-width: 34rem;
+  max-width: none;
   justify-content: space-between;
   gap: 1rem;
   border-top: 1px solid rgb(225 235 255 / 23%);
@@ -349,16 +349,16 @@ select:focus-visible {
 
 .login-access {
   display: grid;
-  min-height: 100vh;
+  min-height: auto;
   place-items: center;
   border-radius: 1.2rem;
-  padding: 3rem clamp(2rem, 6vw, 7rem);
+  padding: var(--ds-space-16) var(--ds-space-5);
   background: var(--ui-surface);
 }
 
 .login-intro,
 .login-access {
-  min-height: calc(100vh - var(--page-gutter) - var(--page-gutter));
+  min-height: auto;
 }
 
 .login-access-inner {
@@ -523,6 +523,165 @@ select:focus-visible {
   font-size: 0.72rem;
   line-height: 1.6;
   text-align: center;
+}
+
+.new-patient-entry {
+  display: flex;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-5);
+  border-top: 1px solid var(--ds-color-border);
+  padding-top: var(--ds-space-4);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-xs);
+}
+
+.new-patient-entry a,
+.privacy-note a {
+  color: var(--ds-color-primary);
+  font-weight: var(--ds-font-weight-semibold);
+  text-underline-offset: var(--ds-space-1);
+}
+
+.registration-access-inner {
+  width: min(100%, 34rem);
+}
+
+.registration-flow {
+  display: grid;
+  gap: var(--ds-space-6);
+}
+
+.auth-method-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ds-space-1);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface-muted);
+  padding: var(--ds-space-1);
+}
+
+.auth-method-switch button {
+  min-width: 0;
+  min-height: var(--ds-control-min-height);
+  border-radius: var(--ds-radius-sm);
+  white-space: normal;
+}
+
+.registration-form {
+  gap: var(--ds-space-4);
+}
+
+.registration-row {
+  display: grid;
+  gap: var(--ds-space-4);
+}
+
+.registration-field-control {
+  min-height: var(--ds-control-min-height);
+  height: auto;
+  border-color: var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface-muted);
+}
+
+.registration-field-control:focus-within {
+  border-color: var(--ds-color-focus);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-focus);
+}
+
+.registration-field-control input {
+  min-height: var(--ds-control-min-height);
+}
+
+.registration-submit {
+  width: 100%;
+  min-height: var(--ds-control-min-height);
+  justify-content: space-between;
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-primary);
+  color: var(--ds-color-on-primary);
+}
+
+.registration-submit:hover:not(:disabled) {
+  background: var(--ds-color-primary-hover);
+}
+
+.google-registration-panel {
+  display: grid;
+  gap: var(--ds-space-5);
+  border: 1px solid var(--ds-color-primary-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-color-primary-soft);
+  padding: var(--ds-space-5);
+}
+
+.auth-method-note {
+  margin: 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-body);
+}
+
+.google-auth-control {
+  position: relative;
+  min-height: var(--ds-control-min-height);
+  overflow: hidden;
+  border-radius: var(--ds-radius-control);
+}
+
+.google-auth-control > div {
+  min-height: var(--ds-control-min-height);
+}
+
+.google-auth-blocker {
+  position: absolute;
+  inset: 0;
+  cursor: wait;
+  background: var(--ds-color-surface);
+  opacity: 0.55;
+}
+
+@media (min-width: 48rem) {
+  .registration-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 64rem) {
+  .login-shell {
+    grid-template-columns: minmax(0, 1.05fr) minmax(26.25rem, 0.95fr);
+  }
+
+  .login-intro,
+  .login-access {
+    min-height: calc(100vh - var(--page-gutter) - var(--page-gutter));
+  }
+
+  .login-intro {
+    padding: clamp(2rem, 5vw, 5.5rem);
+  }
+
+  .login-intro-copy {
+    padding-block: 5rem;
+  }
+
+  .login-intro h1 {
+    max-width: 10ch;
+    font-size: clamp(3.4rem, 6.5vw, 6.65rem);
+  }
+
+  .credential-lines {
+    max-width: 34rem;
+  }
+
+  .login-access {
+    padding: 3rem clamp(2rem, 6vw, 7rem);
+  }
 }
 
 .authenticated-shell {
@@ -1020,6 +1179,29 @@ select:focus-visible {
 
 .settings-success { color: var(--ds-color-success); }
 .settings-error { color: var(--ds-color-danger); }
+
+.settings-google {
+  display: grid;
+  gap: var(--ds-space-4);
+  margin-top: var(--ds-space-8);
+  border-top: 1px solid var(--ds-color-border);
+  padding-top: var(--ds-space-6);
+}
+
+.settings-google h2 {
+  margin: 0;
+  color: var(--ds-color-text);
+  font-family: var(--ds-font-interface);
+  font-size: var(--ds-font-size-lg);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.settings-google div > p {
+  margin: var(--ds-space-2) 0 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-body);
+}
 
 .patient-main .eyebrow {
   color: #2458bd;
@@ -2067,32 +2249,6 @@ select:focus-visible {
     display: none;
   }
 
-  .login-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .login-intro {
-    min-height: auto;
-    padding: 2rem clamp(1.3rem, 7vw, 3rem) 2.5rem;
-  }
-
-  .login-intro-copy {
-    padding-block: 4rem 3rem;
-  }
-
-  .login-intro h1 {
-    max-width: 12ch;
-    font-size: clamp(3rem, 11vw, 5rem);
-  }
-
-  .credential-lines {
-    max-width: none;
-  }
-
-  .login-access {
-    min-height: auto;
-    padding: 3.5rem 1.4rem;
-  }
 }
 
 @media (max-width: 600px) {

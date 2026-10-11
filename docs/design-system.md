@@ -246,6 +246,20 @@ Todo componente interativo considera:
 - erro associado ao campo ou à região;
 - empty e sucesso quando representam recursos assíncronos.
 
+## Acesso e cadastro de paciente
+
+- Login e cadastro compartilham a moldura institucional e a mesma hierarquia
+  tipográfica; o cadastro não cria uma linguagem visual paralela.
+- A escolha entre e-mail/senha e Google usa controle segmentado com estado
+  pressionado explícito. Google aparece como alternativa, nunca como requisito.
+- O formulário começa em uma coluna a 320 px. CPF e data de nascimento somente
+  dividem linha a partir de 768 px, quando há largura útil para preservar labels
+  e alvos de 44 px.
+- A credencial Google permanece apenas no estado em memória durante o
+  onboarding. Nenhuma interface deve gravá-la em storage ou exibi-la em campo.
+- Configurações pode oferecer vinculação Google explícita sem desativar o login
+  local existente.
+
 ## Mobile-first e responsividade
 
 O CSS-base representa a tela de 320 px. Componentes crescem por conteúdo e por

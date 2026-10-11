@@ -52,7 +52,7 @@ as features clínicas futuras.
 - Criar um envelope genérico de sucesso ou substituir o formato padrão de erros
   de validação do FastAPI.
 - Reorganizar toda a estrutura de páginas e componentes do frontend; isso
-  permanece no Step 11.
+  permanece no Step 13.
 
 ## Convenções de contrato
 
@@ -65,7 +65,7 @@ as features clínicas futuras.
    `/medical/patients/{patient_id}/...`.
 5. Marcadores permanecem reservados em `/me/markers` para o Step 6.
 6. Documentos permanecem em `/me/documents`; neste step existe apenas a listagem
-   dos metadados legados. Os demais métodos pertencem aos Steps 9 e 10.
+   dos metadados legados. Os demais métodos pertencem aos Steps 11 e 12.
 7. Alertas legados permanecem somente leitura em `/me/alerts`; eles não são
    convertidos em marcadores e não ganham operações de escrita.
 

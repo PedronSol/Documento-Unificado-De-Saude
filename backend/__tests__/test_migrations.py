@@ -575,6 +575,84 @@ def test_migration_0006_cria_compartilhamentos_temporarios_forward_only():
         migration.downgrade()
 
 
+def test_migration_0007_cria_identidades_externas_e_senha_opcional_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0007_external_identities.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("external_identities_schema", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.altered_columns = []
+            self.table = None
+            self.elements = ()
+            self.indexes = []
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+        def create_table(self, table, *elements):
+            self.table = table
+            self.elements = elements
+
+        def create_index(self, name, table, columns):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    columns = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Column)
+    }
+    constraints = {
+        element.name: element
+        for element in operations.elements
+        if isinstance(element, sa.Constraint)
+    }
+
+    assert migration.revision == "0007"
+    assert migration.down_revision == "0006"
+    assert len(operations.altered_columns) == 1
+    altered_table, altered_column, altered_options = operations.altered_columns[0]
+    assert (altered_table, altered_column) == ("users", "password_hash")
+    assert isinstance(altered_options["existing_type"], sa.String)
+    assert altered_options["existing_type"].length == 255
+    assert altered_options["existing_nullable"] is False
+    assert altered_options["nullable"] is True
+    assert operations.table == "external_identities"
+    assert set(columns) == {
+        "external_identity_id",
+        "user_id",
+        "provider",
+        "issuer",
+        "subject",
+        "created_at",
+    }
+    assert columns["provider"].type.enums == ["google"]
+    assert {
+        "fk_external_identities_user",
+        "uq_external_identities_issuer_subject",
+        "uq_external_identities_user_provider",
+    } <= set(constraints)
+    assert operations.indexes == [
+        ("idx_external_identities_user", "external_identities", ["user_id"])
+    ]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
     seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
         encoding="utf-8"
