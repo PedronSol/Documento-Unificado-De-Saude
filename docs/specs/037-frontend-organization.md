@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -666,6 +666,7 @@ o módulo não existe.
 | 14 | `tests/medical-record.test.jsx`: `Failed to resolve import "@/components/medical/medical-record"`; lista médica ainda com botão | `MedicalRecordView` por ID de rota com estados `403`/`404`/ID inválido; lista com links | dashboard médico dividido em carteira, prontuário, ações de provisório e formatação | 13.3 |
 | 15 | REFACTOR coberto pela suíte existente | — | dashboard do paciente vira composição de `VaccinationHistory`, `AlertsSection`, `DocumentsSection`, `HealthMarkers`; marcadores e documentos divididos em diálogos e listas | 13.3 |
 | 16 | `tests/design-system.test.js`: `globals.css` ainda continha regras e não importava `styles/*` | divisão em 16 arquivos contíguos e índice de imports | guardrails passam a ler os arquivos na ordem da cascata | 13.4 |
+| 17 | `tests/legacy-cleanup.test.js`: `components/health-passport` e `mocks/` ainda existiam (2 falhas) | remoção do legado e do CSS `.safe-area-*` sem consumidor | guia e `AGENTS.md` descrevem organização por feature, stores e estilos | 13.5 |
 
 ## Verificações executadas
 
@@ -688,6 +689,10 @@ o módulo não existe.
   dependentes, menor, área médica, prontuário, admin e configurações em
   320 px e 1280 px idênticas pixel a pixel entre o CSS original e o dividido
   (`next build` + `next start`).
+- 13.5: `npm test` (239 passed, incluindo carregamento das seções do paciente
+  como caracterização), `npx playwright test` (41 passed), `npm run build`,
+  `git diff --check` e `git status` conferidos. Não executado: `npm run lint`
+  (`eslint` não instalado no projeto, situação anterior).
 - Observação fora do escopo: em 320 px, contas com quatro ou mais contextos
   (por exemplo, paciente+médico com dois dependentes) têm rótulos do dock
   sobrepostos; o comportamento já existia antes deste step.
@@ -713,24 +718,25 @@ PR do Step 13.
 
 ## Critérios de conclusão
 
-- [ ] Spec revisada e aprovada.
-- [ ] Cada área possui rota própria e o login chega à área do papel.
-- [ ] Rotas sem permissão não aparecem e redirecionam para a área padrão.
-- [ ] Recarregar, link direto e botão voltar preservam a área e o prontuário.
-- [ ] Identidade e paciente atuante vivem somente no store Zustand em memória.
-- [ ] Nenhuma página central concentra todas as features.
-- [ ] Papel controla navegação, mas segurança permanece no backend.
-- [ ] `401`, `403`, `404`, `409`, `422` e `503` seguem a tabela única.
-- [ ] Cada feature possui loading, vazio, erro e confirmação testados.
-- [ ] `X-Acting-Patient` restrito à rota de dependente.
-- [ ] Responsável lista dependentes e abre a saúde de cada um; menor é
+- [x] Spec revisada e aprovada.
+- [x] Cada área possui rota própria e o login chega à área do papel.
+- [x] Rotas sem permissão não aparecem e redirecionam para a área padrão.
+- [x] Recarregar, link direto e botão voltar preservam a área e o prontuário.
+- [x] Identidade e paciente atuante vivem somente no store Zustand em memória.
+- [x] Nenhuma página central concentra todas as features.
+- [x] Papel controla navegação, mas segurança permanece no backend.
+- [x] `401`, `403`, `404`, `409`, `422` e `503` seguem a tabela única.
+- [x] Cada feature possui loading, vazio, erro e confirmação testados.
+- [x] `X-Acting-Patient` restrito à rota de dependente.
+- [x] Responsável lista dependentes e abre a saúde de cada um; menor é
       identificado por texto e tom alaranjado tokenizado.
-- [ ] CSS dividido por responsabilidade sem regressão visual.
-- [ ] Código legado e mocks sem consumidor removidos.
-- [ ] Dock e seletor preservam as specs `032`/`033` em 320 px e 1280 px.
-- [ ] Vitest, Playwright e build aprovados; `git diff --check` e `git status`
+- [x] CSS dividido por responsabilidade sem regressão visual.
+- [x] Código legado e mocks sem consumidor removidos.
+- [x] Dock e seletor preservam as specs `032`/`033` em 320 px e 1280 px.
+- [x] Vitest, Playwright e build aprovados; `git diff --check` e `git status`
       conferidos.
-- [ ] Roadmap e índice de specs atualizados com referência da PR.
+- [x] Roadmap e índice de specs atualizados com referência dos commits; o link
+      da PR será registrado quando ela for aberta.
 
 ## Decisões
 

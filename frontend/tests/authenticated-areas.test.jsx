@@ -451,6 +451,21 @@ describe("área do paciente", () => {
     expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
   });
 
+  it("mostra o carregamento de cada seção sem bloquear as demais", async () => {
+    apiFetch.mockImplementation((path) => (
+      path === "/me" ? respondWith(patientEnvelope) : new Promise(() => {})
+    ));
+
+    renderArea(<PatientArea />);
+
+    expect(await screen.findByText("Carregando vacinas…")).toBeInTheDocument();
+    expect(screen.getByText("Carregando alertas…")).toBeInTheDocument();
+    expect(screen.getByText("Carregando documentos…")).toBeInTheDocument();
+    expect(screen.getByText("Carregando marcadores…")).toBeInTheDocument();
+    expect(screen.getByText("Carregando equipes de cuidado…")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Helena" })).toBeInTheDocument();
+  });
+
   it("carrega /me uma única vez para o shell e a área", async () => {
     mockPatientResources();
 

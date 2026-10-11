@@ -234,7 +234,7 @@ flowchart TD
 | 10 | Governança administrativa e vínculos | 5, 7, 9 | DONE | [PR #10](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/10) |
 | 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | DONE | [PR #12](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/12) |
 | 12 | OCR e revisão | 11; executado após 16 | PLANNED (postergado) | `docs/specs/021-health-document-ocr.md` |
-| 13 | Organização do frontend | 3, 4, 7–11, 15 | SPEC APPROVED | `docs/specs/037-frontend-organization.md` |
+| 13 | Organização do frontend | 3, 4, 7–11, 15 | DONE | `a801598`, `3fe4464`, `a85d143`, `6a9f5e1` e limpeza final (branch `feat/frontend-organization`) |
 | 14 | Consolidação operacional | 7–11, 13, 15 | PLANNED | — |
 | 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | DONE | [PR #11](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/11) |
 | 16 | Deploy da aplicação | 14 | PLANNED | — |
@@ -648,17 +648,21 @@ interface de revisão do OCR fica com o Step 12.
 
 ### Tarefas
 
-- [ ] Escrever testes de navegação e papel antes de reorganizar rotas.
-- [ ] Criar áreas `patient`, `medical`, `admin` e `share`.
-- [ ] Separar componentes por feature.
-- [ ] Manter `apiFetch` como cliente HTTP central.
-- [ ] Criar hooks somente quando houver lógica reutilizada.
-- [ ] Padronizar tratamento de `401`, `403`, `409` e `422`.
-- [ ] Redirecionar o login conforme papel.
-- [ ] Remover mocks conforme cada integração real entrar.
-- [ ] Substituir padrões visuais legados nos fluxos tocados por cada entrega,
+- [x] Escrever testes de navegação e papel antes de reorganizar rotas.
+- [x] Criar áreas `patient`, `medical`, `admin` e `share`.
+- [x] Separar componentes por feature.
+- [x] Manter `apiFetch` como cliente HTTP central.
+- [x] Criar hooks somente quando houver lógica reutilizada.
+- [x] Padronizar tratamento de `401`, `403`, `409` e `422`.
+- [x] Redirecionar o login conforme papel.
+- [x] Remover mocks conforme cada integração real entrar.
+- [x] Substituir padrões visuais legados nos fluxos tocados por cada entrega,
       incluindo modais e formulários.
-- [ ] Não introduzir Redux enquanto estado local e hooks forem suficientes.
+- [x] Não introduzir Redux enquanto estado local e hooks forem suficientes;
+      Zustand entrou somente para a sessão compartilhada entre rotas (spec `037`).
+- [x] Listar dependentes e identificar o contexto de menor com tom alaranjado
+      tokenizado e texto explícito.
+- [x] Modularizar o CSS em `frontend/styles/` preservando a cascata.
 
 ### Critérios de conclusão
 
@@ -875,3 +879,4 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-11 | 12, 13, 14, 16 | REPLANEJAMENTO | `docs/architecture-evolution-plan.md` | Step 12 (OCR) postergado para o fim da fila; Steps 13 e 14 deixam de depender dele. Criado o Step 16 (deploy), dependente do Step 14. Próxima entrega: Step 13. |
 | 2026-10-11 | 13 | PLANNED → SPEC REVIEW | `docs/specs/037-frontend-organization.md` | Rotas por área, shell autenticado com identidade única, divisão por feature, tabela única de erros e remoção de legado propostas; implementação aguarda revisão. |
 | 2026-10-11 | 13 | SPEC REVIEW → SPEC APPROVED | `docs/specs/037-frontend-organization.md` | Redirect para área padrão, prontuário por URL, dependentes como sub-rota com lista e tom alaranjado para menor, abas sem sub-rota, CSS modular e Zustand para sessão aprovados; próximo passo é o RED de `resolveDefaultArea`. |
+| 2026-10-11 | 13 | SPEC APPROVED → DONE | `a801598`, `3fe4464`, `a85d143`, `6a9f5e1` | Áreas por URL com redirect por papel, store Zustand em memória, lista de dependentes com tom de menor, tabela única de erros, dashboards divididos por feature com prontuário em `/medical/patients/[patientId]`, CSS modular pixel-idêntico e legado removido; 239 unitários, 41 E2E e build aprovados. PR pendente. |

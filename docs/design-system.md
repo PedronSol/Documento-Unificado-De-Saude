@@ -159,10 +159,18 @@ documente a relação com as camadas existentes.
 
 ### Arquitetura
 
-Os primitives React ficam em `frontend/components/ui/`. Componentes de domínio
-ficam nas áreas `identity`, `patient`, `medical` e `health-passport`. Um
+Os primitives React ficam em `frontend/components/ui/`, incluindo
+`ResourceError`/`ResourceNotice` (`resource-state.jsx`) para erro e aviso de
+recurso. O shell autenticado fica em `components/shell/`. Componentes de domínio
+ficam por feature: `auth`, `identity`, `patient`, `vaccines`, `alerts`,
+`documents`, `markers`, `sharing`, `medical` e `admin` (spec `037`). Um
 componente de domínio pode compor primitives, mas não deve redefinir visual de
 botão, card ou badge sem uma variante concreta.
+
+Os estilos ficam em `frontend/styles/`, um arquivo por responsabilidade.
+`frontend/app/globals.css` é apenas o índice ordenado de `@import`; a ordem dos
+imports é a ordem da cascata e não deve ser alterada sem revisar sobreposições.
+Estilo novo entra no arquivo da feature correspondente.
 
 ### Primitives existentes
 

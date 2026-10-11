@@ -50,6 +50,12 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
   ClinicalSelect, cabeçalho de seção, busca, item de lista, estado vazio ou
   diálogo. Campos de seleção usam `ClinicalSelect`, não `<select>` nativo, salvo
   justificativa explícita de acessibilidade na spec.
+- Componentes de domínio ficam por feature (`components/<feature>/`), páginas em
+  `app/` apenas compõem, e estilos entram no arquivo da feature em
+  `frontend/styles/`; `app/globals.css` é só o índice ordenado de `@import`.
+- Estado compartilhado entre rotas fica em `frontend/stores/` (Zustand, somente
+  memória, sem `persist`). Dados clínicos de API não entram em store global; use
+  `useApiResource` e `readApiError` para leitura e mensagens de erro.
 - Cores, tipografia, espaços, raios, sombras, movimento, larguras e camadas do
   código tocado devem consumir tokens semânticos. Não adicione hex, shadow,
   radius ou breakpoint isolado sem necessidade concreta e atualização conjunta
