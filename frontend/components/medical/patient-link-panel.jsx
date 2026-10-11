@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import UserPlus from "lucide-react/dist/esm/icons/user-plus";
 
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
+import { ClinicalSelect } from "@/components/ui/clinical-select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/api";
 
@@ -18,6 +19,16 @@ function formatDate(value) {
 }
 
 const EMPTY_PROVISIONAL = { full_name: "", preferred_name: "", birth_date: "" };
+const EMPTY_GUARDIAN = { cpf: "", full_name: "", birth_date: "", relationship: "" };
+const RELATIONSHIP_OPTIONS = [
+  { value: "parent", label: "Mãe ou pai" },
+  { value: "legal_guardian", label: "Responsável legal" },
+];
+const GUARDIAN_FIELDS = [
+  ["cpf", "CPF do responsável", "text", 14],
+  ["full_name", "Nome completo do responsável", "text", 100],
+  ["birth_date", "Data de nascimento do responsável", "date", undefined],
+];
 
 async function requestErrorMessage(response) {
   if (response.status === 422) {
@@ -37,6 +48,7 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
   const [cpf, setCpf] = useState("");
   const [provisional, setProvisional] = useState(null);
   const [issuedClaim, setIssuedClaim] = useState(null);
+  const [guardian, setGuardian] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
@@ -66,6 +78,10 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
 
   async function submit(event) {
     event.preventDefault();
+    if (guardian && !guardian.relationship) {
+      setError("Selecione o parentesco.");
+      return;
+    }
     setIsSaving(true);
     setFeedback("");
     setError("");
@@ -74,7 +90,11 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
       const response = await apiFetch("/medical/patient-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(provisional ? { cpf, patient: provisional } : { cpf }),
+        body: JSON.stringify({
+          cpf,
+          ...(provisional ? { patient: provisional } : {}),
+          ...(guardian ? { guardian } : {}),
+        }),
       });
       if (response.status === 401) {
         onUnauthenticated();
@@ -84,6 +104,15 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
         setProvisional(EMPTY_PROVISIONAL);
         return;
       }
+      if (response.status === 409 && provisional && !guardian) {
+        const conflict = await response.json().catch(() => ({}));
+        if (conflict?.detail === MINOR_DETAIL) {
+          setGuardian(EMPTY_GUARDIAN);
+          return;
+        }
+        setError(GENERIC_ERROR);
+        return;
+      }
       if (!response.ok) {
         setError(await requestErrorMessage(response));
         return;
@@ -91,9 +120,12 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
       const body = await response.json();
       setCpf("");
       setProvisional(null);
+      setGuardian(null);
       if (body.result === "provisional_created") {
         setIssuedClaim(body.claim);
-        setFeedback("Paciente provisório cadastrado. Você já pode registrar informações no prontuário.");
+        setFeedback(body.claim === null
+          ? "Paciente cadastrado. O responsável já tem conta e aceitará a guarda no próprio login."
+          : "Paciente provisório cadastrado. Você já pode registrar informações no prontuário.");
         onPatientsChanged();
         return;
       }
@@ -150,6 +182,7 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
             onChange={(event) => {
               setCpf(event.target.value);
               setProvisional(null);
+              setGuardian(null);
             }}
             inputMode="numeric"
             autoComplete="off"
@@ -192,9 +225,48 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
               />
             </div>
           ))}
+          {guardian ? (
+            <fieldset className="patient-link-guardian">
+              <legend>Paciente menor de idade: informe o responsável legal.</legend>
+              {GUARDIAN_FIELDS.map(([field, label, type, maxLength]) => (
+                <div className="patient-link-field" key={field}>
+                  <label htmlFor={`guardian-${field}`}>{label}</label>
+                  <input
+                    id={`guardian-${field}`}
+                    type={type}
+                    value={guardian[field]}
+                    maxLength={maxLength}
+                    inputMode={field === "cpf" ? "numeric" : undefined}
+                    autoComplete="off"
+                    required
+                    onChange={(event) => setGuardian((current) => ({
+                      ...current,
+                      [field]: event.target.value,
+                    }))}
+                  />
+                </div>
+              ))}
+              <div className="patient-link-field">
+                <label htmlFor="guardian-relationship">Parentesco</label>
+                <ClinicalSelect
+                  id="guardian-relationship"
+                  value={guardian.relationship}
+                  placeholder="Selecione"
+                  onValueChange={(value) => setGuardian((current) => ({
+                    ...current,
+                    relationship: value,
+                  }))}
+                  options={RELATIONSHIP_OPTIONS}
+                />
+              </div>
+            </fieldset>
+          ) : null}
           <div className="patient-link-provisional-actions">
             <button type="button" className="patient-link-secondary"
-              onClick={() => setProvisional(null)} disabled={isSaving}>
+              onClick={() => {
+                setProvisional(null);
+                setGuardian(null);
+              }} disabled={isSaving}>
               Voltar
             </button>
             <button type="submit" disabled={isSaving}>
@@ -206,7 +278,11 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
 
       {feedback ? <p className="patient-link-feedback" role="status">{feedback}</p> : null}
       {issuedClaim ? (
-        <ClaimLinkCard token={issuedClaim.token} expiresAt={issuedClaim.expires_at} />
+        <ClaimLinkCard
+          token={issuedClaim.token}
+          expiresAt={issuedClaim.expires_at}
+          recipient={issuedClaim.recipient}
+        />
       ) : null}
       {error && !cancelling ? <p className="form-error" role="alert">{error}</p> : null}
 

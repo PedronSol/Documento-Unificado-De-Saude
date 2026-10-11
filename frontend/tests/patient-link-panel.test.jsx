@@ -161,6 +161,130 @@ describe("PatientLinkPanel", () => {
     expect(onPatientsChanged).toHaveBeenCalledOnce();
   });
 
+  it("pede o responsável para menor e exibe o link destinado a ele", async () => {
+    const claimToken = "g".repeat(43);
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/medical/patient-links?status=pending") {
+        return respondWith([]);
+      }
+      if (path === "/medical/patient-links" && options.method === "POST") {
+        const body = JSON.parse(options.body);
+        if (!body.patient) {
+          return respondWith({ detail: "Paciente não encontrado." }, 404);
+        }
+        if (!body.guardian) {
+          return respondWith({ detail: "Paciente menor exige responsável." }, 409);
+        }
+        return respondWith({
+          result: "provisional_created",
+          patient_id: 41,
+          claim: { token: claimToken, expires_at: "2026-10-18T12:00:00", recipient: "guardian" },
+        }, 201);
+      }
+      return respondWith(null, 404);
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.type(await screen.findByLabelText("CPF do paciente"), "529.982.247-25");
+    await user.click(screen.getByRole("button", { name: "Solicitar acesso" }));
+    await user.type(await screen.findByLabelText("Nome completo"), "Lia Prado Ribeiro");
+    await user.type(screen.getByLabelText("Nome preferido"), "Lia");
+    await user.type(screen.getByLabelText("Data de nascimento"), "2016-05-02");
+    await user.click(screen.getByRole("button", { name: "Cadastrar paciente provisório" }));
+
+    expect(
+      await screen.findByText("Paciente menor de idade: informe o responsável legal."),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("CPF do responsável"), "168.995.350-09");
+    await user.type(screen.getByLabelText("Nome completo do responsável"), "Joana Prado Ribeiro");
+    await user.type(screen.getByLabelText("Data de nascimento do responsável"), "1986-02-11");
+    await user.click(screen.getByRole("combobox", { name: "Parentesco" }));
+    await user.click(await screen.findByRole("option", { name: "Mãe ou pai" }));
+    await user.click(screen.getByRole("button", { name: "Cadastrar paciente provisório" }));
+
+    expect(await screen.findByLabelText("Link para o responsável assumir a conta")).toHaveValue(
+      `${window.location.origin}/patient-claim#token=${claimToken}&for=guardian`,
+    );
+    const guardianCall = apiFetch.mock.calls.find(
+      ([path, options]) => path === "/medical/patient-links" && JSON.parse(options.body).guardian,
+    );
+    expect(JSON.parse(guardianCall[1].body).guardian).toEqual({
+      cpf: "168.995.350-09",
+      full_name: "Joana Prado Ribeiro",
+      birth_date: "1986-02-11",
+      relationship: "parent",
+    });
+  });
+
+  it("informa quando o responsável já tem conta e aceitará no próprio login", async () => {
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/medical/patient-links?status=pending") {
+        return respondWith([]);
+      }
+      const body = options.body ? JSON.parse(options.body) : {};
+      if (!body.patient) {
+        return respondWith({ detail: "Paciente não encontrado." }, 404);
+      }
+      if (!body.guardian) {
+        return respondWith({ detail: "Paciente menor exige responsável." }, 409);
+      }
+      return respondWith({ result: "provisional_created", patient_id: 42, claim: null }, 201);
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.type(await screen.findByLabelText("CPF do paciente"), "529.982.247-25");
+    await user.click(screen.getByRole("button", { name: "Solicitar acesso" }));
+    await user.type(await screen.findByLabelText("Nome completo"), "Lia Prado Ribeiro");
+    await user.type(screen.getByLabelText("Nome preferido"), "Lia");
+    await user.type(screen.getByLabelText("Data de nascimento"), "2016-05-02");
+    await user.click(screen.getByRole("button", { name: "Cadastrar paciente provisório" }));
+    await user.type(await screen.findByLabelText("CPF do responsável"), "168.995.350-09");
+    await user.type(screen.getByLabelText("Nome completo do responsável"), "Joana Prado Ribeiro");
+    await user.type(screen.getByLabelText("Data de nascimento do responsável"), "1986-02-11");
+    await user.click(screen.getByRole("combobox", { name: "Parentesco" }));
+    await user.click(await screen.findByRole("option", { name: "Responsável legal" }));
+    await user.click(screen.getByRole("button", { name: "Cadastrar paciente provisório" }));
+
+    expect(
+      await screen.findByText(
+        "Paciente cadastrado. O responsável já tem conta e aceitará a guarda no próprio login.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/assumir a conta/)).toBeNull();
+  });
+
+  it("exige parentesco antes de enviar o responsável", async () => {
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/medical/patient-links?status=pending") {
+        return respondWith([]);
+      }
+      const body = options.body ? JSON.parse(options.body) : {};
+      if (!body.patient) {
+        return respondWith({ detail: "Paciente não encontrado." }, 404);
+      }
+      return respondWith({ detail: "Paciente menor exige responsável." }, 409);
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.type(await screen.findByLabelText("CPF do paciente"), "529.982.247-25");
+    await user.click(screen.getByRole("button", { name: "Solicitar acesso" }));
+    await user.type(await screen.findByLabelText("Nome completo"), "Lia Prado Ribeiro");
+    await user.type(screen.getByLabelText("Nome preferido"), "Lia");
+    await user.type(screen.getByLabelText("Data de nascimento"), "2016-05-02");
+    await user.click(screen.getByRole("button", { name: "Cadastrar paciente provisório" }));
+    await user.type(await screen.findByLabelText("CPF do responsável"), "168.995.350-09");
+    await user.type(screen.getByLabelText("Nome completo do responsável"), "Joana Prado Ribeiro");
+    await user.type(screen.getByLabelText("Data de nascimento do responsável"), "1986-02-11");
+    const callsBefore = apiFetch.mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Cadastrar paciente provisório" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Selecione o parentesco.");
+    expect(apiFetch.mock.calls).toHaveLength(callsBefore);
+  });
+
   it("mostra estado vazio das solicitações", async () => {
     mockLinks({ pending: [] });
     renderPanel();

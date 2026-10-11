@@ -236,6 +236,10 @@ function ProvisionalActions({ patient, onPatientUpdated, onUnauthenticated }) {
         onUnauthenticated();
         return;
       }
+      if (response.status === 409) {
+        setError("O responsável já tem conta e aceitará a guarda no próprio login.");
+        return;
+      }
       if (!response.ok) {
         throw new Error();
       }
@@ -258,7 +262,13 @@ function ProvisionalActions({ patient, onPatientUpdated, onUnauthenticated }) {
         </div>
       ) : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
-      {claim ? <ClaimLinkCard token={claim.token} expiresAt={claim.expires_at} /> : null}
+      {claim ? (
+        <ClaimLinkCard
+          token={claim.token}
+          expiresAt={claim.expires_at}
+          recipient={claim.recipient}
+        />
+      ) : null}
       {correcting ? (
         <ProvisionalCorrectionDialog
           patient={patient}

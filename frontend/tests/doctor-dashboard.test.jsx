@@ -331,7 +331,11 @@ describe("DoctorDashboard", () => {
         });
       }
       if (path === "/medical/patients/10/claim-link") {
-        return respondWith({ token: "n".repeat(43), expires_at: "2026-10-18T12:00:00" }, 201);
+        return respondWith({
+          token: "n".repeat(43),
+          expires_at: "2026-10-18T12:00:00",
+          recipient: "guardian",
+        }, 201);
       }
       return respondWith([patient]);
     });
@@ -372,8 +376,8 @@ describe("DoctorDashboard", () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Gerar novo link" }));
-    expect(await screen.findByLabelText("Link para o paciente assumir a conta")).toHaveValue(
-      `${window.location.origin}/patient-claim#token=${"n".repeat(43)}`,
+    expect(await screen.findByLabelText("Link para o responsável assumir a conta")).toHaveValue(
+      `${window.location.origin}/patient-claim#token=${"n".repeat(43)}&for=guardian`,
     );
   });
 

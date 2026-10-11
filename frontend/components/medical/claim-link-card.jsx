@@ -12,9 +12,12 @@ function formatDate(value) {
 }
 
 
-export function ClaimLinkCard({ token, expiresAt }) {
+export function ClaimLinkCard({ token, expiresAt, recipient = "patient" }) {
   const [copied, setCopied] = useState(false);
-  const link = `${window.location.origin}/patient-claim#token=${token}`;
+  const forGuardian = recipient === "guardian";
+  const link = `${window.location.origin}/patient-claim#token=${token}${
+    forGuardian ? "&for=guardian" : ""
+  }`;
 
   async function copyLink() {
     try {
@@ -31,7 +34,11 @@ export function ClaimLinkCard({ token, expiresAt }) {
         <QRCodeSVG value={link} size={176} level="H" includeMargin={false} aria-hidden="true" />
       </div>
       <div className="claim-link-copy">
-        <label htmlFor="claim-link-url">Link para o paciente assumir a conta</label>
+        <label htmlFor="claim-link-url">
+          {forGuardian
+            ? "Link para o responsável assumir a conta"
+            : "Link para o paciente assumir a conta"}
+        </label>
         <div>
           <input id="claim-link-url" value={link} readOnly
             onFocus={(event) => event.target.select()} />
@@ -41,8 +48,10 @@ export function ClaimLinkCard({ token, expiresAt }) {
           </button>
         </div>
         <small>
-          Exibido uma única vez. Válido até {formatDate(expiresAt)}; o paciente
-          confirma CPF e data de nascimento para assumir a conta.
+          Exibido uma única vez. Válido até {formatDate(expiresAt)};
+          {forGuardian
+            ? " o responsável confirma os próprios dados e a data de nascimento do dependente."
+            : " o paciente confirma CPF e data de nascimento para assumir a conta."}
         </small>
       </div>
     </div>
