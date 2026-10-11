@@ -28,6 +28,7 @@ import X from "lucide-react/dist/esm/icons/x";
 
 import { DigitalDocuments } from "@/components/health-passport/digital-documents";
 import { MedicalAlerts } from "@/components/health-passport/medical-alerts";
+import { CareInvitations } from "@/components/patient/care-invitations";
 import { HealthMarkers } from "@/components/patient/health-markers";
 import { HealthSharing } from "@/components/patient/health-sharing";
 import { ClinicalSelect } from "@/components/ui/clinical-select";
@@ -481,6 +482,10 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
 
       <div className="patient-sections">
         <HealthSharing
+          isAdult={profile.is_adult}
+          onUnauthenticated={onUnauthenticated}
+        />
+        <CareInvitations
           isAdult={profile.is_adult}
           onUnauthenticated={onUnauthenticated}
         />
