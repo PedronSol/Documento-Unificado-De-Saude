@@ -27,6 +27,7 @@ Exemplo: `001-database-migrations.md`.
 | `008-persistent-session.md` | Sessão persistente e login lembrado | IMPLEMENTED |
 | `010-health-markers.md` | Marcadores do paciente | IMPLEMENTED |
 | `020-secure-document-storage.md` | Armazenamento e digitalização segura de documentos | IMPLEMENTED |
+| `022-medical-document-upload.md` | Envio de documentos pelo médico responsável | SPEC REVIEW |
 | `021-health-document-ocr.md` | OCR e revisão de documentos | SPEC WRITING |
 | `030-medical-panel.md` | Área médica e grupos de atendimento | IMPLEMENTED |
 | `031-interface-design-system.md` | Design system e interface médica | IMPLEMENTED |
