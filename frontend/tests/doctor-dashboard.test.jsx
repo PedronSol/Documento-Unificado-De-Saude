@@ -10,6 +10,10 @@ vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
 }));
 
+vi.mock("@/components/medical/patient-link-panel", () => ({
+  PatientLinkPanel: () => <section aria-label="Adicionar paciente" />,
+}));
+
 const patient = {
   patient_id: 10,
   preferred_name: "Carlos Silva",
@@ -64,6 +68,20 @@ function deferred() {
 
 
 describe("DoctorDashboard", () => {
+  it("oferece o painel de adicionar paciente na área profissional", async () => {
+    apiFetch.mockImplementation(() => respondWith([patient]));
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dra. Helena Costa" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "Adicionar paciente" }),
+    ).toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.useRealTimers();
     apiFetch.mockReset();

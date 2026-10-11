@@ -306,7 +306,7 @@ describe("AuthenticatedHome", () => {
 
   it("carrega a área profissional sem renderizar o dashboard do paciente", async () => {
     apiFetch.mockImplementation((path) => {
-      if (path === "/medical/patients") {
+      if (path.startsWith("/medical/")) {
         return respondWith([]);
       }
       return respondWith({
@@ -328,10 +328,13 @@ describe("AuthenticatedHome", () => {
     expect(screen.getAllByText(/Dr. Rui Lima/)).toHaveLength(2);
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
     expect(screen.queryByText("BCG reservada")).not.toBeInTheDocument();
-    expect(
-      apiFetch.mock.calls.some(([path]) => path === "/medical/patients"),
-    ).toBe(true);
-    expect(apiFetch).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(apiFetch.mock.calls.map(([path]) => path).sort()).toEqual([
+        "/me",
+        "/medical/patient-links?status=pending",
+        "/medical/patients",
+      ]),
+    );
   });
 
   it("abre a área administrativa sem consultar conteúdo clínico", async () => {

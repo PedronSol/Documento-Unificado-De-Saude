@@ -12,6 +12,7 @@ import Syringe from "lucide-react/dist/esm/icons/syringe";
 import UsersRound from "lucide-react/dist/esm/icons/users-round";
 
 import { UserAvatar } from "@/components/identity/user-avatar";
+import { PatientLinkPanel } from "@/components/medical/patient-link-panel";
 import { HealthMarkers } from "@/components/patient/health-markers";
 import { apiFetch } from "@/lib/api";
 
@@ -462,6 +463,8 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
           <PatientList patients={patientsResource.data} onOpen={openRecord} />
         ) : null}
       </section>
+
+      <PatientLinkPanel onUnauthenticated={onUnauthenticated} />
     </main>
   );
 }

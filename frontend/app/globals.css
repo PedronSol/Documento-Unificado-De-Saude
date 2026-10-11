@@ -4143,6 +4143,83 @@ select:focus-visible {
   gap: var(--ds-space-3);
 }
 
+.patient-link-panel {
+  margin-top: var(--ds-space-4);
+}
+
+.patient-link-panel .medical-search {
+  margin: var(--ds-space-5) 0 var(--ds-space-4);
+}
+
+.patient-link-feedback {
+  margin: 0 0 var(--ds-space-3);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-success-soft);
+  padding: var(--ds-space-3);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+}
+
+.patient-link-pending {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin-top: var(--ds-space-4);
+}
+
+.patient-link-pending h3 {
+  margin: 0;
+  font-family: var(--ds-font-interface);
+  font-size: var(--ds-font-size-md);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.patient-link-item {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-3);
+  border: 1px solid var(--ds-color-border);
+  border-left: 4px solid var(--ds-color-warning);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface);
+  padding: var(--ds-space-4);
+}
+
+.patient-link-item h4 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--ds-font-size-md);
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.patient-link-item p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-1) var(--ds-space-4);
+  margin: var(--ds-space-1) 0 0;
+  color: var(--ds-color-text-subtle);
+  font-size: var(--ds-font-size-xs);
+}
+
+.patient-link-item button {
+  min-height: var(--ds-control-min-height);
+  border: 1px solid var(--ds-color-danger);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface);
+  padding: 0 var(--ds-space-4);
+  color: var(--ds-color-danger);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.patient-link-item button:not(:disabled):hover {
+  background: var(--ds-color-danger-soft);
+}
+
+.patient-link-item button:focus-visible {
+  outline: 3px solid var(--ds-color-focus);
+  outline-offset: 3px;
+}
+
 @media (min-width: 30rem) {
   .admin-tabs button {
     padding: 0 var(--ds-space-3);
@@ -4189,7 +4266,8 @@ select:focus-visible {
   }
 
   .admin-card,
-  .care-card {
+  .care-card,
+  .patient-link-item {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
   }
