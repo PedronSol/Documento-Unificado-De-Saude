@@ -192,3 +192,27 @@ SELECT
     1, patient_id, 'Hemograma Completo', 'exam', '2025-03-01', 'new'
 FROM patients
 WHERE user_id = (SELECT user_id FROM users WHERE email = 'carlos.silva@email.com');
+
+UPDATE doctors
+SET created_by_admin_user_id = (
+    SELECT user_id FROM users WHERE email = 'admin@email.com'
+)
+WHERE created_by_admin_user_id IS NULL;
+
+UPDATE care_groups
+SET managed_by_admin_user_id = (
+    SELECT user_id FROM users WHERE email = 'admin@email.com'
+)
+WHERE managed_by_admin_user_id IS NULL;
+
+INSERT IGNORE INTO care_group_patient_invitations (
+    care_invitation_id, care_group_id, patient_id, invited_by_admin_user_id,
+    status, expires_at
+)
+SELECT
+    1, 2, p.patient_id, admin.user_id, 'pending',
+    UTC_TIMESTAMP(6) + INTERVAL 7 DAY
+FROM patients p
+JOIN users u ON u.user_id = p.user_id
+JOIN users admin ON admin.email = 'admin@email.com'
+WHERE u.email = 'paula.reis@email.com';

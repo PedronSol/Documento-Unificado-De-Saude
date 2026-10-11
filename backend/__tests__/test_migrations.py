@@ -653,6 +653,98 @@ def test_migration_0007_cria_identidades_externas_e_senha_opcional_forward_only(
         migration.downgrade()
 
 
+def test_migration_0008_cria_governanca_administrativa_forward_only():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0008_administrative_governance.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location(
+        "administrative_governance_schema", migration_path
+    )
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.tables = {}
+            self.foreign_keys = []
+            self.indexes = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_foreign_key(self, name, source, referent, local, remote, **options):
+            self.foreign_keys.append((name, source, referent, local, remote))
+
+        def create_index(self, name, table, columns, **options):
+            self.indexes.append((name, table, columns))
+
+        def create_unique_constraint(self, name, table, columns):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    added = {(table, column.name): column for table, column in operations.added_columns}
+
+    def column_names(table):
+        return {
+            element.name
+            for element in operations.tables[table]
+            if isinstance(element, sa.Column)
+        }
+
+    assert migration.revision == "0008"
+    assert migration.down_revision == "0007"
+    assert added[("doctors", "created_by_admin_user_id")].nullable is True
+    assert added[("doctors", "professional_status")].type.enums == [
+        "active",
+        "suspended",
+        "deactivated",
+    ]
+    assert added[("care_groups", "managed_by_admin_user_id")].nullable is True
+    assert (
+        "uq_care_groups_admin_name",
+        "care_groups",
+        ["managed_by_admin_user_id", "name"],
+    ) in operations.indexes
+    assert {
+        "doctor_invitations",
+        "care_group_patient_invitations",
+        "administrative_audit_events",
+    } <= set(operations.tables)
+    assert {"token_hash", "created_by_admin_user_id", "status", "expires_at"} <= (
+        column_names("doctor_invitations")
+    )
+    assert "token" not in column_names("doctor_invitations")
+    assert {"pending_key", "patient_id", "care_group_id", "status"} <= (
+        column_names("care_group_patient_invitations")
+    )
+    assert "patient_id" not in column_names("administrative_audit_events")
+    invitation_status = next(
+        element
+        for element in operations.tables["care_group_patient_invitations"]
+        if isinstance(element, sa.Column) and element.name == "status"
+    )
+    assert "expired" in invitation_status.type.enums
+    assert {"actor_user_id", "managing_admin_user_id", "details"} <= (
+        column_names("administrative_audit_events")
+    )
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
     seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
         encoding="utf-8"
