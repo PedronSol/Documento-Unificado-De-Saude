@@ -40,8 +40,8 @@ function mockLinks({ pending = [pendingLink], create = [{ result: "request_sent"
   });
 }
 
-function renderPanel() {
-  return render(<PatientLinkPanel onUnauthenticated={vi.fn()} />);
+function renderPanel(props = {}) {
+  return render(<PatientLinkPanel onUnauthenticated={vi.fn()} {...props} />);
 }
 
 
@@ -72,7 +72,6 @@ describe("PatientLinkPanel", () => {
   });
 
   it.each([
-    [404, { detail: "Paciente não encontrado." }, "Nenhum paciente com conta foi encontrado para esse CPF."],
     [409, { detail: "Paciente menor exige responsável." }, "Pacientes menores exigem um responsável legal."],
     [409, { detail: "CPF indisponível para vínculo." }, "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível."],
     [422, { detail: [] }, "Informe um CPF válido."],
@@ -111,6 +110,55 @@ describe("PatientLinkPanel", () => {
         method: "DELETE",
       }),
     );
+  });
+
+  it("cadastra paciente provisório quando o CPF não tem conta e exibe link e QR", async () => {
+    const claimToken = "c".repeat(43);
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/medical/patient-links?status=pending") {
+        return respondWith([]);
+      }
+      if (path === "/medical/patient-links" && options.method === "POST") {
+        const body = JSON.parse(options.body);
+        return body.patient
+          ? respondWith({
+            result: "provisional_created",
+            patient_id: 40,
+            claim: { token: claimToken, expires_at: "2026-10-18T12:00:00", recipient: "patient" },
+          }, 201)
+          : respondWith({ detail: "Paciente não encontrado." }, 404);
+      }
+      return respondWith(null, 404);
+    });
+    const onPatientsChanged = vi.fn();
+    const user = userEvent.setup();
+    renderPanel({ onPatientsChanged });
+
+    await user.type(await screen.findByLabelText("CPF do paciente"), "529.982.247-25");
+    await user.click(screen.getByRole("button", { name: "Solicitar acesso" }));
+    expect(
+      await screen.findByText("Nenhum paciente com conta para esse CPF. Cadastre um paciente provisório."),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Nome completo"), "Joana Prado Ribeiro");
+    await user.type(screen.getByLabelText("Nome preferido"), "Joana");
+    await user.type(screen.getByLabelText("Data de nascimento"), "1979-08-15");
+    await user.click(screen.getByRole("button", { name: "Cadastrar paciente provisório" }));
+
+    const link = await screen.findByLabelText("Link para o paciente assumir a conta");
+    expect(link).toHaveValue(`${window.location.origin}/patient-claim#token=${claimToken}`);
+    expect(screen.getByRole("img", { name: "QR-Code para assumir a conta" })).toBeInTheDocument();
+    const provisionalCall = apiFetch.mock.calls.find(
+      ([path, options]) => path === "/medical/patient-links" && JSON.parse(options.body).patient,
+    );
+    expect(JSON.parse(provisionalCall[1].body)).toEqual({
+      cpf: "529.982.247-25",
+      patient: {
+        full_name: "Joana Prado Ribeiro",
+        preferred_name: "Joana",
+        birth_date: "1979-08-15",
+      },
+    });
+    expect(onPatientsChanged).toHaveBeenCalledOnce();
   });
 
   it("mostra estado vazio das solicitações", async () => {
