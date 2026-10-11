@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api";
 
 
 const MINOR_DETAIL = "Paciente menor exige responsável.";
+const GUARDIAN_UNAVAILABLE_DETAIL = "Responsável indisponível.";
 const GENERIC_ERROR = "Não foi possível concluir a ação. Tente novamente.";
 
 function formatDate(value) {
@@ -30,17 +31,58 @@ const GUARDIAN_FIELDS = [
   ["birth_date", "Data de nascimento do responsável", "date", undefined],
 ];
 
+function conflictMessage(detail) {
+  if (detail === GUARDIAN_UNAVAILABLE_DETAIL) {
+    return "O responsável informado não pode ser vinculado. Verifique o CPF.";
+  }
+  return "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível.";
+}
+
 async function requestErrorMessage(response) {
   if (response.status === 422) {
-    return "Informe um CPF válido.";
-  }
-  if (response.status === 409) {
-    const body = await response.json().catch(() => ({}));
-    return body?.detail === MINOR_DETAIL
-      ? "Pacientes menores exigem um responsável legal."
-      : "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível.";
+    return "Revise os dados informados.";
   }
   return GENERIC_ERROR;
+}
+
+
+function GuardianFieldset({ guardian, onChange }) {
+  return (
+    <fieldset className="patient-link-guardian">
+      <legend>Paciente menor de idade: informe o responsável legal.</legend>
+      {GUARDIAN_FIELDS.map(([field, label, type, maxLength]) => (
+        <div className="patient-link-field" key={field}>
+          <label htmlFor={`guardian-${field}`}>{label}</label>
+          <input
+            id={`guardian-${field}`}
+            type={type}
+            value={guardian[field]}
+            maxLength={maxLength}
+            inputMode={field === "cpf" ? "numeric" : undefined}
+            autoComplete="off"
+            required
+            onChange={(event) => onChange((current) => ({
+              ...current,
+              [field]: event.target.value,
+            }))}
+          />
+        </div>
+      ))}
+      <div className="patient-link-field">
+        <label htmlFor="guardian-relationship">Parentesco</label>
+        <ClinicalSelect
+          id="guardian-relationship"
+          value={guardian.relationship}
+          placeholder="Selecione"
+          onValueChange={(value) => onChange((current) => ({
+            ...current,
+            relationship: value,
+          }))}
+          options={RELATIONSHIP_OPTIONS}
+        />
+      </div>
+    </fieldset>
+  );
 }
 
 
@@ -104,13 +146,13 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
         setProvisional(EMPTY_PROVISIONAL);
         return;
       }
-      if (response.status === 409 && provisional && !guardian) {
+      if (response.status === 409) {
         const conflict = await response.json().catch(() => ({}));
-        if (conflict?.detail === MINOR_DETAIL) {
+        if (conflict?.detail === MINOR_DETAIL && !guardian) {
           setGuardian(EMPTY_GUARDIAN);
           return;
         }
-        setError(GENERIC_ERROR);
+        setError(conflictMessage(conflict?.detail));
         return;
       }
       if (!response.ok) {
@@ -118,9 +160,11 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
         return;
       }
       const body = await response.json();
+      const guardianWasSent = guardian !== null;
       setCpf("");
       setProvisional(null);
       setGuardian(null);
+      setIssuedClaim(body.claim || null);
       if (body.result === "provisional_created") {
         setIssuedClaim(body.claim);
         setFeedback(body.claim === null
@@ -129,7 +173,9 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
         onPatientsChanged();
         return;
       }
-      setFeedback("Solicitação enviada. O acesso começa após o aceite do paciente.");
+      setFeedback(guardianWasSent
+        ? "Solicitação enviada. O responsável decide depois que a guarda for confirmada pelo paciente."
+        : "Solicitação enviada. O acesso começa após o aceite do paciente.");
       await loadPending();
     } catch {
       setError(GENERIC_ERROR);
@@ -199,6 +245,21 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
         <small>O acesso ao prontuário começa somente após o aceite do paciente.</small>
       </form>
 
+      {guardian && !provisional ? (
+        <form className="patient-link-provisional" onSubmit={submit}>
+          <GuardianFieldset guardian={guardian} onChange={setGuardian} />
+          <div className="patient-link-provisional-actions">
+            <button type="button" className="patient-link-secondary"
+              onClick={() => setGuardian(null)} disabled={isSaving}>
+              Voltar
+            </button>
+            <button type="submit" disabled={isSaving}>
+              {isSaving ? "Enviando…" : "Solicitar acesso com responsável"}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
       {provisional ? (
         <form className="patient-link-provisional" onSubmit={submit}>
           <p role="status">
@@ -225,42 +286,7 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
               />
             </div>
           ))}
-          {guardian ? (
-            <fieldset className="patient-link-guardian">
-              <legend>Paciente menor de idade: informe o responsável legal.</legend>
-              {GUARDIAN_FIELDS.map(([field, label, type, maxLength]) => (
-                <div className="patient-link-field" key={field}>
-                  <label htmlFor={`guardian-${field}`}>{label}</label>
-                  <input
-                    id={`guardian-${field}`}
-                    type={type}
-                    value={guardian[field]}
-                    maxLength={maxLength}
-                    inputMode={field === "cpf" ? "numeric" : undefined}
-                    autoComplete="off"
-                    required
-                    onChange={(event) => setGuardian((current) => ({
-                      ...current,
-                      [field]: event.target.value,
-                    }))}
-                  />
-                </div>
-              ))}
-              <div className="patient-link-field">
-                <label htmlFor="guardian-relationship">Parentesco</label>
-                <ClinicalSelect
-                  id="guardian-relationship"
-                  value={guardian.relationship}
-                  placeholder="Selecione"
-                  onValueChange={(value) => setGuardian((current) => ({
-                    ...current,
-                    relationship: value,
-                  }))}
-                  options={RELATIONSHIP_OPTIONS}
-                />
-              </div>
-            </fieldset>
-          ) : null}
+          {guardian ? <GuardianFieldset guardian={guardian} onChange={setGuardian} /> : null}
           <div className="patient-link-provisional-actions">
             <button type="button" className="patient-link-secondary"
               onClick={() => {

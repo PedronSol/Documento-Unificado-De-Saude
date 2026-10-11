@@ -72,9 +72,9 @@ describe("PatientLinkPanel", () => {
   });
 
   it.each([
-    [409, { detail: "Paciente menor exige responsável." }, "Pacientes menores exigem um responsável legal."],
+    [409, { detail: "Responsável indisponível." }, "O responsável informado não pode ser vinculado. Verifique o CPF."],
     [409, { detail: "CPF indisponível para vínculo." }, "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível."],
-    [422, { detail: [] }, "Informe um CPF válido."],
+    [422, { detail: [] }, "Revise os dados informados."],
   ])("explica a resposta %s", async (status, body, message) => {
     mockLinks({ create: [body, status] });
     const user = userEvent.setup();
@@ -283,6 +283,46 @@ describe("PatientLinkPanel", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Selecione o parentesco.");
     expect(apiFetch.mock.calls).toHaveLength(callsBefore);
+  });
+
+  it("solicita acesso a menor com conta informando o responsável", async () => {
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/medical/patient-links?status=pending") {
+        return respondWith([]);
+      }
+      const body = options.body ? JSON.parse(options.body) : {};
+      if (!body.guardian) {
+        return respondWith({ detail: "Paciente menor exige responsável." }, 409);
+      }
+      return respondWith({
+        result: "request_sent",
+        link_id: 9,
+        claim: { token: "m".repeat(43), expires_at: "2026-10-18T12:00:00", recipient: "guardian" },
+      }, 202);
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.type(await screen.findByLabelText("CPF do paciente"), "529.982.247-25");
+    await user.click(screen.getByRole("button", { name: "Solicitar acesso" }));
+    expect(
+      await screen.findByText("Paciente menor de idade: informe o responsável legal."),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("CPF do responsável"), "168.995.350-09");
+    await user.type(screen.getByLabelText("Nome completo do responsável"), "Joana Prado Ribeiro");
+    await user.type(screen.getByLabelText("Data de nascimento do responsável"), "1986-02-11");
+    await user.click(screen.getByRole("combobox", { name: "Parentesco" }));
+    await user.click(await screen.findByRole("option", { name: "Mãe ou pai" }));
+    await user.click(screen.getByRole("button", { name: "Solicitar acesso com responsável" }));
+
+    expect(await screen.findByLabelText("Link para o responsável assumir a conta")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Solicitação enviada. O responsável decide depois que a guarda for confirmada pelo paciente.",
+      ),
+    ).toBeInTheDocument();
+    const lastCall = apiFetch.mock.calls.findLast(([path]) => path === "/medical/patient-links");
+    expect(Object.keys(JSON.parse(lastCall[1].body))).toEqual(["cpf", "guardian"]);
   });
 
   it("mostra estado vazio das solicitações", async () => {
