@@ -799,6 +799,56 @@ def test_migration_0008_cria_governanca_administrativa_forward_only():
         migration.downgrade()
 
 
+def test_migration_0009_cria_vinculos_diretos_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0009_direct_care_links.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("direct_care_links", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.tables = {}
+            self.indexes = []
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_index(self, name, table, columns, **options):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    elements = operations.tables["doctor_patient_links"]
+    columns = {
+        element.name: element for element in elements if isinstance(element, sa.Column)
+    }
+    constraints = {
+        element.name for element in elements if isinstance(element, sa.Constraint)
+    }
+    assert migration.revision == "0009"
+    assert migration.down_revision == "0008"
+    assert columns["origin"].type.enums == ["request", "provisional"]
+    assert columns["status"].type.enums == [
+        "pending",
+        "active",
+        "rejected",
+        "expired",
+        "cancelled",
+        "revoked",
+    ]
+    assert columns["open_key"].computed is not None
+    assert "uq_doctor_patient_links_open" in constraints
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
     seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
         encoding="utf-8"
