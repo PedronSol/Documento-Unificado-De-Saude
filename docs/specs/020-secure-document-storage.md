@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -399,7 +399,7 @@ O upload retorna `201` e a listagem retorna `200` com o mesmo schema de item:
 
 As duas rotas de arquivo retornam `200` com o binário ou falham antes de iniciar
 o corpo. `DELETE` retorna `204` sem corpo. A listagem médica reutiliza
-`DocumentSummaryResponse[]` e não inclui dados adicionais do paciente.
+`DocumentSummary[]` e não inclui dados adicionais do paciente.
 
 Os schemas Pydantic de resposta e os valores de `type` e `status` são usados
 diretamente nos testes de contrato. Nenhuma resposta inclui `patient_id`,
@@ -584,34 +584,51 @@ motion, quebra de nomes longos e o espaço do dock multirole quando aplicável.
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| 1 | Pendente após aprovação: upload válido retorna hoje `405` | — | — | — |
-| 2 | Pendente após aprovação: ação de digitalizar e ciclo seguro da câmera ainda não existem | — | — | — |
+| 1 | `POST /me/documents` com PDF mínimo válido respondia `405`: em `HEAD` (`6bbcbfb`) a rota aceita somente `GET` | validador por assinatura e marcador final, `LocalDocumentStorage` confinado à raiz, `DocumentService` com publicação atômica e compensação, migration `0013`, download íntegro auditado e remoção lógica | storage, limite e configuração injetados no composition root | `test_documents.py`, `test_migrations.py`, `test_resource_contracts.py`, `test_api_characterization.py`, `test_config.py`, `test_app_composition.py` |
+| 2 | limpeza física sem comando de manutenção (`cleanup-documents` inexistente) | `cleanup_removed_documents` com bloqueio no banco e remoção idempotente, alvo `make documents-cleanup` | caso de uso injetado em `database_tasks` | `test_document_cleanup.py`, `test_migrations.py` |
+| 3 | rotas `/medical/patients/{id}/documents` inexistentes e prontuário sem seção de documentos | listagem e download médicos com vínculo ativo no mesmo SQL e `medical_documents.viewed`; seção somente leitura no prontuário | reutilização de `DocumentSummary` e dos auxiliares de download do paciente | `test_documents.py`, `doctor-dashboard.test.jsx` |
+| 4 | em `HEAD` não havia ação `Digitalizar com a câmera` nem `getUserMedia` no frontend | diálogo de upload com `ClinicalSelect`, digitalizador de página única, encerramento das tracks e `Permissions-Policy: camera=(self)` | mesmo `FormData` para arquivo e captura; estilos em tokens `--ds-*` | `digital-documents.test.jsx`, `design-system.test.js`, `login.spec.ts` |
+
+Os ciclos RED/GREEN foram executados nas sessões registradas no roadmap em
+2026-10-11. A saída textual das falhas não foi retida; o estado RED de base foi
+reconfirmado inspecionando `HEAD` (`6bbcbfb`) em worktree isolada.
 
 ## Critérios de conclusão
 
-- [ ] Spec aprovada antes do primeiro teste.
-- [ ] PDF, JPEG e PNG válidos de até 10 MiB podem ser enviados.
-- [ ] Arquivos inválidos, corrompidos ou grandes não deixam estado parcial.
-- [ ] Binários não ficam no MySQL, em diretório público ou no Git.
-- [ ] Nomes físicos não são previsíveis nem derivados de dados do paciente.
-- [ ] Ownership positivo e negativo está automatizado em download e remoção.
-- [ ] Médico vinculado possui leitura auditada; vínculo inválido falha fechado.
-- [ ] Admin não acessa metadado, binário ou auditoria clínica de documento.
-- [ ] Auditoria falha fechada e contém somente a allowlist.
-- [ ] Remoção lógica bloqueia acesso antes da limpeza física.
-- [ ] Dashboard permite operar documentos em 320 px e viewport ampla.
-- [ ] Paciente adulto digitaliza uma página após consentimento explícito e pode
+- [x] Spec aprovada antes do primeiro teste.
+- [x] PDF, JPEG e PNG válidos de até 10 MiB podem ser enviados.
+- [x] Arquivos inválidos, corrompidos ou grandes não deixam estado parcial.
+- [x] Binários não ficam no MySQL, em diretório público ou no Git.
+- [x] Nomes físicos não são previsíveis nem derivados de dados do paciente.
+- [x] Ownership positivo e negativo está automatizado em download e remoção.
+- [x] Médico vinculado possui leitura auditada; vínculo inválido falha fechado.
+- [x] Admin não acessa metadado, binário ou auditoria clínica de documento.
+- [x] Auditoria falha fechada e contém somente a allowlist.
+- [x] Remoção lógica bloqueia acesso antes da limpeza física.
+- [x] Dashboard permite operar documentos em 320 px e viewport ampla.
+- [x] Paciente adulto digitaliza uma página após consentimento explícito e pode
       revisar, refazer ou enviar a captura pelo contrato existente.
-- [ ] Câmera nunca inicia sem gesto do paciente; áudio fica desabilitado e todas
+- [x] Câmera nunca inicia sem gesto do paciente; áudio fica desabilitado e todas
       as tracks e prévias locais são liberadas ao sair do fluxo.
-- [ ] Indisponibilidade ou recusa da câmera mantém upload por arquivo utilizável;
+- [x] Indisponibilidade ou recusa da câmera mantém upload por arquivo utilizável;
       paciente menor e demais papéis não recebem o controle de digitalização.
-- [ ] Migration passa em banco vazio e upgrade com dado legado no MySQL 8.
-- [ ] Testes afetados, regressão, build, `git diff --check` e `git status` foram
+- [x] Migration passa em banco vazio e upgrade com dado legado no MySQL 8.
+- [x] Testes afetados, regressão, build, `git diff --check` e `git status` foram
   verificados.
-- [ ] Spec, documentação de ambiente, roadmap e referência de commit ou PR estão
+- [x] Spec, documentação de ambiente, roadmap e referência de commit ou PR estão
   sincronizados.
-- [ ] Definition of Done do roadmap atendida.
+- [x] Definition of Done do roadmap atendida.
+
+## Verificações executadas
+
+- Backend: `python -m pytest` (191 passed, 52 skipped) e
+  `RUN_DB_INTEGRATION=1 python -m pytest` no MySQL 8 real (243 passed),
+  incluindo upgrade da migration `0013` com registro legado.
+- Frontend: `npm test` (104 passed), `npx playwright test` (33 passed, com a
+  digitalização em 320 px e 1280 px) e `npm run build`.
+- `git diff --check` sem pendências.
+- Não executado: `npm run lint` (`eslint` não instalado no projeto, situação
+  anterior); câmera física real (mídia simulada por canvas nos testes).
 
 ## Decisões e observações
 

@@ -223,7 +223,7 @@ flowchart TD
 | 8 | Compartilhamento e QR-Code | 6 | DONE | `333df01` |
 | 9 | Cadastro local de pacientes e Google opcional | 3, 4 | DONE | `00303f3` |
 | 10 | Governança administrativa e vínculos | 5, 7, 9 | DONE | [PR #10](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/10) |
-| 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | IN PROGRESS | `docs/specs/020-secure-document-storage.md` |
+| 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | DONE | `e1a8d86` |
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
 | 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
 | 14 | Consolidação operacional | 7–13, 15 | PLANNED | — |
@@ -569,22 +569,22 @@ paciente adulto capturar uma página pela câmera com consentimento explícito.
 
 ### Tarefas
 
-- [ ] Escrever testes de formato, tamanho, ownership e falha de persistência.
-- [ ] Definir contrato pequeno de armazenamento.
-- [ ] Implementar armazenamento local para desenvolvimento.
-- [ ] Salvar no banco somente metadados e chave do arquivo.
-- [ ] Usar nomes internos aleatórios.
-- [ ] Validar extensão, MIME real, tamanho e integridade básica.
-- [ ] Criar estados `uploaded`, `processing`, `needs_review`, `confirmed`,
+- [x] Escrever testes de formato, tamanho, ownership e falha de persistência.
+- [x] Definir contrato pequeno de armazenamento.
+- [x] Implementar armazenamento local para desenvolvimento.
+- [x] Salvar no banco somente metadados e chave do arquivo.
+- [x] Usar nomes internos aleatórios.
+- [x] Validar extensão, MIME real, tamanho e integridade básica.
+- [x] Criar estados `uploaded`, `processing`, `needs_review`, `confirmed`,
       `failed` e `removed`.
-- [ ] Proteger lista e download do paciente por ownership.
-- [ ] Proteger lista e download médico por perfil verificado e vínculo ativo.
-- [ ] Negar explicitamente todo acesso administrativo a metadados e binários.
-- [ ] Implementar remoção lógica e limpeza física controlada.
-- [ ] Auditar upload, download, remoção e listagem médica.
-- [ ] Implementar digitalização de uma página pela câmera, com prévia, refazer,
+- [x] Proteger lista e download do paciente por ownership.
+- [x] Proteger lista e download médico por perfil verificado e vínculo ativo.
+- [x] Negar explicitamente todo acesso administrativo a metadados e binários.
+- [x] Implementar remoção lógica e limpeza física controlada.
+- [x] Auditar upload, download, remoção e listagem médica.
+- [x] Implementar digitalização de uma página pela câmera, com prévia, refazer,
       fallback para arquivo e encerramento seguro do stream.
-- [ ] Solicitar câmera somente após gesto explícito, sem áudio, sem persistência
+- [x] Solicitar câmera somente após gesto explícito, sem áudio, sem persistência
       local da captura e limitada ao próprio origin.
 
 ### Critérios de conclusão
@@ -813,3 +813,4 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-11 | 11 | SPEC REVIEW → SPEC APPROVED | `docs/specs/020-secure-document-storage.md` | Armazenamento, autorização, digitalização de página única, privacidade da câmera, fallback e estratégia TDD aprovados; próximo passo é confirmar o primeiro teste RED. |
 | 2026-10-11 | 11 | AJUSTE DOCUMENTAL | `docs/specs/020-secure-document-storage.md` | Migration prevista renumerada de `0009` para `0013` após a inclusão das migrations de vínculos diretos, cadastro assistido, guarda e transferência; contratos aprovados permanecem inalterados. |
 | 2026-10-11 | 11 | SPEC APPROVED → IN PROGRESS | testes backend/frontend do Step 11 | Armazenamento privado, upload e download auditados, remoção lógica, leitura médica e digitalização por câmera foram implementados em ciclos RED/GREEN; validação final e referência de commit ou PR permanecem pendentes. |
+| 2026-10-11 | 11 | IN PROGRESS → DONE | `e1a8d86` | Validação final: pytest (243 passed com MySQL 8 real), Vitest (104), Playwright (33, incluindo digitalização em 320 px e 1280 px) e build; spec 020 marcada como implementada. |
