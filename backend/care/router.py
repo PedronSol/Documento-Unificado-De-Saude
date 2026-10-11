@@ -5,6 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 import mysql.connector
 
 from auth.dependencies import get_current_patient, require_adult
+from care.direct_links import (
+    decide_care_request,
+    list_patient_care_doctors,
+    list_patient_care_requests,
+    revoke_care_doctor,
+)
 from care.service import (
     decide_invitation,
     end_patient_link,
@@ -12,7 +18,12 @@ from care.service import (
     list_patient_invitations,
 )
 from database import cursor_scope, get_connection, transaction
-from models import PatientCareGroup, PatientCareInvitation
+from models import (
+    PatientCareDoctor,
+    PatientCareGroup,
+    PatientCareInvitation,
+    PatientCareRequest,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -87,6 +98,87 @@ def revoke_care_group(
                 )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao revogar vínculo de cuidado", error)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/care-requests", response_model=list[PatientCareRequest])
+def get_care_requests(
+    patient: dict = Depends(get_current_patient),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            return list_patient_care_requests(cursor, patient_id=patient["patient_id"])
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao listar solicitações médicas", error)
+
+
+@router.post(
+    "/care-requests/{link_id}/accept",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def accept_care_request(
+    link_id: int,
+    patient: dict = Depends(require_adult),
+    connection: Any = Depends(get_connection),
+):
+    return _decide_request(connection, patient, link_id, accept=True)
+
+
+@router.post(
+    "/care-requests/{link_id}/reject",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def reject_care_request(
+    link_id: int,
+    patient: dict = Depends(require_adult),
+    connection: Any = Depends(get_connection),
+):
+    return _decide_request(connection, patient, link_id, accept=False)
+
+
+@router.get("/care-doctors", response_model=list[PatientCareDoctor])
+def get_care_doctors(
+    patient: dict = Depends(get_current_patient),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            return list_patient_care_doctors(cursor, patient_id=patient["patient_id"])
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao listar médicos com acesso", error)
+
+
+@router.delete(
+    "/care-doctors/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_care_doctor(
+    link_id: int,
+    patient: dict = Depends(require_adult),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                revoke_care_doctor(cursor, patient=patient, link_id=link_id)
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao revogar médico", error)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _decide_request(connection: Any, patient: dict, link_id: int, *, accept: bool):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                decide_care_request(
+                    cursor,
+                    patient=patient,
+                    link_id=link_id,
+                    accept=accept,
+                )
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao decidir solicitação médica", error)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

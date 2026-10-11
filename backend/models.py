@@ -692,3 +692,51 @@ class AdministrativeAuditPage(BaseModel):
     items: List[AdministrativeAuditEvent]
     page: int
     has_next: bool
+
+
+class PatientLinkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cpf: str
+
+    @field_validator("cpf", mode="before")
+    @classmethod
+    def normalize_link_cpf(cls, value):
+        if isinstance(value, str):
+            return _normalize_cpf(value)
+        return value
+
+    @field_validator("cpf")
+    @classmethod
+    def validate_link_cpf(cls, value: str) -> str:
+        if not _is_valid_cpf(value):
+            raise ValueError("Informe um CPF válido.")
+        return value
+
+
+class PatientLinkRequested(BaseModel):
+    result: Literal["request_sent"]
+    link_id: int
+
+
+class DoctorPendingLink(BaseModel):
+    link_id: int
+    patient_display_name: str
+    masked_cpf: str
+    expires_at: datetime
+
+
+class PatientCareRequest(BaseModel):
+    link_id: int
+    doctor_display_name: str
+    crm_number: str
+    crm_state: str
+    expires_at: datetime
+
+
+class PatientCareDoctor(BaseModel):
+    link_id: int
+    doctor_display_name: str
+    crm_number: str
+    crm_state: str
+    since: datetime

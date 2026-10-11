@@ -132,7 +132,8 @@ def test_medical_list_returns_only_sql_authorized_patient_allowlist():
     assert "dcg.status = 'active'" in statement
     assert "pcg.status = 'active'" in statement
     assert "LIMIT 50" in statement
-    assert parameters == (3,)
+    assert "dpl.status = 'active'" in statement
+    assert parameters == (3, 3)
     assert "cpf" not in result[0]
 
 
@@ -147,7 +148,7 @@ def test_medical_search_normalizes_formatted_cpf_without_returning_it():
 
     statement, parameters = connection.executed[0]
     assert "u.cpf = %s" in statement
-    assert parameters == (3, "00011122222")
+    assert parameters == (3, 3, "00011122222")
     assert "cpf" not in result[0]
 
 
@@ -178,7 +179,7 @@ def test_direct_patient_access_returns_403_for_missing_or_unlinked_patient():
     statement, parameters = connection.executed[0]
     assert "p.patient_id = %s" in statement
     assert "EXISTS" in statement
-    assert parameters == (99, 3)
+    assert parameters == (99, 3, 3)
 
 
 def test_medical_record_returns_allowlisted_timeline_and_audits_view():

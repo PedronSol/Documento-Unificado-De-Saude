@@ -2,24 +2,62 @@ import logging
 import re
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from typing import Literal
 import mysql.connector
 
 from audit.service import record_clinical_event
+from care.direct_links import (
+    end_doctor_link,
+    list_doctor_pending_links,
+    request_direct_link,
+)
 from auth.dependencies import get_current_doctor
 from auth.dependencies import calculate_age
 from database import cursor_scope, get_connection, transaction
 from markers.service import create_marker, remove_active_marker, update_active_marker
 from models import (
+    DoctorPendingLink,
     MarkerCreateUpdate,
     MarkerResponse,
     MedicalPatientSummary,
     MedicalRecordResponse,
+    PatientLinkRequest,
+    PatientLinkRequested,
 )
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/medical")
+
+AUTHORIZED_PATIENT_CLAUSE = """
+    (
+        EXISTS (
+            SELECT 1
+            FROM doctor_care_groups dcg
+            JOIN care_groups cg
+              ON cg.care_group_id = dcg.care_group_id
+            JOIN patient_care_groups pcg
+              ON pcg.care_group_id = cg.care_group_id
+            WHERE dcg.doctor_id = %s
+              AND pcg.patient_id = p.patient_id
+              AND cg.status = 'active'
+              AND dcg.status = 'active'
+              AND pcg.status = 'active'
+              AND dcg.starts_at <= UTC_TIMESTAMP(6)
+              AND (dcg.ends_at IS NULL OR dcg.ends_at > UTC_TIMESTAMP(6))
+              AND pcg.starts_at <= UTC_TIMESTAMP(6)
+              AND (pcg.ends_at IS NULL OR pcg.ends_at > UTC_TIMESTAMP(6))
+        )
+        OR EXISTS (
+            SELECT 1
+            FROM doctor_patient_links dpl
+            WHERE dpl.doctor_id = %s
+              AND dpl.patient_id = p.patient_id
+              AND dpl.status = 'active'
+        )
+    )
+"""
 
 
 @router.get("/patients", response_model=list[MedicalPatientSummary])
@@ -40,30 +78,12 @@ def list_medical_patients(
                        p.data_nascimento AS birth_date
                 FROM patients p
                 JOIN users u ON u.user_id = p.user_id
-                WHERE EXISTS (
-                    SELECT 1
-                    FROM doctor_care_groups dcg
-                    JOIN care_groups cg
-                      ON cg.care_group_id = dcg.care_group_id
-                    JOIN patient_care_groups pcg
-                      ON pcg.care_group_id = cg.care_group_id
-                    WHERE dcg.doctor_id = %s
-                      AND pcg.patient_id = p.patient_id
-                      AND cg.status = 'active'
-                      AND dcg.status = 'active'
-                      AND pcg.status = 'active'
-                      AND dcg.starts_at <= UTC_TIMESTAMP(6)
-                      AND (dcg.ends_at IS NULL
-                           OR dcg.ends_at > UTC_TIMESTAMP(6))
-                      AND pcg.starts_at <= UTC_TIMESTAMP(6)
-                      AND (pcg.ends_at IS NULL
-                           OR pcg.ends_at > UTC_TIMESTAMP(6))
-                )
+                WHERE {AUTHORIZED_PATIENT_CLAUSE}
                 {search_clause}
                 ORDER BY p.nome_completo, p.patient_id
                 LIMIT 50
                 """,
-                (doctor["doctor_id"], *search_parameters),
+                (doctor["doctor_id"], doctor["doctor_id"], *search_parameters),
             )
             return [_patient_summary(row) for row in cursor.fetchall()]
     except mysql.connector.Error as error:
@@ -78,7 +98,7 @@ def get_authorized_medical_patient(
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
             cursor.execute(
-                """
+                f"""
                 SELECT p.patient_id, p.user_id,
                        p.nome_paciente AS preferred_name,
                        p.nome_completo AS full_name,
@@ -88,27 +108,9 @@ def get_authorized_medical_patient(
                        p.data_nascimento AS birth_date
                 FROM patients p
                 WHERE p.patient_id = %s
-                  AND EXISTS (
-                    SELECT 1
-                    FROM doctor_care_groups dcg
-                    JOIN care_groups cg
-                      ON cg.care_group_id = dcg.care_group_id
-                    JOIN patient_care_groups pcg
-                      ON pcg.care_group_id = cg.care_group_id
-                    WHERE dcg.doctor_id = %s
-                      AND pcg.patient_id = p.patient_id
-                      AND cg.status = 'active'
-                      AND dcg.status = 'active'
-                      AND pcg.status = 'active'
-                      AND dcg.starts_at <= UTC_TIMESTAMP(6)
-                      AND (dcg.ends_at IS NULL
-                           OR dcg.ends_at > UTC_TIMESTAMP(6))
-                      AND pcg.starts_at <= UTC_TIMESTAMP(6)
-                      AND (pcg.ends_at IS NULL
-                           OR pcg.ends_at > UTC_TIMESTAMP(6))
-                  )
+                  AND {AUTHORIZED_PATIENT_CLAUSE}
                 """,
-                (patient_id, doctor["doctor_id"]),
+                (patient_id, doctor["doctor_id"], doctor["doctor_id"]),
             )
             patient = cursor.fetchone()
     except mysql.connector.Error as error:
@@ -296,6 +298,62 @@ def delete_medical_marker(
         return {"message": "Marcador removido com sucesso!"}
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao remover marcador médico", error)
+
+
+@router.post(
+    "/patient-links",
+    response_model=PatientLinkRequested,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_patient_link(
+    payload: PatientLinkRequest,
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                return request_direct_link(cursor, doctor=doctor, cpf=payload.cpf)
+    except mysql.connector.IntegrityError as error:
+        if error.errno == 1062:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Já existe solicitação ou vínculo aberto com este paciente.",
+            ) from error
+        _raise_database_unavailable("Falha de integridade no vínculo direto", error)
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao solicitar vínculo direto", error)
+
+
+@router.get("/patient-links", response_model=list[DoctorPendingLink])
+def get_patient_links(
+    link_status: Literal["pending"] = Query(default="pending", alias="status"),
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            return list_doctor_pending_links(cursor, doctor_id=doctor["doctor_id"])
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao listar vínculos diretos", error)
+
+
+@router.delete(
+    "/patient-links/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_patient_link(
+    link_id: int,
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                end_doctor_link(cursor, doctor=doctor, link_id=link_id)
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao encerrar vínculo direto", error)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _require_adult_medical_patient(patient: dict) -> None:
