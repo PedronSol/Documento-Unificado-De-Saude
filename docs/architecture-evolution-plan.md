@@ -684,7 +684,7 @@ alterar os grupos geridos por admin.
       solicitação a paciente cadastrado com aceite.
 - [x] 15.2: paciente provisório adulto, correção pelo médico autor e
       reivindicação por link/QR com e-mail/senha ou Google.
-- [ ] 15.3: guarda, provisório menor com responsável, contexto do dependente
+- [x] 15.3: guarda, provisório menor com responsável, contexto do dependente
       (`X-Acting-Patient`) e marcadores de menor pelo médico.
 - [ ] 15.4: transferência a pedido, desvínculo pelo dependente adulto e
       guarda de menor titular de conta.
