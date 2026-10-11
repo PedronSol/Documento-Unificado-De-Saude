@@ -912,6 +912,67 @@ def test_migration_0010_cria_contas_provisorias_e_reivindicacao_forward_only():
         migration.downgrade()
 
 
+def test_migration_0011_cria_guarda_legal_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0011_patient_guardianships.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("patient_guardianships", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.tables = {}
+            self.added_columns = []
+            self.altered_columns = []
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+        def create_foreign_key(self, *args, **options):
+            pass
+
+        def create_index(self, *args, **options):
+            pass
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    columns = {
+        element.name: element
+        for element in operations.tables["patient_guardianships"]
+        if isinstance(element, sa.Column)
+    }
+    assert migration.revision == "0011"
+    assert migration.down_revision == "0010"
+    assert columns["relationship"].type.enums == ["parent", "legal_guardian"]
+    assert columns["status"].type.enums == [
+        "pending",
+        "active",
+        "rejected",
+        "renounced",
+        "released",
+    ]
+    assert columns["open_key"].computed is not None
+    assert ("patient_claims", "guardianship_id") in {
+        (table, column.name) for table, column in operations.added_columns
+    }
+    claim_type = next(o for t, c, o in operations.altered_columns if c == "claim_type")
+    assert claim_type["type_"].enums == ["self", "guardian"]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
     seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
         encoding="utf-8"
