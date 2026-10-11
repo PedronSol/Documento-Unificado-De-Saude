@@ -6,7 +6,7 @@ import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { RegistrationField } from "@/components/auth/patient-registration";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
-import { readTokenFromFragment } from "@/lib/fragment-token";
+import { readFragment } from "@/lib/fragment-token";
 
 
 const ERROR_MESSAGES = {
@@ -24,16 +24,23 @@ function redirectHome() {
 
 export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
   const tokenRef = useRef(undefined);
+  const [forGuardian, setForGuardian] = useState(false);
   const [status, setStatus] = useState("reading");
   const [method, setMethod] = useState("local");
-  const [identity, setIdentity] = useState({ cpf: "", birth_date: "" });
+  const [identity, setIdentity] = useState({
+    cpf: "",
+    birth_date: "",
+    dependent_birth_date: "",
+  });
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (tokenRef.current === undefined) {
-      tokenRef.current = readTokenFromFragment();
+      const fragment = readFragment();
+      tokenRef.current = fragment.token;
+      setForGuardian(fragment.params.get("for") === "guardian");
     }
     setStatus(tokenRef.current ? "ready" : "missing");
   }, []);
@@ -49,6 +56,7 @@ export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
           token: tokenRef.current,
           cpf: identity.cpf,
           birth_date: identity.birth_date,
+          ...(forGuardian ? { dependent_birth_date: identity.dependent_birth_date } : {}),
           ...extra,
         }),
       });
@@ -80,7 +88,9 @@ export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
     );
   }
 
-  const identityReady = identity.cpf.replace(/\D/g, "").length === 11 && identity.birth_date;
+  const identityReady = identity.cpf.replace(/\D/g, "").length === 11
+    && identity.birth_date
+    && (!forGuardian || identity.dependent_birth_date);
 
   return (
     <div className="registration-flow">
@@ -104,6 +114,16 @@ export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
           onChange={updateIdentity("birth_date")}
           disabled={isLoading}
         />
+        {forGuardian ? (
+          <RegistrationField
+            id="claim-dependent-birth-date"
+            label="Data de nascimento do dependente"
+            type="date"
+            value={identity.dependent_birth_date}
+            onChange={updateIdentity("dependent_birth_date")}
+            disabled={isLoading}
+          />
+        ) : null}
       </div>
 
       <div className="auth-method-switch" aria-label="Forma de acesso">

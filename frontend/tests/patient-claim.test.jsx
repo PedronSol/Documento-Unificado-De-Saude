@@ -113,6 +113,30 @@ describe("PatientClaim", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
   });
 
+  it("pede a data de nascimento do dependente em link de responsável", async () => {
+    window.history.replaceState(null, "", `/patient-claim#token=${TOKEN}&for=guardian`);
+    apiFetch.mockReturnValue(respondWith({ user: { roles: ["patient"] } }, 201));
+    const onCompleted = vi.fn();
+    const user = userEvent.setup();
+    render(<PatientClaim googleClientId="client-id" onCompleted={onCompleted} />);
+
+    await fillIdentity(user);
+    await user.type(screen.getByLabelText("Data de nascimento do dependente"), "2016-05-02");
+    await user.type(screen.getByLabelText("E-mail"), "joana@example.com");
+    await user.type(screen.getByLabelText("Senha"), "senha-paciente-segura");
+    await user.click(screen.getByRole("button", { name: "Assumir minha conta" }));
+
+    await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
+    expect(JSON.parse(apiFetch.mock.calls[0][1].body)).toEqual({
+      token: TOKEN,
+      cpf: "529.982.247-25",
+      birth_date: "1979-08-15",
+      dependent_birth_date: "2016-05-02",
+      email: "joana@example.com",
+      password: "senha-paciente-segura",
+    });
+  });
+
   it("orienta quando o link não contém token", async () => {
     window.history.replaceState(null, "", "/patient-claim");
     render(<PatientClaim googleClientId="client-id" onCompleted={vi.fn()} />);
