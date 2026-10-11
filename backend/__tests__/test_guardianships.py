@@ -246,7 +246,8 @@ def test_link_request_validates_minor_and_guardian(make_client, engine):
     assert same_cpf.status_code == 422
     assert admin_guardian.status_code == 409
     assert admin_guardian.json()["detail"] == "Responsável indisponível."
-    assert titular_minor.status_code == 409
+    assert titular_minor.status_code == 202, titular_minor.text
+    assert titular_minor.json()["claim"]["recipient"] == "guardian"
     assert fetch_one(
         engine, "SELECT COUNT(*) AS total FROM users WHERE cpf = %s", (child_cpf,)
     )["total"] == 0

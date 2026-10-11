@@ -375,6 +375,29 @@ Detalhes fixados na fase 15.3:
 - O link de reivindicação de responsável inclui `for=guardian` no fragmento,
   para a página pedir também a data de nascimento do dependente.
 
+Detalhes fixados na fase 15.4:
+
+- `POST /me/dependents/{patient_id}/claim-link` exige guarda ativa, dependente
+  com 18 anos ou mais e conta ainda não assumida; retorna `201` `{token,
+  expires_at, recipient: "patient"}` com `claim_type = 'transfer'` (migration
+  `0012`). Dependente menor ou com acesso próprio retorna `409`; guarda
+  inexistente ou de terceiro, `404`.
+- `/me/dependents` inclui `has_own_access` para a interface oferecer a
+  transferência somente a dependente adulto sem acesso.
+- `GET /me/guardians` lista as guardas ativas sobre o próprio paciente e as
+  pendentes que aguardam a confirmação dele: `{guardianship_id,
+  guardian_display_name, relationship, status, awaiting_my_confirmation}`.
+- `DELETE /me/guardians/{guardianship_id}` encerra a guarda com `released`
+  quando o titular é adulto; titular menor recebe `403`.
+- `POST /me/guardianships/{guardianship_id}/confirm` é feito pelo menor titular;
+  a guarda só fica `active` quando aceite do responsável (ou reivindicação de
+  guarda) e confirmação do menor existem.
+- `POST /medical/patient-links` com CPF de menor titular de conta e `guardian`
+  cria a guarda com `requires_dependent_confirmation` e a solicitação `pending`,
+  decidida pelo responsável depois que a guarda estiver ativa. Retorna `202`
+  `{result: "request_sent", link_id, claim}`, em que `claim` é o link do
+  responsável provisório ou `null`.
+
 `POST /auth/patient-claim/local` recebe `{token, cpf, birth_date,
 dependent_birth_date?, email, password}`; a versão Google troca `email` e
 `password` por `credential`. Ambas retornam `201` com `AuthenticationResponse`

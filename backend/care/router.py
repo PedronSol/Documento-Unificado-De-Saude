@@ -8,9 +8,13 @@ import mysql.connector
 
 from auth.dependencies import get_current_patient, get_own_patient, require_adult
 from care.guardianship import (
+    confirm_guardianship,
     decide_guardianship,
+    issue_transfer,
     list_dependents,
+    list_my_guardians,
     list_pending_guardianships,
+    release_guardian,
     renounce_guardianship,
 )
 from care.direct_links import (
@@ -27,7 +31,9 @@ from care.service import (
 )
 from database import cursor_scope, get_connection, transaction
 from models import (
+    ClaimLinkIssued,
     DependentProfile,
+    MyGuardian,
     GuardianshipAcceptance,
     PendingGuardianship,
     PatientCareDoctor,
@@ -265,6 +271,78 @@ def delete_guardianship(
             guardianship_id=guardianship_id,
         ),
     )
+
+
+@router.post(
+    "/guardianships/{guardianship_id}/confirm",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def confirm_own_guardianship(
+    guardianship_id: int,
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    return _guardianship_mutation(
+        connection,
+        lambda cursor: confirm_guardianship(
+            cursor,
+            dependent=patient,
+            guardianship_id=guardianship_id,
+        ),
+    )
+
+
+@router.get("/guardians", response_model=list[MyGuardian])
+def get_my_guardians(
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            return list_my_guardians(cursor, patient_id=patient["patient_id"])
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao listar responsáveis", error)
+
+
+@router.delete(
+    "/guardians/{guardianship_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_my_guardian(
+    guardianship_id: int,
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    return _guardianship_mutation(
+        connection,
+        lambda cursor: release_guardian(
+            cursor,
+            dependent=patient,
+            guardianship_id=guardianship_id,
+        ),
+    )
+
+
+@router.post(
+    "/dependents/{patient_id}/claim-link",
+    response_model=ClaimLinkIssued,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_dependent_claim_link(
+    patient_id: int,
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                return issue_transfer(
+                    cursor,
+                    guardian=patient,
+                    dependent_patient_id=patient_id,
+                )
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao emitir transferência", error)
 
 
 def _guardianship_mutation(connection: Any, mutate):

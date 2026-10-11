@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 
 from auth.dependencies import calculate_age
 from audit.service import record_clinical_event
-from care.provisional import create_provisional_patient
+from care.provisional import create_guardianship, create_provisional_patient
 from models import GuardianData, ProvisionalPatientData
 
 
@@ -84,10 +84,19 @@ def request_direct_link(
         or target["user_id"] == doctor["user_id"]
     ):
         raise _conflict("CPF indisponível para vínculo.")
+    guardian_claim = None
     if calculate_age(target["birth_date"]) < 18 and not _has_active_guardian(
         cursor, target["patient_id"]
     ):
-        raise _conflict("Paciente menor exige responsável.")
+        if guardian is None:
+            raise _conflict("Paciente menor exige responsável.")
+        guardian_claim = create_guardianship(
+            cursor,
+            doctor=doctor,
+            dependent_patient_id=target["patient_id"],
+            guardian=guardian,
+            requires_dependent_confirmation=True,
+        )
 
     patient_id = target["patient_id"]
     cursor.execute(
@@ -132,7 +141,7 @@ def request_direct_link(
         action="care_link.direct_requested",
         link_id=link_id,
     )
-    return {"result": "request_sent", "link_id": link_id}
+    return {"result": "request_sent", "link_id": link_id, "claim": guardian_claim}
 
 
 def _has_active_guardian(cursor: Any, patient_id: int) -> bool:

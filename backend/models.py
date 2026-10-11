@@ -342,6 +342,7 @@ class MedicalRecordResponse(BaseModel):
 class DependentProfile(BaseModel):
     patient_id: int
     guardianship_id: int
+    has_own_access: bool
     preferred_name: str
     full_name: str
     avatar_url: Optional[str] = None
@@ -805,6 +806,7 @@ class PatientLinkRequest(BaseModel):
 class PatientLinkRequested(BaseModel):
     result: Literal["request_sent"]
     link_id: int
+    claim: Optional["ProvisionalClaimIssued"] = None
 
 
 class DoctorPendingLink(BaseModel):
@@ -930,3 +932,14 @@ class GuardianshipAcceptance(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     dependent_birth_date: date
+
+
+class MyGuardian(BaseModel):
+    guardianship_id: int
+    guardian_display_name: str
+    relationship: Literal["parent", "legal_guardian"]
+    status: Literal["active", "pending"]
+    awaiting_my_confirmation: bool
+
+
+PatientLinkRequested.model_rebuild()

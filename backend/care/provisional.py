@@ -70,6 +70,52 @@ def _insert_provisional_account(
     return patient_id
 
 
+def create_guardianship(
+    cursor: Any,
+    *,
+    doctor: dict,
+    dependent_patient_id: int,
+    guardian: GuardianData,
+    requires_dependent_confirmation: bool,
+) -> dict | None:
+    """Creates a pending guardianship; returns the guardian claim when needed."""
+    resolved = _resolve_guardian(cursor, doctor=doctor, guardian=guardian)
+    cursor.execute(
+        """
+        INSERT INTO patient_guardianships (
+            dependent_patient_id, guardian_patient_id, relationship, status,
+            created_by_doctor_id, requires_dependent_confirmation
+        ) VALUES (%s, %s, %s, 'pending', %s, %s)
+        """,
+        (
+            dependent_patient_id,
+            resolved["patient_id"],
+            guardian.relationship,
+            doctor["doctor_id"],
+            requires_dependent_confirmation,
+        ),
+    )
+    guardianship_id = cursor.lastrowid
+    record_clinical_event(
+        cursor,
+        actor_user_id=doctor["user_id"],
+        patient_id=dependent_patient_id,
+        action="guardianship.requested",
+        resource_type="patient_guardianship",
+        resource_id=guardianship_id,
+        after_snapshot={"relationship": guardian.relationship},
+    )
+    if not resolved["provisional"]:
+        return None
+    claim = issue_claim(
+        cursor,
+        patient_id=resolved["patient_id"],
+        issued_by_user_id=doctor["user_id"],
+        guardianship_id=guardianship_id,
+    )
+    return {**claim, "recipient": "guardian"}
+
+
 def _resolve_guardian(cursor: Any, *, doctor: dict, guardian: GuardianData) -> dict:
     cursor.execute(
         """
@@ -121,9 +167,6 @@ def create_provisional_patient(
     minor = _is_minor(data.birth_date)
     if minor and guardian is None:
         raise _conflict("Paciente menor exige responsável.")
-    resolved_guardian = (
-        _resolve_guardian(cursor, doctor=doctor, guardian=guardian) if minor else None
-    )
     patient_id = _insert_provisional_account(
         cursor,
         doctor=doctor,
@@ -160,43 +203,14 @@ def create_provisional_patient(
             "claim": {**claim, "recipient": "patient"},
         }
 
-    cursor.execute(
-        """
-        INSERT INTO patient_guardianships (
-            dependent_patient_id, guardian_patient_id, relationship, status,
-            created_by_doctor_id
-        ) VALUES (%s, %s, %s, 'pending', %s)
-        """,
-        (
-            patient_id,
-            resolved_guardian["patient_id"],
-            guardian.relationship,
-            doctor["doctor_id"],
-        ),
-    )
-    guardianship_id = cursor.lastrowid
-    record_clinical_event(
+    claim = create_guardianship(
         cursor,
-        actor_user_id=doctor["user_id"],
-        patient_id=patient_id,
-        action="guardianship.requested",
-        resource_type="patient_guardianship",
-        resource_id=guardianship_id,
-        after_snapshot={"relationship": guardian.relationship},
+        doctor=doctor,
+        dependent_patient_id=patient_id,
+        guardian=guardian,
+        requires_dependent_confirmation=False,
     )
-    if not resolved_guardian["provisional"]:
-        return {"result": "provisional_created", "patient_id": patient_id, "claim": None}
-    claim = issue_claim(
-        cursor,
-        patient_id=resolved_guardian["patient_id"],
-        issued_by_user_id=doctor["user_id"],
-        guardianship_id=guardianship_id,
-    )
-    return {
-        "result": "provisional_created",
-        "patient_id": patient_id,
-        "claim": {**claim, "recipient": "guardian"},
-    }
+    return {"result": "provisional_created", "patient_id": patient_id, "claim": claim}
 
 
 def issue_claim(
@@ -205,6 +219,7 @@ def issue_claim(
     patient_id: int,
     issued_by_user_id: int,
     guardianship_id: int | None = None,
+    claim_type: str | None = None,
 ) -> dict:
     cursor.execute(
         """
@@ -224,7 +239,7 @@ def issue_claim(
         )
         """,
         (
-            "guardian" if guardianship_id else "self",
+            claim_type or ("guardian" if guardianship_id else "self"),
             patient_id,
             issued_by_user_id,
             hash_invitation_token(raw_token),
@@ -463,7 +478,12 @@ def _finish_claim(cursor: Any, *, claim: dict, method: str) -> None:
         cursor.execute(
             """
             UPDATE patient_guardianships
-            SET status = 'active', accepted_at = UTC_TIMESTAMP(6),
+            SET status = IF(
+                    requires_dependent_confirmation AND dependent_confirmed_at IS NULL,
+                    'pending',
+                    'active'
+                ),
+                accepted_at = UTC_TIMESTAMP(6),
                 updated_at = UTC_TIMESTAMP(6)
             WHERE guardianship_id = %s AND status = 'pending'
             """,
