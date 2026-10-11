@@ -215,7 +215,7 @@ flowchart TD
 | 6 | Marcadores de saúde | 5 | DONE | [PR #6](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/6) |
 | 7 | Área médica e grupos | 4, 6 | DONE | `fc2b12e` |
 | 8 | Compartilhamento e QR-Code | 6 | DONE | `333df01` |
-| 9 | Cadastro local de pacientes e Google opcional | 3, 4 | IN PROGRESS | `docs/specs/006-patient-onboarding-authentication.md` |
+| 9 | Cadastro local de pacientes e Google opcional | 3, 4 | DONE | `00303f3` |
 | 10 | Governança administrativa e vínculos | 5, 7, 9 | SPEC WRITING | `docs/specs/007-administrative-access-governance.md` |
 | 11 | Armazenamento de documentos | 5, 7, 10 | SPEC REVIEW | `docs/specs/020-secure-document-storage.md` |
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
