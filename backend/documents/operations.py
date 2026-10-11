@@ -15,6 +15,7 @@ import mysql.connector
 from audit.service import record_clinical_event, serialize_document_snapshot
 from database import cursor_scope, transaction
 from documents.service import normalize_title, stage_valid_document
+from pagination import PageRequest, fetch_page, search_clause
 
 
 logger = logging.getLogger(__name__)
@@ -22,34 +23,45 @@ STORAGE_KEY_ATTEMPTS = 3
 UploaderRole = Literal["patient", "doctor"]
 
 
+DOCUMENT_TYPES = ("exam", "prescription", "report", "other")
+
+
 def list_active_documents(
     cursor: Any,
     *,
     patient_id: int,
+    request: PageRequest,
+    document_type: str | None = None,
     viewer_doctor_user_id: int | None = None,
-) -> list[dict]:
-    cursor.execute(
-        """
-        SELECT d.id_documento AS document_id, d.titulo_documento AS title,
-               d.tipo_documento AS type, d.original_filename, d.media_type,
-               d.size_bytes, d.status_documento AS status, d.created_at,
-               d.uploaded_by_user_id, d.uploader_role,
-               u.display_name AS uploader_name,
-               doc.crm_number AS uploader_crm_number,
-               doc.crm_state AS uploader_crm_state
-        FROM documents d
+) -> dict:
+    search, search_params = search_clause(
+        request.query,
+        ["d.titulo_documento", "d.original_filename"],
+    )
+    type_filter = " AND d.tipo_documento = %s" if document_type else ""
+    return fetch_page(
+        cursor,
+        columns="""d.id_documento AS document_id, d.titulo_documento AS title,
+                   d.tipo_documento AS type, d.original_filename, d.media_type,
+                   d.size_bytes, d.status_documento AS status, d.created_at,
+                   d.uploaded_by_user_id, d.uploader_role,
+                   u.display_name AS uploader_name,
+                   doc.crm_number AS uploader_crm_number,
+                   doc.crm_state AS uploader_crm_state""",
+        source=f"""FROM documents d
         LEFT JOIN doctors doc
           ON d.uploader_role = 'doctor' AND doc.user_id = d.uploaded_by_user_id
         LEFT JOIN users u ON u.user_id = doc.user_id
-        WHERE d.patient_id = %s AND d.status_documento <> 'removed'
-        ORDER BY d.created_at DESC, d.id_documento DESC
-        """,
-        (patient_id,),
+        WHERE d.patient_id = %s AND d.status_documento <> 'removed'{type_filter}{search}""",
+        params=(
+            patient_id,
+            *((document_type,) if document_type else ()),
+            *search_params,
+        ),
+        order_by="d.created_at DESC, d.id_documento DESC",
+        request=request,
+        mapper=lambda row: _summary(row, viewer_doctor_user_id=viewer_doctor_user_id),
     )
-    return [
-        _summary(row, viewer_doctor_user_id=viewer_doctor_user_id)
-        for row in cursor.fetchall()
-    ]
 
 
 async def upload_document(

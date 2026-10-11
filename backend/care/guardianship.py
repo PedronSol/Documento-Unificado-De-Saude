@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from audit.service import record_clinical_event
 from auth.dependencies import calculate_age
 from care.provisional import issue_claim
+from pagination import PageRequest, fetch_page, search_clause
 
 
 def _not_found() -> HTTPException:
@@ -54,24 +55,32 @@ def list_dependents(cursor: Any, *, guardian_patient_id: int) -> list[dict]:
     return dependents
 
 
-def list_pending_guardianships(cursor: Any, *, guardian_patient_id: int) -> list[dict]:
-    cursor.execute(
-        """
-        SELECT g.guardianship_id, p.nome_completo AS dependent_full_name,
-               p.nome_paciente AS dependent_preferred_name, g.relationship,
-               du.display_name AS requested_by
-        FROM patient_guardianships g
+def list_pending_guardianships(
+    cursor: Any,
+    *,
+    guardian_patient_id: int,
+    request: PageRequest,
+) -> dict:
+    search, search_params = search_clause(
+        request.query,
+        ["p.nome_completo", "p.nome_paciente"],
+    )
+    return fetch_page(
+        cursor,
+        columns="""g.guardianship_id, p.nome_completo AS dependent_full_name,
+                   p.nome_paciente AS dependent_preferred_name, g.relationship,
+                   du.display_name AS requested_by""",
+        source=f"""FROM patient_guardianships g
         JOIN patients p ON p.patient_id = g.dependent_patient_id
         LEFT JOIN doctors d ON d.doctor_id = g.created_by_doctor_id
         LEFT JOIN users du ON du.user_id = d.user_id
         WHERE g.guardian_patient_id = %s
           AND g.status = 'pending'
-          AND g.accepted_at IS NULL
-        ORDER BY g.created_at, g.guardianship_id
-        """,
-        (guardian_patient_id,),
+          AND g.accepted_at IS NULL{search}""",
+        params=(guardian_patient_id, *search_params),
+        order_by="g.created_at, g.guardianship_id",
+        request=request,
     )
-    return cursor.fetchall()
 
 
 def _lock_own_guardianship(cursor: Any, *, guardian: dict, guardianship_id: int, status_value: str) -> dict:
@@ -199,13 +208,14 @@ def renounce_guardianship(cursor: Any, *, guardian: dict, guardianship_id: int) 
     )
 
 
-def list_my_guardians(cursor: Any, *, patient_id: int) -> list[dict]:
-    cursor.execute(
-        """
-        SELECT g.guardianship_id, gu.display_name AS guardian_display_name,
-               g.relationship, g.status,
-               (g.status = 'pending') AS awaiting_my_confirmation
-        FROM patient_guardianships g
+def list_my_guardians(cursor: Any, *, patient_id: int, request: PageRequest) -> dict:
+    search, search_params = search_clause(request.query, ["gu.display_name"])
+    return fetch_page(
+        cursor,
+        columns="""g.guardianship_id, gu.display_name AS guardian_display_name,
+                   g.relationship, g.status,
+                   (g.status = 'pending') AS awaiting_my_confirmation""",
+        source=f"""FROM patient_guardianships g
         JOIN patients gp ON gp.patient_id = g.guardian_patient_id
         JOIN users gu ON gu.user_id = gp.user_id
         WHERE g.dependent_patient_id = %s
@@ -216,15 +226,15 @@ def list_my_guardians(cursor: Any, *, patient_id: int) -> list[dict]:
                   AND g.requires_dependent_confirmation
                   AND g.dependent_confirmed_at IS NULL
               )
-          )
-        ORDER BY g.created_at, g.guardianship_id
-        """,
-        (patient_id,),
+          ){search}""",
+        params=(patient_id, *search_params),
+        order_by="g.created_at, g.guardianship_id",
+        request=request,
+        mapper=lambda row: {
+            **row,
+            "awaiting_my_confirmation": bool(row["awaiting_my_confirmation"]),
+        },
     )
-    return [
-        {**row, "awaiting_my_confirmation": bool(row["awaiting_my_confirmation"])}
-        for row in cursor.fetchall()
-    ]
 
 
 def confirm_guardianship(cursor: Any, *, dependent: dict, guardianship_id: int) -> None:

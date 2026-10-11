@@ -567,6 +567,8 @@ class DoctorInvitationSummary(BaseModel):
 class DoctorInvitationPage(BaseModel):
     items: List[DoctorInvitationSummary]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -588,6 +590,8 @@ class AdminDoctor(BaseModel):
 class AdminDoctorPage(BaseModel):
     items: List[AdminDoctor]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -654,6 +658,8 @@ class AdminCareGroup(BaseModel):
 class AdminCareGroupPage(BaseModel):
     items: List[AdminCareGroup]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -688,6 +694,8 @@ class DirectoryUser(BaseModel):
 class DirectoryPage(BaseModel):
     items: List[DirectoryUser]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -736,6 +744,8 @@ class AdministrativeAuditEvent(BaseModel):
 class AdministrativeAuditPage(BaseModel):
     items: List[AdministrativeAuditEvent]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 

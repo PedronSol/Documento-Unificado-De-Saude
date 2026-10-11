@@ -1,8 +1,8 @@
 from hashlib import sha256
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 import mysql.connector
 
 from audit.service import record_clinical_event, serialize_document_snapshot
@@ -17,6 +17,7 @@ from documents.operations import (
     upload_document,
 )
 from models import DocumentSummary
+from pagination import Page, PageRequest, page_request
 
 
 router = APIRouter(prefix="/me/documents")
@@ -49,14 +50,24 @@ async def add_document(
     )
 
 
-@router.get("", response_model=list[DocumentSummary])
+@router.get("", response_model=Page[DocumentSummary])
 def get_documents(
+    page: PageRequest = Depends(page_request),
+    document_type: Optional[Literal["exam", "prescription", "report", "other"]] = Query(
+        default=None,
+        alias="type",
+    ),
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_active_documents(cursor, patient_id=patient["patient_id"])
+            return list_active_documents(
+                cursor,
+                patient_id=patient["patient_id"],
+                request=page,
+                document_type=document_type,
+            )
     except mysql.connector.Error as error:
         raise_unavailable("Falha ao listar documentos", error)
 

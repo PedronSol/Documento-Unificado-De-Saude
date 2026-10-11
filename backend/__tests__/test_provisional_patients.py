@@ -145,8 +145,8 @@ def test_patient_claims_account_locally_and_keeps_doctor_link(make_client, engin
 
     assert claimed.status_code == 201, claimed.text
     assert claimed.json()["user"]["roles"] == ["patient"]
-    assert [marker["name"] for marker in markers.json()] == ["Hipotireoidismo"]
-    assert [item["doctor_display_name"] for item in care_doctors.json()] == [
+    assert [marker["name"] for marker in markers.json()["items"]] == ["Hipotireoidismo"]
+    assert [item["doctor_display_name"] for item in care_doctors.json()["items"]] == [
         "Dr. Marcos Nunes"
     ]
     assert reused.status_code == 403
@@ -276,7 +276,7 @@ def test_other_doctor_request_waits_for_claim(make_client, engine):
     inbox = patient.get("/me/care-requests")
 
     assert request.status_code == 202, request.text
-    assert [item["doctor_display_name"] for item in inbox.json()] == [
+    assert [item["doctor_display_name"] for item in inbox.json()["items"]] == [
         "Dra. Helena Costa"
     ]
 

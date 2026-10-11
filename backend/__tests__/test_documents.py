@@ -50,13 +50,21 @@ class DocumentCursor:
         sql = self.connection.executed[-1][0]
         if sql.startswith("SELECT u.display_name, doc.crm_number"):
             self.result = self.connection.doctor_profiles.get(parameters[0])
+        elif sql.startswith("SELECT COUNT(*) AS total FROM documents d"):
+            patient_id = parameters[0]
+            self.result = {"total": sum(
+                1
+                for item in self.connection.documents
+                if item["patient_id"] == patient_id and item["status"] != "removed"
+            )}
         elif sql.startswith("SELECT d.id_documento AS document_id"):
             patient_id = parameters[0]
+            limit, offset = parameters[-2:]
             documents = [
                 item
                 for item in self.connection.documents
                 if item["patient_id"] == patient_id and item["status"] != "removed"
-            ]
+            ][offset:offset + limit]
             self.result = []
             for item in documents:
                 profile = (
@@ -329,7 +337,8 @@ async def test_lists_only_active_owned_documents_in_stable_order(document_app):
         response = await client.get("/me/documents")
 
     assert response.status_code == 200
-    assert response.json() == [
+    assert response.json()["total"] == 1
+    assert response.json()["items"] == [
         {
             "document_id": 42,
             "title": "Hemograma",
@@ -342,10 +351,10 @@ async def test_lists_only_active_owned_documents_in_stable_order(document_app):
             "uploaded_by_doctor": None,
         }
     ]
-    list_query = connection.executed[0]
+    list_query = connection.executed[1]
     assert "status_documento <> 'removed'" in list_query[0]
     assert "ORDER BY d.created_at DESC, d.id_documento DESC" in list_query[0]
-    assert list_query[1] == (10,)
+    assert list_query[1] == (10, 20, 0)
 
 
 async def test_downloads_only_owned_integral_file_and_audits_before_response(
@@ -611,7 +620,7 @@ async def test_verified_linked_doctor_lists_documents_with_view_audit(document_a
         response = await client.get("/medical/patients/10/documents")
 
     assert response.status_code == 200
-    assert response.json()[0]["document_id"] == 42
+    assert response.json()["items"][0]["document_id"] == 42
     assert connection.executed[-1][1][0:6] == (
         "user",
         8,
@@ -852,11 +861,11 @@ async def test_patient_list_identifies_documents_sent_by_doctor(document_app):
     ) as client:
         response = await client.get("/me/documents")
 
-    assert [item["uploaded_by_doctor"] for item in response.json()] == [
+    assert [item["uploaded_by_doctor"] for item in response.json()["items"]] == [
         {"display_name": "Dra. Ana Lima", "crm_number": "123456", "crm_state": "SP"},
         None,
     ]
-    assert "uploaded_by_user_id" not in response.json()[0]
+    assert "uploaded_by_user_id" not in response.json()["items"][0]
 
 
 async def test_authorized_doctor_uploads_document_with_authorship_and_audit(document_app):
@@ -1027,12 +1036,12 @@ async def test_medical_list_flags_removable_documents(document_app):
     ) as client:
         response = await client.get("/medical/patients/10/documents")
 
-    assert [(item["document_id"], item["can_remove"]) for item in response.json()] == [
+    assert [(item["document_id"], item["can_remove"]) for item in response.json()["items"]] == [
         (42, True),
         (41, False),
         (40, False),
     ]
-    assert response.json()[1]["uploaded_by_doctor"]["display_name"] == "Dr. Rui Costa"
+    assert response.json()["items"][1]["uploaded_by_doctor"]["display_name"] == "Dr. Rui Costa"
 
 
 async def test_doctor_upload_rolls_back_when_audit_fails(document_app):

@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 import mysql.connector
 
 from admin.service import (
-    MAX_PAGE_SIZE,
     add_group_doctor,
     cancel_patient_invitation,
     change_doctor_status,
@@ -27,6 +26,7 @@ from admin.service import (
 )
 from auth.dependencies import require_admin_role
 from database import cursor_scope, get_connection, transaction
+from pagination import PageRequest, page_params
 from models import (
     AdminCareGroup,
     AdminCareGroupDetail,
@@ -49,13 +49,6 @@ from models import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin")
-
-
-def pagination(
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=MAX_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
-) -> dict:
-    return {"page": page, "page_size": page_size}
 
 
 @router.post(
@@ -82,7 +75,7 @@ def create_doctor_invitation(
 
 @router.get("/doctor-invitations", response_model=DoctorInvitationPage)
 def get_doctor_invitations(
-    paging: dict = Depends(pagination),
+    paging: PageRequest = Depends(page_params),
     admin: dict = Depends(require_admin_role),
     connection: Any = Depends(get_connection),
 ):
@@ -91,7 +84,7 @@ def get_doctor_invitations(
             return list_doctor_invitations(
                 cursor,
                 admin_user_id=admin["user_id"],
-                **paging,
+                request=paging,
             )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar convites profissionais", error)
@@ -121,7 +114,7 @@ def delete_doctor_invitation(
 
 @router.get("/doctors", response_model=AdminDoctorPage)
 def get_admin_doctors(
-    paging: dict = Depends(pagination),
+    paging: PageRequest = Depends(page_params),
     admin: dict = Depends(require_admin_role),
     connection: Any = Depends(get_connection),
 ):
@@ -130,7 +123,7 @@ def get_admin_doctors(
             return list_admin_doctors(
                 cursor,
                 admin_user_id=admin["user_id"],
-                **paging,
+                request=paging,
             )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar médicos administrados", error)
@@ -199,7 +192,7 @@ def post_admin_doctor_status(
 @router.get("/users", response_model=DirectoryPage)
 def get_directory(
     query: str = Query(min_length=3, max_length=100),
-    paging: dict = Depends(pagination),
+    paging: PageRequest = Depends(page_params),
     _admin: dict = Depends(require_admin_role),
     connection: Any = Depends(get_connection),
 ):
@@ -208,7 +201,7 @@ def get_directory(
             return search_directory(
                 cursor,
                 query=query,
-                **paging,
+                request=paging,
             )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao consultar diretório", error)
@@ -240,7 +233,7 @@ def post_care_group(
 
 @router.get("/care-groups", response_model=AdminCareGroupPage)
 def get_care_groups(
-    paging: dict = Depends(pagination),
+    paging: PageRequest = Depends(page_params),
     admin: dict = Depends(require_admin_role),
     connection: Any = Depends(get_connection),
 ):
@@ -249,7 +242,7 @@ def get_care_groups(
             return list_care_groups(
                 cursor,
                 admin_user_id=admin["user_id"],
-                **paging,
+                request=paging,
             )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar grupos", error)
@@ -419,7 +412,7 @@ def delete_patient_link(
 
 @router.get("/audit-events", response_model=AdministrativeAuditPage)
 def get_audit_events(
-    paging: dict = Depends(pagination),
+    paging: PageRequest = Depends(page_params),
     admin: dict = Depends(require_admin_role),
     connection: Any = Depends(get_connection),
 ):
@@ -428,7 +421,7 @@ def get_audit_events(
             return list_audit_events(
                 cursor,
                 admin_user_id=admin["user_id"],
-                **paging,
+                request=paging,
             )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar auditoria administrativa", error)

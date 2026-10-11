@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 from fastapi import (
     APIRouter,
@@ -41,6 +41,7 @@ from documents.router import (
     get_document_storage,
 )
 from markers.service import create_marker, remove_active_marker, update_active_marker
+from pagination import Page, PageRequest, fetch_page, like_pattern, page_request
 from models import (
     ClaimLinkIssued,
     DoctorPendingLink,
@@ -160,10 +161,15 @@ def delete_medical_document(
 
 @router.get(
     "/patients/{patient_id}/documents",
-    response_model=list[MedicalDocumentSummary],
+    response_model=Page[MedicalDocumentSummary],
 )
 def list_medical_documents(
     patient_id: int,
+    page: PageRequest = Depends(page_request),
+    document_type: Optional[Literal["exam", "prescription", "report", "other"]] = Query(
+        default=None,
+        alias="type",
+    ),
     doctor: dict = Depends(get_current_doctor),
     connection: Any = Depends(get_connection),
 ):
@@ -178,6 +184,8 @@ def list_medical_documents(
                 documents = list_active_documents(
                     cursor,
                     patient_id=patient_id,
+                    request=page,
+                    document_type=document_type,
                     viewer_doctor_user_id=doctor["user_id"],
                 )
                 record_clinical_event(
@@ -242,32 +250,31 @@ def download_medical_document(
         ) from error
 
 
-@router.get("/patients", response_model=list[MedicalPatientSummary])
+@router.get("/patients", response_model=Page[MedicalPatientSummary])
 def list_medical_patients(
-    query: str | None = Query(default=None, max_length=100),
+    page: PageRequest = Depends(page_request),
     doctor: dict = Depends(get_current_doctor),
     connection: Any = Depends(get_connection),
 ):
-    search_clause, search_parameters = _build_search(query)
+    search_clause, search_parameters = _build_search(page.query)
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            cursor.execute(
-                f"""
-                SELECT p.patient_id, p.nome_paciente AS preferred_name,
-                       p.nome_completo AS full_name, p.avatar AS avatar_url,
-                       p.status_saude AS health_status,
-                       p.tipo_sanguineo AS blood_type,
-                       p.data_nascimento AS birth_date
-                FROM patients p
+            return fetch_page(
+                cursor,
+                columns="""p.patient_id, p.nome_paciente AS preferred_name,
+                           p.nome_completo AS full_name, p.avatar AS avatar_url,
+                           p.status_saude AS health_status,
+                           p.tipo_sanguineo AS blood_type,
+                           p.data_nascimento AS birth_date""",
+                source=f"""FROM patients p
                 JOIN users u ON u.user_id = p.user_id
                 WHERE {AUTHORIZED_PATIENT_CLAUSE}
-                {search_clause}
-                ORDER BY p.nome_completo, p.patient_id
-                LIMIT 50
-                """,
-                (doctor["doctor_id"], doctor["doctor_id"], *search_parameters),
+                {search_clause}""",
+                params=(doctor["doctor_id"], doctor["doctor_id"], *search_parameters),
+                order_by="p.nome_completo, p.patient_id",
+                request=page,
+                mapper=_patient_summary,
             )
-            return [_patient_summary(row) for row in cursor.fetchall()]
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar pacientes médicos", error)
 
@@ -514,15 +521,20 @@ def create_patient_link(
         _raise_database_unavailable("Falha ao solicitar vínculo direto", error)
 
 
-@router.get("/patient-links", response_model=list[DoctorPendingLink])
+@router.get("/patient-links", response_model=Page[DoctorPendingLink])
 def get_patient_links(
+    page: PageRequest = Depends(page_request),
     link_status: Literal["pending"] = Query(default="pending", alias="status"),
     doctor: dict = Depends(get_current_doctor),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_doctor_pending_links(cursor, doctor_id=doctor["doctor_id"])
+            return list_doctor_pending_links(
+                cursor,
+                doctor_id=doctor["doctor_id"],
+                request=page,
+            )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar vínculos diretos", error)
 
@@ -614,7 +626,7 @@ def _build_search(query: str | None) -> tuple[str, tuple[str, ...]]:
 
     if len(normalized) < 2:
         _raise_invalid_search()
-    pattern = f"%{normalized}%"
+    pattern = like_pattern(normalized)
     return (
         "AND (p.nome_completo LIKE %s OR p.nome_paciente LIKE %s)",
         (pattern, pattern),

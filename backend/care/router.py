@@ -30,6 +30,7 @@ from care.service import (
     list_patient_invitations,
 )
 from database import cursor_scope, get_connection, transaction
+from pagination import Page, PageRequest, page_request
 from models import (
     ClaimLinkIssued,
     DependentProfile,
@@ -47,14 +48,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/me")
 
 
-@router.get("/care-invitations", response_model=list[PatientCareInvitation])
+@router.get("/care-invitations", response_model=Page[PatientCareInvitation])
 def get_care_invitations(
+    page: PageRequest = Depends(page_request),
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_patient_invitations(cursor, patient_id=patient["patient_id"])
+            return list_patient_invitations(
+                cursor,
+                patient_id=patient["patient_id"],
+                request=page,
+            )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar convites de cuidado", error)
 
@@ -83,14 +89,19 @@ def reject_care_invitation(
     return _decide(connection, patient, invitation_id, accept=False)
 
 
-@router.get("/care-groups", response_model=list[PatientCareGroup])
+@router.get("/care-groups", response_model=Page[PatientCareGroup])
 def get_care_groups(
+    page: PageRequest = Depends(page_request),
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_patient_care_groups(cursor, patient_id=patient["patient_id"])
+            return list_patient_care_groups(
+                cursor,
+                patient_id=patient["patient_id"],
+                request=page,
+            )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar grupos de cuidado", error)
 
@@ -118,14 +129,19 @@ def revoke_care_group(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/care-requests", response_model=list[PatientCareRequest])
+@router.get("/care-requests", response_model=Page[PatientCareRequest])
 def get_care_requests(
+    page: PageRequest = Depends(page_request),
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_patient_care_requests(cursor, patient_id=patient["patient_id"])
+            return list_patient_care_requests(
+                cursor,
+                patient_id=patient["patient_id"],
+                request=page,
+            )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar solicitações médicas", error)
 
@@ -154,14 +170,19 @@ def reject_care_request(
     return _decide_request(connection, patient, link_id, accept=False)
 
 
-@router.get("/care-doctors", response_model=list[PatientCareDoctor])
+@router.get("/care-doctors", response_model=Page[PatientCareDoctor])
 def get_care_doctors(
+    page: PageRequest = Depends(page_request),
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_patient_care_doctors(cursor, patient_id=patient["patient_id"])
+            return list_patient_care_doctors(
+                cursor,
+                patient_id=patient["patient_id"],
+                request=page,
+            )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar médicos com acesso", error)
 
@@ -196,8 +217,9 @@ def get_dependents(
         _raise_database_unavailable("Falha ao listar dependentes", error)
 
 
-@router.get("/guardianships", response_model=list[PendingGuardianship])
+@router.get("/guardianships", response_model=Page[PendingGuardianship])
 def get_guardianships(
+    page: PageRequest = Depends(page_request),
     guardianship_status: Literal["pending"] = Query(default="pending", alias="status"),
     patient: dict = Depends(get_own_patient),
     connection: Any = Depends(get_connection),
@@ -207,6 +229,7 @@ def get_guardianships(
             return list_pending_guardianships(
                 cursor,
                 guardian_patient_id=patient["patient_id"],
+                request=page,
             )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar guardas", error)
@@ -292,14 +315,19 @@ def confirm_own_guardianship(
     )
 
 
-@router.get("/guardians", response_model=list[MyGuardian])
+@router.get("/guardians", response_model=Page[MyGuardian])
 def get_my_guardians(
+    page: PageRequest = Depends(page_request),
     patient: dict = Depends(get_own_patient),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_my_guardians(cursor, patient_id=patient["patient_id"])
+            return list_my_guardians(
+                cursor,
+                patient_id=patient["patient_id"],
+                request=page,
+            )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar responsáveis", error)
 

@@ -842,7 +842,7 @@ def invite(admin: TestClient, group_id: int, user_id: int):
 def medical_patient_ids(doctor: TestClient) -> set[int]:
     response = doctor.get("/medical/patients")
     assert response.status_code == 200, response.text
-    return {patient["patient_id"] for patient in response.json()}
+    return {patient["patient_id"] for patient in response.json()["items"]}
 
 
 def test_pending_care_invitation_grants_no_medical_access(make_client, engine):
@@ -873,11 +873,11 @@ def test_pending_care_invitation_grants_no_medical_access(make_client, engine):
     assert patient_id not in medical_patient_ids(doctor)
     assert doctor.get(f"/medical/patients/{patient_id}").status_code == 403
     assert inbox.status_code == 200
-    assert inbox.json() == [
+    assert inbox.json()["items"] == [
         {
             "invitation_id": created.json()["invitation_id"],
-            "care_group_name": inbox.json()[0]["care_group_name"],
-            "expires_at": inbox.json()[0]["expires_at"],
+            "care_group_name": inbox.json()["items"][0]["care_group_name"],
+            "expires_at": inbox.json()["items"][0]["expires_at"],
             "doctors": [
                 {
                     "display_name": "Dr. Marcos Nunes",
@@ -914,15 +914,15 @@ def test_only_invited_adult_patient_accepts_and_activates_care(make_client, engi
     assert by_intruder.status_code == 404
     assert by_minor.status_code == 403
     assert minor_inbox.status_code == 200
-    assert len(minor_inbox.json()) == 1
+    assert len(minor_inbox.json()["items"]) == 1
     assert accepted.status_code == 204
     assert accepted_again.status_code == 404
     assert reinvite.status_code == 409
     assert patient_id in medical_patient_ids(doctor)
     assert doctor.get(f"/medical/patients/{patient_id}").status_code == 200
-    assert groups.json()[0]["care_group_id"] == group_id
-    assert groups.json()[0]["doctors"][0]["display_name"] == "Dr. Marcos Nunes"
-    assert patient.get("/me/care-invitations").json() == []
+    assert groups.json()["items"][0]["care_group_id"] == group_id
+    assert groups.json()["items"][0]["doctors"][0]["display_name"] == "Dr. Marcos Nunes"
+    assert patient.get("/me/care-invitations").json()["items"] == []
 
 
 def test_rejected_cancelled_or_expired_invitations_never_grant_access(
@@ -1004,7 +1004,7 @@ def test_patient_or_managing_admin_revokes_care_immediately(make_client, engine)
     assert foreign_revoke.status_code == 404
     assert revoked_by_admin.status_code == 204
     assert access_after_admin.status_code == 403
-    assert patient.get("/me/care-groups").json() == []
+    assert patient.get("/me/care-groups").json()["items"] == []
     admin_user_id = user_id_of(engine, "admin@email.com")
     events = fetch_one(
         engine,

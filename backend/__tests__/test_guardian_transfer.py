@@ -58,7 +58,7 @@ def test_guardian_transfers_account_and_adult_dependent_unlinks(make_client, eng
             "password": "senha-dependente-segura",
         },
     )
-    guardians = dependent.get("/me/guardians").json()
+    guardians = dependent.get("/me/guardians").json()["items"]
     guardian_still_acts = guardian.get("/me/vaccines", headers=acting(child_id))
     unlinked = dependent.delete(f"/me/guardians/{guardians[0]['guardianship_id']}")
     guardian_after = guardian.get("/me/vaccines", headers=acting(child_id))
@@ -109,15 +109,15 @@ def test_minor_with_own_account_confirms_existing_guardian(make_client, engine):
         "/medical/patient-links",
         json={"cpf": minor_cpf, "guardian": guardian_payload(cpf_of(engine, guardian_user))},
     )
-    guardianship_id = guardian.get("/me/guardianships").json()[0]["guardianship_id"]
+    guardianship_id = guardian.get("/me/guardianships").json()["items"][0]["guardianship_id"]
     accepted = guardian.post(
         f"/me/guardianships/{guardianship_id}/accept",
         json={"dependent_birth_date": "2014-01-01"},
     )
     header_before_confirmation = guardian.get("/me/vaccines", headers=acting(minor_id))
-    awaiting = minor.get("/me/guardians").json()
+    awaiting = minor.get("/me/guardians").json()["items"]
     confirmed = minor.post(f"/me/guardianships/{guardianship_id}/confirm")
-    requests = guardian.get("/me/care-requests", headers=acting(minor_id)).json()
+    requests = guardian.get("/me/care-requests", headers=acting(minor_id)).json()["items"]
     decided = guardian.post(
         f"/me/care-requests/{requested.json()['link_id']}/accept",
         headers=acting(minor_id),
@@ -167,7 +167,7 @@ def test_minor_with_own_account_and_new_guardian_claim(make_client, engine):
         "ON p.patient_id = g.dependent_patient_id WHERE p.user_id = %s",
         (minor_user,),
     )["status"]
-    guardianship_id = minor.get("/me/guardians").json()[0]["guardianship_id"]
+    guardianship_id = minor.get("/me/guardians").json()["items"][0]["guardianship_id"]
     confirmed = minor.post(f"/me/guardianships/{guardianship_id}/confirm")
 
     assert requested.status_code == 202, requested.text
