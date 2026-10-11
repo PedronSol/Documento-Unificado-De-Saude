@@ -11,6 +11,7 @@ import { UserAvatar } from "@/components/identity/user-avatar";
 import { formatDate, HEALTH_STATUS } from "@/components/medical/medical-format";
 import { ProvisionalActions } from "@/components/medical/provisional-actions";
 import { useApiResource } from "@/hooks/use-api-resource";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { parsePatientId } from "@/lib/areas";
 
 
@@ -19,7 +20,7 @@ const DOCUMENTS_ERROR = "Não foi possível carregar os documentos deste pacient
 
 
 function MedicalRecord({
-  documentsResource,
+  documents,
   onPatientUpdated,
   onUnauthenticated,
   record,
@@ -104,38 +105,14 @@ function MedicalRecord({
         )}
       </section>
 
-      {documentsResource.status === "loading" ? (
-        <section className="clinical-section" aria-labelledby="medical-documents-title">
-          <header><h2 id="medical-documents-title">Documentos digitais</h2></header>
-          <div
-            className="medical-list-state"
-            role="status"
-            aria-label="Carregando documentos"
-          >
-            Carregando documentos autorizados…
-          </div>
-        </section>
-      ) : documentsResource.status === "error" ? (
-        <section className="clinical-section" aria-label="Documentos digitais">
-          <header><h2>Documentos digitais</h2></header>
-          <div
-            className="form-error marker-resource-error"
-            role="alert"
-            aria-label="Não foi possível carregar os documentos deste paciente."
-          >
-            <p>Não foi possível carregar os documentos deste paciente.</p>
-            <button type="button" onClick={documentsResource.reload}>Tentar novamente</button>
-          </div>
-        </section>
-      ) : (
-        <DigitalDocuments
-          basePath={`/medical/patients/${patient.patient_id}/documents`}
-          documents={documentsResource.data}
-          viewer="doctor"
-          onDocumentsChange={documentsResource.updateData}
-          onUnauthenticated={onUnauthenticated}
-        />
-      )}
+      <DigitalDocuments
+        basePath={`/medical/patients/${patient.patient_id}/documents`}
+        list={documents}
+        viewer="doctor"
+        retryLabel="Tentar novamente"
+        loadingText="Carregando documentos autorizados…"
+        onUnauthenticated={onUnauthenticated}
+      />
 
       <HealthMarkers
         key={patient.patient_id}
@@ -180,8 +157,9 @@ export function MedicalRecordView({ patientId: rawPatientId, onUnauthenticated }
     initialData: null,
     onUnauthenticated,
   });
-  const documentsResource = useApiResource(basePath && `${basePath}/documents`, {
+  const documents = usePaginatedList(basePath && `${basePath}/documents`, {
     fallback: DOCUMENTS_ERROR,
+    initialFilters: { type: "" },
     onUnauthenticated,
   });
 
@@ -211,7 +189,7 @@ export function MedicalRecordView({ patientId: rawPatientId, onUnauthenticated }
   return (
     <main className="doctor-main">
       <MedicalRecord
-        documentsResource={documentsResource}
+        documents={documents}
         record={recordResource.data}
         onPatientUpdated={(updatedPatient) => recordResource.updateData((current) => ({
           ...current,

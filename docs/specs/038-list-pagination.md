@@ -147,6 +147,13 @@ todas as outras.
     (`10`, `20`, `50`, `100`; padrão `20`). O contador mostra `{total}
     resultados`. Estado vazio distingue "nenhum item cadastrado" de "nenhum
     resultado para a busca", com ação para limpar filtros.
+17a. Para não poluir listas curtas (por exemplo as quatro sublistas de equipes
+    de cuidado), a barra de busca, filtros e tamanho aparece quando o total da
+    lista sem filtros passa de 10 itens ou quando há busca ou filtro ativo. O
+    rodapé de rolagem aparece sempre que houver itens.
+17b. Listas do admin cujo endpoint não aceita busca exibem apenas o seletor de
+    tamanho e o contador; o diretório mantém sua busca atual (mínimo de 3
+    caracteres) e ganha rolagem infinita.
 18. Busca, filtros e tamanho valem enquanto a tela estiver aberta e não são
     persistidos no navegador nem na URL.
 19. Criar, editar ou remover item recarrega a lista a partir da página 1,

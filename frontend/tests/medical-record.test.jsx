@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MedicalRecordView } from "@/components/medical/medical-record";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -87,6 +88,7 @@ function renderRecord(patientId = "10", onUnauthenticated = vi.fn()) {
 describe("MedicalRecordView", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("abre o prontuário pelo ID da rota com documentos e marcadores", async () => {
@@ -222,7 +224,7 @@ describe("MedicalRecordView", () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
-    expect(screen.getByRole("status", { name: "Carregando documentos" })).toBeInTheDocument();
+    expect(screen.getByText("Carregando documentos autorizados…")).toBeInTheDocument();
     await act(async () => retry.resolve(respondWith(medicalDocuments)));
     expect(await screen.findByText("Hemograma recente")).toBeInTheDocument();
   });

@@ -11,6 +11,7 @@ import {
   DocumentUploadDialog,
 } from "@/components/documents/document-upload-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PaginatedList } from "@/components/ui/paginated-list";
 import { apiFetch, readApiError } from "@/lib/api";
 
 
@@ -72,11 +73,12 @@ function removalCopy(documentItem, viewer) {
 
 export function DigitalDocuments({
   basePath = "/me/documents",
-  documents,
+  list,
   isAdult = false,
-  onDocumentsChange = () => {},
   onUnauthenticated = () => {},
   viewer = "patient",
+  retryLabel = "Recarregar documentos",
+  loadingText = "Carregando documentos…",
 }) {
   const canUpload = viewer === "doctor" || isAdult;
   const canRemove = (documentItem) => (
@@ -141,9 +143,7 @@ export function DigitalDocuments({
         setDeleteError((await readApiError(response, DELETE_ERROR)).message);
         return;
       }
-      onDocumentsChange((current) =>
-        current.filter((item) => item.document_id !== documentToDelete.document_id),
-      );
+      list.resource.reload();
       setDocumentToDelete(null);
     } catch {
       setDeleteError(DELETE_ERROR);
@@ -167,53 +167,69 @@ export function DigitalDocuments({
         ) : null}
       </header>
 
-      {documents.length === 0 ? (
-        <div className="document-empty">
-          <FileText aria-hidden="true" size={22} />
-          <div>
-            <strong>Nenhum documento disponível.</strong>
-            <p>{canUpload ? "Envie um arquivo ou digitalize sua primeira página." : "Os documentos aparecerão aqui."}</p>
+      <PaginatedList
+        list={list}
+        searchLabel="Buscar documentos"
+        filters={[{
+          id: `${viewer}-document-type-filter`,
+          label: "Tipo",
+          value: list.filters.type,
+          onChange: (value) => list.setFilter("type", value),
+          options: DOCUMENT_TYPES,
+        }]}
+        itemLabel="documentos"
+        loadingText={loadingText}
+        emptyText="Nenhum documento disponível."
+        retryLabel={retryLabel}
+        renderEmpty={() => (
+          <div className="document-empty">
+            <FileText aria-hidden="true" size={22} />
+            <div>
+              <strong>Nenhum documento disponível.</strong>
+              <p>{canUpload ? "Envie um arquivo ou digitalize sua primeira página." : "Os documentos aparecerão aqui."}</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <ul className="document-list">
-          {documents.map((documentItem) => (
-            <li key={documentItem.document_id}>
-              <div className="document-icon"><FileText aria-hidden="true" size={20} /></div>
-              <div className="document-copy">
-                <strong>{documentItem.title}</strong>
-                <span>{TYPE_LABELS[documentItem.type] || "Documento"} · {formatSize(documentItem.size_bytes)}</span>
-                <small>{documentItem.original_filename} · {formatDate(documentItem.created_at)}</small>
-                {documentItem.uploaded_by_doctor ? (
-                  <small className="document-uploader">
-                    Enviado por {doctorLabel(documentItem.uploaded_by_doctor)}
-                  </small>
-                ) : null}
-              </div>
-              <span className="document-status">{STATUS_LABELS[documentItem.status] || documentItem.status}</span>
-              <div className="document-actions">
-                <button
-                  type="button"
-                  aria-label={`Baixar ${documentItem.title}`}
-                  disabled={downloadingId === documentItem.document_id}
-                  onClick={() => downloadDocument(documentItem)}
-                >
-                  <Download aria-hidden="true" size={17} />
-                </button>
-                {canRemove(documentItem) ? (
+        )}
+        renderItems={(items) => (
+          <ul className="document-list">
+            {items.map((documentItem) => (
+              <li key={documentItem.document_id}>
+                <div className="document-icon"><FileText aria-hidden="true" size={20} /></div>
+                <div className="document-copy">
+                  <strong>{documentItem.title}</strong>
+                  <span>{TYPE_LABELS[documentItem.type] || "Documento"} · {formatSize(documentItem.size_bytes)}</span>
+                  <small>{documentItem.original_filename} · {formatDate(documentItem.created_at)}</small>
+                  {documentItem.uploaded_by_doctor ? (
+                    <small className="document-uploader">
+                      Enviado por {doctorLabel(documentItem.uploaded_by_doctor)}
+                    </small>
+                  ) : null}
+                </div>
+                <span className="document-status">{STATUS_LABELS[documentItem.status] || documentItem.status}</span>
+                <div className="document-actions">
                   <button
                     type="button"
-                    aria-label={`Remover ${documentItem.title}`}
-                    onClick={() => setDocumentToDelete(documentItem)}
+                    aria-label={`Baixar ${documentItem.title}`}
+                    disabled={downloadingId === documentItem.document_id}
+                    onClick={() => downloadDocument(documentItem)}
                   >
-                    <Trash2 aria-hidden="true" size={17} />
+                    <Download aria-hidden="true" size={17} />
                   </button>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                  {canRemove(documentItem) ? (
+                    <button
+                      type="button"
+                      aria-label={`Remover ${documentItem.title}`}
+                      onClick={() => setDocumentToDelete(documentItem)}
+                    >
+                      <Trash2 aria-hidden="true" size={17} />
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      />
 
       {operationError ? (
         <p className="form-error document-operation-error" role="alert">
@@ -224,7 +240,7 @@ export function DigitalDocuments({
       <DocumentUploadDialog
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        onUploaded={(created) => onDocumentsChange((current) => [created, ...current])}
+        onUploaded={() => list.resource.reload()}
         onUnauthenticated={onUnauthenticated}
         returnFocusRef={triggerRef}
         uploadPath={basePath}

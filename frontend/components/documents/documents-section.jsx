@@ -1,40 +1,22 @@
 "use client";
 
 import { DigitalDocuments } from "@/components/documents/digital-documents";
-import { ResourceError, ResourceNotice } from "@/components/ui/resource-state";
-import { useApiResource } from "@/hooks/use-api-resource";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
 
 
 export function DocumentsSection({ isAdult, onUnauthenticated }) {
-  const documentsResource = useApiResource("/me/documents", {
+  const list = usePaginatedList("/me/documents", {
     fallback: "Não foi possível carregar seus documentos.",
+    initialFilters: { type: "" },
     onUnauthenticated,
   });
-  const documents = documentsResource.data;
 
   return (
-    <>
-    {documentsResource.status === "loading" ? (
-      <ResourceNotice
-        title="Documentos digitais"
-        message="Carregando documentos…"
-        loading
-      />
-    ) : documentsResource.status === "error" ? (
-      <ResourceError
-        message={documentsResource.error}
-        retryLabel="Recarregar documentos"
-        onRetry={documentsResource.reload}
-      />
-    ) : (
-      <DigitalDocuments
-        documents={documents}
-        isAdult={isAdult}
-        onDocumentsChange={documentsResource.updateData}
-        onUnauthenticated={onUnauthenticated}
-      />
-    )}
-    </>
+    <DigitalDocuments
+      list={list}
+      isAdult={isAdult}
+      onUnauthenticated={onUnauthenticated}
+    />
   );
 }
 

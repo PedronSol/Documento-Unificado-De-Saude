@@ -12,6 +12,7 @@ import { AuthenticatedShell } from "@/components/shell/authenticated-shell";
 import { HomeRedirect } from "@/components/shell/home-redirect";
 import { apiFetch } from "@/lib/api";
 import { useSessionStore } from "@/stores/session-store";
+import { asResponse, installPagedApiMock, pageOf, stripPaging } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -83,7 +84,8 @@ function respondWith(body, status = 200) {
 }
 
 function mockPatientResources(overrides = {}) {
-  apiFetch.mockImplementation((path) => {
+  apiFetch.mockImplementation((requestPath) => {
+    const path = stripPaging(requestPath);
     const responses = {
       "/me": patientEnvelope,
       "/me/vaccines": patientVaccines,
@@ -94,7 +96,7 @@ function mockPatientResources(overrides = {}) {
       "/me/shares/active": null,
       ...overrides,
     };
-    return respondWith(responses[path]);
+    return asResponse(requestPath, responses[path]);
   });
 }
 
@@ -134,16 +136,17 @@ describe("área do paciente", () => {
       await screen.findByText("BCG reservada", {}, { timeout: 3000 }),
     ).toBeInTheDocument();
     expect(apiFetch).toHaveBeenCalledWith("/me");
-    expect(apiFetch).toHaveBeenCalledWith("/me/vaccines");
+    expect(apiFetch).toHaveBeenCalledWith("/me/vaccines?page=1&page_size=20");
     expect(apiFetch).toHaveBeenCalledWith("/me/alerts");
-    expect(apiFetch).toHaveBeenCalledWith("/me/documents");
+    expect(apiFetch).toHaveBeenCalledWith("/me/documents?page=1&page_size=20");
     expect(apiFetch).toHaveBeenCalledWith("/me/markers?status=active");
     expect(apiFetch).toHaveBeenCalledWith("/me/shares/active");
     expect(await screen.findByText("Losartana")).toBeInTheDocument();
   });
 
   it("mantém os outros recursos quando documentos falham", async () => {
-    apiFetch.mockImplementation((path) => {
+    apiFetch.mockImplementation((requestPath) => {
+      const path = stripPaging(requestPath);
       if (path === "/me/documents") {
         return respondWith({ detail: "Banco de dados indisponível." }, 503);
       }
@@ -152,7 +155,7 @@ describe("área do paciente", () => {
         "/me/vaccines": patientVaccines,
         "/me/alerts": [],
       };
-      return respondWith(responses[path]);
+      return asResponse(requestPath, responses[path]);
     });
 
     renderArea(<PatientArea />);
@@ -350,7 +353,7 @@ describe("área do paciente", () => {
     mockPatientResources();
     const originalImplementation = apiFetch.getMockImplementation();
     apiFetch.mockImplementation((path, options) => (
-      path === "/me/vaccines"
+      stripPaging(path) === "/me/vaccines"
         ? Promise.reject(new TypeError("Failed to fetch"))
         : originalImplementation(path, options)
     ));
@@ -466,6 +469,38 @@ describe("área do paciente", () => {
     expect(screen.getByRole("heading", { name: "Helena" })).toBeInTheDocument();
   });
 
+  it("pagina, busca e filtra vacinas no servidor", async () => {
+    const many = Array.from({ length: 20 }, (_, index) => ({
+      vaccine_id: index + 1,
+      name: `Vacina ${index + 1}`,
+      dose: "Dose única",
+      administered_on: "2025-01-15",
+      status: "applied",
+    }));
+    mockPatientResources();
+    const originalImplementation = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((requestPath, options) => {
+      if (stripPaging(requestPath).startsWith("/me/vaccines")) {
+        const query = new URLSearchParams(requestPath.split("?")[1]);
+        if (query.get("query") === "hepa") {
+          return respondWith(pageOf([{ ...many[0], name: "Hepatite B" }], { total: 1 }));
+        }
+        return respondWith(pageOf(many, { total: 45, hasNext: true }));
+      }
+      return originalImplementation(requestPath, options);
+    });
+    const user = userEvent.setup();
+    renderArea(<PatientArea />);
+
+    expect(await screen.findByText("Vacina 1")).toBeInTheDocument();
+    expect(requestedPaths()).toContain("/me/vaccines?page=1&page_size=20");
+    expect(screen.getByText("20 de 45 vacinas carregadas")).toBeInTheDocument();
+
+    await user.type(screen.getByRole("searchbox", { name: "Buscar vacinas" }), "hepa");
+    expect(await screen.findByText("Hepatite B", {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(requestedPaths()).toContain("/me/vaccines?page=1&page_size=20&query=hepa");
+  });
+
   it("carrega /me uma única vez para o shell e a área", async () => {
     mockPatientResources();
 
@@ -499,7 +534,7 @@ describe("área do paciente", () => {
     mockPatientResources();
     const originalImplementation = apiFetch.getMockImplementation();
     apiFetch.mockImplementation((path, options) => (
-      path === "/me/vaccines"
+      stripPaging(path) === "/me/vaccines"
         ? respondWith({ detail: "Autenticação necessária." }, 401)
         : originalImplementation(path, options)
     ));
@@ -672,6 +707,7 @@ describe("shell autenticado", () => {
 describe("redirecionamento por papel", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
     navigation.replace = vi.fn();
     useSessionStore.getState().reset();
   });
@@ -899,7 +935,7 @@ describe("dependentes", () => {
     expect(active).toHaveAttribute("aria-current", "page");
     expect(active).toHaveAttribute("data-tone", "minor");
 
-    await waitFor(() => expect(requestedPaths()).toContain("/me/vaccines"));
+    await waitFor(() => expect(requestedPaths()).toContain("/me/vaccines?page=1&page_size=20"));
     const clinical = actingByPath.filter(([path]) => path !== "/me");
     expect(clinical.length).toBeGreaterThan(0);
     expect(clinical.every(([, acting]) => acting === 9)).toBe(true);

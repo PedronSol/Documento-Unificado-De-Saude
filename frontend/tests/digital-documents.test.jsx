@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DigitalDocuments } from "@/components/documents/digital-documents";
 import { apiFetch } from "@/lib/api";
+import { staticList } from "./utils/paged-api";
 
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -33,9 +34,8 @@ describe("DigitalDocuments", () => {
   it("mantém o primeiro upload visível no estado vazio somente para adulto", async () => {
     const { rerender } = render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult
-        onDocumentsChange={vi.fn()}
       />,
     );
 
@@ -46,9 +46,8 @@ describe("DigitalDocuments", () => {
 
     rerender(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult={false}
-        onDocumentsChange={vi.fn()}
       />,
     );
     expect(
@@ -67,9 +66,8 @@ describe("DigitalDocuments", () => {
 
     render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult
-        onDocumentsChange={vi.fn()}
       />,
     );
 
@@ -122,9 +120,8 @@ describe("DigitalDocuments", () => {
 
     render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([], { reload: onDocumentsChange })}
         isAdult
-        onDocumentsChange={onDocumentsChange}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
@@ -164,9 +161,8 @@ describe("DigitalDocuments", () => {
 
     render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult
-        onDocumentsChange={vi.fn()}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
@@ -203,7 +199,7 @@ describe("DigitalDocuments", () => {
     });
 
     render(
-      <DigitalDocuments documents={[]} isAdult onDocumentsChange={vi.fn()} />,
+      <DigitalDocuments list={staticList([])} isAdult />,
     );
     await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
     await user.click(screen.getByRole("button", { name: "Digitalizar com a câmera" }));
@@ -224,7 +220,7 @@ describe("DigitalDocuments", () => {
     apiFetch.mockResolvedValue({ ok: false, status: 503 });
     render(
       <DigitalDocuments
-        documents={[{
+        list={staticList([{
           document_id: 42,
           title: "Hemograma",
           type: "exam",
@@ -233,7 +229,7 @@ describe("DigitalDocuments", () => {
           size_bytes: 1024,
           status: "uploaded",
           created_at: "2026-10-11T12:00:00",
-        }]}
+        }])}
         isAdult
       />,
     );
@@ -260,7 +256,7 @@ describe("DigitalDocuments", () => {
   it("não exibe mensagem técnica quando a rede falha no download", async () => {
     const user = userEvent.setup();
     apiFetch.mockRejectedValue(new TypeError("Failed to fetch"));
-    render(<DigitalDocuments documents={[hemograma]} isAdult />);
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
 
     await user.click(screen.getByRole("button", { name: "Baixar Hemograma" }));
 
@@ -279,9 +275,8 @@ describe("DigitalDocuments", () => {
     });
     render(
       <DigitalDocuments
-        documents={[hemograma]}
+        list={staticList([hemograma])}
         isAdult
-        onDocumentsChange={vi.fn()}
         onUnauthenticated={vi.fn()}
       />,
     );
@@ -302,7 +297,7 @@ describe("DigitalDocuments", () => {
   };
 
   it("identifica documentos enviados por médico", () => {
-    render(<DigitalDocuments documents={[doctorDocument, hemograma]} isAdult />);
+    render(<DigitalDocuments list={staticList([doctorDocument, hemograma])} isAdult />);
 
     expect(screen.getByText("Enviado por Dra. Ana Lima · CRM 123456/SP")).toBeInTheDocument();
     expect(screen.getAllByText(/Enviado por/)).toHaveLength(1);
@@ -314,9 +309,8 @@ describe("DigitalDocuments", () => {
     const onDocumentsChange = vi.fn();
     render(
       <DigitalDocuments
-        documents={[doctorDocument]}
+        list={staticList([doctorDocument], { reload: onDocumentsChange })}
         isAdult
-        onDocumentsChange={onDocumentsChange}
         onUnauthenticated={vi.fn()}
       />,
     );
@@ -342,7 +336,7 @@ describe("DigitalDocuments", () => {
 
   it("mantém a confirmação simples para documento enviado pelo paciente", async () => {
     const user = userEvent.setup();
-    render(<DigitalDocuments documents={[hemograma]} isAdult onDocumentsChange={vi.fn()} />);
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
 
     await user.click(screen.getByRole("button", { name: "Remover Hemograma" }));
     const dialog = await screen.findByRole("alertdialog", { name: "Remover documento" });
@@ -357,11 +351,10 @@ describe("DigitalDocuments", () => {
       <DigitalDocuments
         basePath="/medical/patients/10/documents"
         viewer="doctor"
-        documents={[
+        list={staticList([
           { ...doctorDocument, can_remove: true },
           { ...hemograma, can_remove: false },
-        ]}
-        onDocumentsChange={vi.fn()}
+        ])}
         onUnauthenticated={vi.fn()}
       />,
     );
@@ -395,8 +388,7 @@ describe("DigitalDocuments", () => {
       <DigitalDocuments
         basePath="/medical/patients/10/documents"
         viewer="doctor"
-        documents={[]}
-        onDocumentsChange={onDocumentsChange}
+        list={staticList([], { reload: onDocumentsChange })}
         onUnauthenticated={vi.fn()}
       />,
     );
@@ -412,5 +404,21 @@ describe("DigitalDocuments", () => {
     await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
     expect(apiFetch.mock.calls[0][0]).toBe("/medical/patients/10/documents");
     expect(onDocumentsChange).toHaveBeenCalled();
+  });
+
+  it("oferece busca e filtro de tipo em listas longas", async () => {
+    const user = userEvent.setup();
+    const setFilter = vi.fn();
+    render(
+      <DigitalDocuments
+        list={staticList([hemograma], { total: 25, setFilter, filters: { type: "" } })}
+        isAdult
+      />,
+    );
+
+    expect(screen.getByRole("searchbox", { name: "Buscar documentos" })).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Tipo"));
+    await user.click(screen.getByRole("option", { name: "Laudo" }));
+    expect(setFilter).toHaveBeenCalledWith("type", "report");
   });
 });

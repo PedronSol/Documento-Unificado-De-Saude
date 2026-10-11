@@ -6,10 +6,10 @@ import Pencil from "lucide-react/dist/esm/icons/pencil";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
-import { ResourceError } from "@/components/ui/resource-state";
+import { PaginatedList } from "@/components/ui/paginated-list";
 import { EMPTY_VACCINE_FORM, VaccineDialog } from "@/components/vaccines/vaccine-dialog";
 import { VaccineRemoveDialog } from "@/components/vaccines/vaccine-remove-dialog";
-import { useApiResource } from "@/hooks/use-api-resource";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { apiFetch, readApiError } from "@/lib/api";
 
 
@@ -19,14 +19,18 @@ const STATUS_LABEL = {
   overdue: "Atrasada",
 };
 
+const STATUS_FILTER_OPTIONS = Object.entries(STATUS_LABEL).map(([value, label]) => ({
+  value,
+  label,
+}));
 const SAVE_VACCINE_ERROR = "Não foi possível salvar a vacina.";
-const REFRESH_VACCINES_ERROR = "A vacina foi salva, mas a lista não pôde ser atualizada.";
 const DELETE_VACCINE_ERROR = "Não foi possível remover a vacina.";
 
 
 export function VaccinationHistory({ isAdult, onUnauthenticated }) {
-  const vaccinesResource = useApiResource("/me/vaccines", {
+  const list = usePaginatedList("/me/vaccines", {
     fallback: "Não foi possível carregar suas vacinas.",
+    initialFilters: { status: "" },
     onUnauthenticated,
   });
   const [editingId, setEditingId] = useState(null);
@@ -39,8 +43,6 @@ export function VaccinationHistory({ isAdult, onUnauthenticated }) {
   const [deleteError, setDeleteError] = useState("");
   const dialogTriggerRef = useRef(null);
   const deleteTriggerRef = useRef(null);
-
-  const vaccines = vaccinesResource.data;
 
   function openNewVaccine(event) {
     dialogTriggerRef.current = event.currentTarget;
@@ -94,12 +96,7 @@ export function VaccinationHistory({ isAdult, onUnauthenticated }) {
         return;
       }
 
-      const refreshed = await apiFetch("/me/vaccines");
-      if (!refreshed.ok) {
-        setActionError(REFRESH_VACCINES_ERROR);
-        return;
-      }
-      vaccinesResource.updateData(await refreshed.json());
+      list.resource.reload();
       setIsModalOpen(false);
     } catch {
       setActionError(SAVE_VACCINE_ERROR);
@@ -134,11 +131,7 @@ export function VaccinationHistory({ isAdult, onUnauthenticated }) {
         setDeleteError((await readApiError(response, DELETE_VACCINE_ERROR)).message);
         return;
       }
-      vaccinesResource.updateData((current) =>
-        current.filter(
-          (item) => item.vaccine_id !== vaccineToDelete.vaccine_id,
-        ),
-      );
+      list.resource.reload();
       setVaccineToDelete(null);
     } catch {
       setDeleteError(DELETE_VACCINE_ERROR);
@@ -173,59 +166,62 @@ export function VaccinationHistory({ isAdult, onUnauthenticated }) {
         </p>
       ) : null}
 
-      {vaccinesResource.status === "loading" ? (
-        <p role="status">Carregando vacinas…</p>
-      ) : null}
-      {vaccinesResource.status === "error" ? (
-        <ResourceError
-          message={vaccinesResource.error}
-          retryLabel="Recarregar vacinas"
-          onRetry={vaccinesResource.reload}
-        />
-      ) : null}
-      {vaccinesResource.status === "ready" && vaccines.length === 0 ? (
-        <p>Nenhuma vacina registrada.</p>
-      ) : null}
-
-      <div className="vaccine-grid">
-        {vaccines.map((vaccine) => (
-          <article className="vaccine-entry" key={vaccine.vaccine_id}>
-            <div className="vaccine-status" data-status={vaccine.status}>
-              <Check aria-hidden="true" size={14} />
-              {STATUS_LABEL[vaccine.status]}
-            </div>
-            <h3>{vaccine.name}</h3>
-            <p>{vaccine.dose}</p>
-            <small>
-              {vaccine.administered_on
-                ? `Aplicada em ${vaccine.administered_on}`
-                : "Sem data de aplicação"}
-            </small>
-            {isAdult ? (
-              <div className="vaccine-actions">
-                <button
-                  type="button"
-                  onClick={(event) =>
-                    openEditVaccine(vaccine, event.currentTarget)
-                  }
-                  aria-label={`Editar ${vaccine.name}`}
-                >
-                  <Pencil aria-hidden="true" size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={(event) =>
-                    openDeleteVaccine(vaccine, event.currentTarget)
-                  }
-                  aria-label={`Excluir ${vaccine.name}`}
-                >
-                  <Trash2 aria-hidden="true" size={15} />
-                </button>
-              </div>
-            ) : null}
-          </article>
-        ))}
-      </div>
+      <PaginatedList
+        list={list}
+        searchLabel="Buscar vacinas"
+        filters={[{
+          id: "vaccine-status-filter",
+          label: "Status",
+          value: list.filters.status,
+          onChange: (value) => list.setFilter("status", value),
+          options: STATUS_FILTER_OPTIONS,
+        }]}
+        itemLabel="vacinas"
+        loadingText="Carregando vacinas…"
+        emptyText="Nenhuma vacina registrada."
+        retryLabel="Recarregar vacinas"
+        renderItems={(items) => (
+          <div className="vaccine-grid">
+            {items.map((vaccine) => (
+              <article className="vaccine-entry" key={vaccine.vaccine_id}>
+                <div className="vaccine-status" data-status={vaccine.status}>
+                  <Check aria-hidden="true" size={14} />
+                  {STATUS_LABEL[vaccine.status]}
+                </div>
+                <h3>{vaccine.name}</h3>
+                <p>{vaccine.dose}</p>
+                <small>
+                  {vaccine.administered_on
+                    ? `Aplicada em ${vaccine.administered_on}`
+                    : "Sem data de aplicação"}
+                </small>
+                {isAdult ? (
+                  <div className="vaccine-actions">
+                    <button
+                      type="button"
+                      onClick={(event) =>
+                        openEditVaccine(vaccine, event.currentTarget)
+                      }
+                      aria-label={`Editar ${vaccine.name}`}
+                    >
+                      <Pencil aria-hidden="true" size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) =>
+                        openDeleteVaccine(vaccine, event.currentTarget)
+                      }
+                      aria-label={`Excluir ${vaccine.name}`}
+                    >
+                      <Trash2 aria-hidden="true" size={15} />
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        )}
+      />
     </section>
 
       <VaccineDialog
