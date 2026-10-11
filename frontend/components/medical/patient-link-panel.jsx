@@ -6,7 +6,7 @@ import UserPlus from "lucide-react/dist/esm/icons/user-plus";
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { ClinicalSelect } from "@/components/ui/clinical-select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, readApiError } from "@/lib/api";
 
 
 const MINOR_DETAIL = "Paciente menor exige responsável.";
@@ -38,11 +38,13 @@ function conflictMessage(detail) {
   return "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível.";
 }
 
+// Conflicts keep domain copy that never confirms whether a CPF exists.
 async function requestErrorMessage(response) {
-  if (response.status === 422) {
-    return "Revise os dados informados.";
-  }
-  return GENERIC_ERROR;
+  const { message } = await readApiError(response, GENERIC_ERROR, {
+    404: GENERIC_ERROR,
+    422: "Revise os dados informados.",
+  });
+  return message;
 }
 
 

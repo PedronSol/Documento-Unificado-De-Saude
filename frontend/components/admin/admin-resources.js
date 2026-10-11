@@ -2,14 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, readApiError } from "@/lib/api";
 
 
-const DEFAULT_ERRORS = {
-  404: "Recurso não encontrado ou fora da sua gestão.",
-  409: "A operação conflita com o estado atual. Atualize e tente novamente.",
-  422: "Revise os dados informados.",
-};
 const GENERIC_ERROR = "Não foi possível concluir a ação. Tente novamente.";
 
 
@@ -38,7 +33,7 @@ export async function adminRequest(path, { method, body, errors = {} } = {}) {
     }
     if (!response.ok) {
       return {
-        error: errors[response.status] || DEFAULT_ERRORS[response.status] || GENERIC_ERROR,
+        error: (await readApiError(response, GENERIC_ERROR, errors)).message,
       };
     }
     return {

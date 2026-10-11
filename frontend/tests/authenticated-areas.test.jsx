@@ -13,7 +13,8 @@ import { apiFetch } from "@/lib/api";
 import { useSessionStore } from "@/stores/session-store";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -342,6 +343,111 @@ describe("área do paciente", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Adicionar marcador" })).toBeInTheDocument();
+  });
+
+  it("não exibe mensagem técnica quando a rede falha ao carregar vacinas", async () => {
+    mockPatientResources();
+    const originalImplementation = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options) => (
+      path === "/me/vaccines"
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : originalImplementation(path, options)
+    ));
+
+    renderArea(<PatientArea />);
+
+    expect(
+      await screen.findByRole("alert", { name: "Não foi possível carregar suas vacinas." }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [403, { detail: "Role sem acesso." }, "Você não tem permissão para esta ação."],
+    [422, { detail: [{ loc: ["body", "dose"], msg: "Field required" }] },
+      "Revise os campos destacados e tente novamente."],
+    [503, { detail: "Traceback" }, "Não foi possível salvar a vacina."],
+  ])("padroniza o erro %i ao salvar vacina", async (status, body, message) => {
+    mockPatientResources();
+    const originalImplementation = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options) => (
+      path === "/me/vaccines" && options?.method === "POST"
+        ? respondWith(body, status)
+        : originalImplementation(path, options)
+    ));
+    const user = userEvent.setup();
+    renderArea(<PatientArea />);
+
+    await screen.findByText("BCG reservada");
+    await user.click(screen.getByRole("button", { name: "Adicionar vacina" }));
+    await user.type(screen.getByLabelText("Nome da vacina"), "Hepatite B");
+    await user.type(screen.getByLabelText("Dose"), "1ª dose");
+    await user.type(screen.getByLabelText("Data de aplicação"), "2026-10-01");
+    await user.click(screen.getByRole("button", { name: "Registrar vacina" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Registrar vacina" });
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+  });
+
+  it("encerra a sessão quando a remoção de vacina responde 401", async () => {
+    mockPatientResources();
+    const originalImplementation = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options) => (
+      options?.method === "DELETE"
+        ? respondWith({}, 401)
+        : originalImplementation(path, options)
+    ));
+    const onUnauthenticated = vi.fn();
+    const user = userEvent.setup();
+    renderArea(<PatientArea />, { onUnauthenticated });
+
+    await screen.findByText("BCG reservada");
+    await user.click(screen.getByRole("button", { name: "Excluir BCG reservada" }));
+    await user.click(screen.getByRole("button", { name: "Remover vacina" }));
+
+    await waitFor(() => expect(onUnauthenticated).toHaveBeenCalledOnce());
+  });
+
+  it.each([
+    [() => respondWith({ detail: "Role sem acesso." }, 403),
+      "Você não tem permissão para esta ação."],
+    [() => Promise.reject(new TypeError("Failed to fetch")),
+      "Não foi possível salvar o marcador."],
+  ])("padroniza falhas ao salvar marcador (%#)", async (failure, message) => {
+    mockPatientResources();
+    const originalImplementation = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options) => (
+      path === "/me/markers" && options?.method === "POST"
+        ? failure()
+        : originalImplementation(path, options)
+    ));
+    const user = userEvent.setup();
+    renderArea(<PatientArea />);
+
+    await screen.findByText("Losartana");
+    await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
+    await user.type(screen.getByLabelText("Nome do marcador"), "Dipirona");
+    await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Adicionar marcador" });
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  });
+
+  it("não exibe mensagem técnica quando a rede falha ao carregar marcadores", async () => {
+    mockPatientResources();
+    const originalImplementation = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options) => (
+      path === "/me/markers?status=active"
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : originalImplementation(path, options)
+    ));
+
+    renderArea(<PatientArea />);
+
+    expect(await screen.findByText("Não foi possível carregar seus marcadores."))
+      .toBeInTheDocument();
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
   });
 
   it("carrega /me uma única vez para o shell e a área", async () => {

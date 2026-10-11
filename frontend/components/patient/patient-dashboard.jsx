@@ -32,7 +32,8 @@ import { CareInvitations } from "@/components/patient/care-invitations";
 import { HealthMarkers } from "@/components/patient/health-markers";
 import { HealthSharing } from "@/components/patient/health-sharing";
 import { ClinicalSelect } from "@/components/ui/clinical-select";
-import { apiFetch } from "@/lib/api";
+import { useApiResource } from "@/hooks/use-api-resource";
+import { apiFetch, readApiError } from "@/lib/api";
 
 const EMPTY_FORM = {
   name: "",
@@ -47,57 +48,15 @@ const STATUS_LABEL = {
   overdue: "Atrasada",
 };
 
+const SAVE_VACCINE_ERROR = "Não foi possível salvar a vacina.";
+const REFRESH_VACCINES_ERROR = "A vacina foi salva, mas a lista não pôde ser atualizada.";
+const DELETE_VACCINE_ERROR = "Não foi possível remover a vacina.";
+
 const VACCINE_STATUS_OPTIONS = [
   { value: "applied", label: "Aplicada" },
   { value: "pending", label: "Pendente" },
   { value: "overdue", label: "Atrasada" },
 ];
-
-function usePatientResource(path, errorMessage, onUnauthenticated) {
-  const [requestVersion, setRequestVersion] = useState(0);
-  const [resource, setResource] = useState({ status: "loading", data: [] });
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadResource() {
-      setResource((current) => ({ ...current, status: "loading" }));
-      try {
-        const response = await apiFetch(path);
-        if (response.status === 401) {
-          onUnauthenticated();
-          return;
-        }
-        if (!response.ok) {
-          throw new Error(errorMessage);
-        }
-
-        const data = await response.json();
-        if (active) {
-          setResource({ status: "ready", data });
-        }
-      } catch (error) {
-        if (active) {
-          setResource({ status: "error", data: [], error: error.message });
-        }
-      }
-    }
-
-    loadResource();
-    return () => {
-      active = false;
-    };
-  }, [errorMessage, onUnauthenticated, path, requestVersion]);
-
-  return {
-    ...resource,
-    retry: () => setRequestVersion((value) => value + 1),
-    updateData: (update) => setResource((current) => ({
-      status: "ready",
-      data: typeof update === "function" ? update(current.data) : update,
-    })),
-  };
-}
 
 function ResourceError({ message, retryLabel, onRetry }) {
   return (
@@ -335,21 +294,18 @@ function VaccineRemoveDialog({
 }
 
 export default function PatientDashboard({ profile, onUnauthenticated, guardianshipPanel = null }) {
-  const vaccinesResource = usePatientResource(
-    "/me/vaccines",
-    "Não foi possível carregar suas vacinas.",
+  const vaccinesResource = useApiResource("/me/vaccines", {
+    fallback: "Não foi possível carregar suas vacinas.",
     onUnauthenticated,
-  );
-  const alertsResource = usePatientResource(
-    "/me/alerts",
-    "Não foi possível carregar seus alertas.",
+  });
+  const alertsResource = useApiResource("/me/alerts", {
+    fallback: "Não foi possível carregar seus alertas.",
     onUnauthenticated,
-  );
-  const documentsResource = usePatientResource(
-    "/me/documents",
-    "Não foi possível carregar seus documentos.",
+  });
+  const documentsResource = useApiResource("/me/documents", {
+    fallback: "Não foi possível carregar seus documentos.",
     onUnauthenticated,
-  );
+  });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -408,19 +364,24 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
           administered_on: form.administered_on || null,
         }),
       });
+      if (response.status === 401) {
+        onUnauthenticated();
+        return;
+      }
       if (!response.ok) {
-        throw new Error("Não foi possível salvar a vacina.");
+        setActionError((await readApiError(response, SAVE_VACCINE_ERROR)).message);
+        return;
       }
 
       const refreshed = await apiFetch("/me/vaccines");
       if (!refreshed.ok) {
-        throw new Error("A vacina foi salva, mas a lista não pôde ser atualizada.");
+        setActionError(REFRESH_VACCINES_ERROR);
+        return;
       }
-      const refreshedVaccines = await refreshed.json();
-      vaccinesResource.updateData(refreshedVaccines);
+      vaccinesResource.updateData(await refreshed.json());
       setIsModalOpen(false);
-    } catch (error) {
-      setActionError(error.message);
+    } catch {
+      setActionError(SAVE_VACCINE_ERROR);
     } finally {
       setIsSaving(false);
     }
@@ -444,8 +405,13 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
         `/me/vaccines/${vaccineToDelete.vaccine_id}`,
         { method: "DELETE" },
       );
+      if (response.status === 401) {
+        onUnauthenticated();
+        return;
+      }
       if (!response.ok) {
-        throw new Error("Não foi possível remover a vacina.");
+        setDeleteError((await readApiError(response, DELETE_VACCINE_ERROR)).message);
+        return;
       }
       vaccinesResource.updateData((current) =>
         current.filter(
@@ -453,8 +419,8 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
         ),
       );
       setVaccineToDelete(null);
-    } catch (error) {
-      setDeleteError(error.message);
+    } catch {
+      setDeleteError(DELETE_VACCINE_ERROR);
     } finally {
       setIsDeleting(false);
     }
@@ -500,7 +466,7 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
           <ResourceError
             message={alertsResource.error}
             retryLabel="Recarregar alertas"
-            onRetry={alertsResource.retry}
+            onRetry={alertsResource.reload}
           />
         ) : alerts.length > 0 ? (
           <MedicalAlerts alerts={alerts} />
@@ -524,7 +490,7 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
           <ResourceError
             message={documentsResource.error}
             retryLabel="Recarregar documentos"
-            onRetry={documentsResource.retry}
+            onRetry={documentsResource.reload}
           />
         ) : (
           <DigitalDocuments
@@ -566,7 +532,7 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
             <ResourceError
               message={vaccinesResource.error}
               retryLabel="Recarregar vacinas"
-              onRetry={vaccinesResource.retry}
+              onRetry={vaccinesResource.reload}
             />
           ) : null}
           {vaccinesResource.status === "ready" && vaccines.length === 0 ? (

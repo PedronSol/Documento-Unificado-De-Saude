@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,7 +6,8 @@ import { DigitalDocuments } from "@/components/health-passport/digital-documents
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -243,5 +244,53 @@ describe("DigitalDocuments", () => {
       "Não foi possível baixar o documento.",
     );
     expect(screen.getByText("Hemograma")).toBeInTheDocument();
+  });
+
+  const hemograma = {
+    document_id: 42,
+    title: "Hemograma",
+    type: "exam",
+    original_filename: "hemograma.pdf",
+    media_type: "application/pdf",
+    size_bytes: 1024,
+    status: "uploaded",
+    created_at: "2026-10-11T12:00:00",
+  };
+
+  it("não exibe mensagem técnica quando a rede falha no download", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<DigitalDocuments documents={[hemograma]} isAdult />);
+
+    await user.click(screen.getByRole("button", { name: "Baixar Hemograma" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível baixar o documento.",
+    );
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  });
+
+  it("padroniza permissão negada na remoção", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ detail: "Role." }),
+    });
+    render(
+      <DigitalDocuments
+        documents={[hemograma]}
+        isAdult
+        onDocumentsChange={vi.fn()}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remover Hemograma" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Remover documento" }));
+
+    expect(await within(dialog).findByText("Você não tem permissão para esta ação."))
+      .toBeInTheDocument();
   });
 });

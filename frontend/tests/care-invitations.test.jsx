@@ -6,7 +6,8 @@ import { CareInvitations } from "@/components/patient/care-invitations";
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -237,6 +238,27 @@ describe("CareInvitations", () => {
         method: "POST",
       }),
     );
+  });
+
+  it.each([
+    [403, "Você não tem permissão para esta ação."],
+    [409, "Convite expirado."],
+  ])("padroniza a falha %i ao aceitar convite", async (status, message) => {
+    mockCare();
+    const original = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options = {}) => (
+      options.method
+        ? respondWith({ detail: status === 409 ? "Convite expirado." : "Role." }, status)
+        : original(path, options)
+    ));
+    const user = userEvent.setup();
+    render(<CareInvitations isAdult onUnauthenticated={vi.fn()} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Aceitar convite de Cardiologia Centro" }),
+    );
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
   });
 
   it("encaminha sessão expirada", async () => {

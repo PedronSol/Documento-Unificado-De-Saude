@@ -6,7 +6,8 @@ import { GuardianshipPanel } from "@/components/patient/guardianship-panel";
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -124,6 +125,37 @@ describe("GuardianshipPanel", () => {
     await waitFor(() =>
       expect(apiFetch).toHaveBeenCalledWith("/me/guardianships/4", { method: "DELETE" }),
     );
+  });
+
+  it("padroniza permissão negada ao recusar guarda", async () => {
+    mockGuardianships();
+    const original = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options = {}) => (
+      path === "/me/guardianships/3/reject"
+        ? respondWith({ detail: "Role." }, 403)
+        : original(path, options)
+    ));
+    const user = userEvent.setup();
+    render(
+      <GuardianshipPanel dependents={[]} onChanged={vi.fn()} onUnauthenticated={vi.fn()} />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Recusar guarda de Lia" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Você não tem permissão para esta ação.",
+    );
+  });
+
+  it("encerra a sessão quando a lista de pedidos responde 401", async () => {
+    apiFetch.mockReturnValue(respondWith({}, 401));
+    const onUnauthenticated = vi.fn();
+
+    render(
+      <GuardianshipPanel dependents={[]} onChanged={vi.fn()} onUnauthenticated={onUnauthenticated} />,
+    );
+
+    await waitFor(() => expect(onUnauthenticated).toHaveBeenCalledOnce());
   });
 
   it("gera acesso próprio para dependente adulto sem conta", async () => {

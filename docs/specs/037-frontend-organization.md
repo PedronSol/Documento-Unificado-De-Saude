@@ -359,12 +359,22 @@ rota. Este step reorganiza somente o frontend; ele não muda contratos de API.
 
     Corpo vazio ou não-JSON nunca quebra a interface e cai no `fallback`.
     Mensagens nunca exibem stack, SQL, URL interna nem JSON bruto.
+    Um terceiro parâmetro opcional, `overrides` (`{ status: mensagem }`),
+    permite a uma feature dar significado de domínio a um status específico
+    (por exemplo, `403` de data de nascimento divergente na guarda, `413` de
+    arquivo grande, ou conflitos do vínculo médico que não podem confirmar a
+    existência de um CPF). `overrides` nunca se aplica a `401`. Falhas de rede
+    usam sempre o `fallback`.
 37. `useApiResource(path, { fallback })` encapsula o ciclo
     `loading → ready | error` com `reload()`, cancelamento ao desmontar e fluxo
     de sessão expirada em `401`. Ele é adotado nos recursos de leitura que hoje
     repetem esse ciclo (vacinas, alertas, documentos, marcadores,
     compartilhamentos, convites, guardas, lista e prontuário médicos). Mutações
     continuam explícitas em cada feature e usam `readApiError` para a mensagem.
+    Exceções registradas: marcadores mantêm estado local porque o prontuário
+    médico entrega a timeline já carregada, e convites de cuidado carregam
+    quatro listas em paralelo com um único estado; ambos usam `readApiError` e
+    mensagens constantes em falhas de rede.
 38. O fluxo de sessão expirada chama `reset()` do store e navega para `/` com
     `replace`, como hoje.
 39. Falha de um recurso continua isolada: não apaga nem bloqueia os demais
@@ -641,6 +651,11 @@ o módulo não existe.
 | 5 | `expireSession is not a function` | ação `expireSession` | features deixam de receber redirect por props do shell | 13.1 |
 | 6 | `tests/authenticated-areas.test.jsx`: `Failed to resolve import "@/components/shell/home-redirect"` | shell, guard com redirect, `ActingPatientScope`, `/home` resolvedor, áreas, lista e área de dependente | `Redirect` único reutilizado por guard, `/home` e dependentes; `AuthenticatedHome` removido | 13.1 |
 | 7 | `tests/design-system.test.js`: tokens `minor` ausentes, seletor ainda com `button` e sem estilos de dependentes (3 falhas) | tokens claro/escuro com contraste AA, seletor por links e bloco CSS de dependentes | guia e `AGENTS.md` documentam o tom de menor | 13.1 |
+| 8 | `tests/api-errors.test.js`: `readApiError is not a function` (12 falhas) | tabela única de mensagens | constantes de mensagem compartilhadas | 13.2 |
+| 9 | `tests/use-api-resource.test.jsx`: `Failed to resolve import "@/hooks/use-api-resource"` | hook com `reload`, `updateData`, modo ocioso e cancelamento | substitui o `usePatientResource` local do dashboard | 13.2 |
+| 10 | dashboard do paciente: falha de rede exibia texto técnico; `403`/`422` ao salvar vacina genéricos; `401` na remoção ignorado (4 falhas) | hook nos três recursos e `readApiError` nas mutações de vacina | mocks de `@/lib/api` preservam os helpers reais | 13.2 |
+| 11 | marcadores e compartilhamento exibiam `Failed to fetch`/erro de JSON e `403` genérico (6 falhas) | `readApiError` e mensagens constantes; compartilhamento usa o hook | `readError` local removido | 13.2 |
+| 12 | `overrides` ignorado; convites, guarda, documentos, `adminRequest` e vínculo médico sem `403` padronizado ou com `detail` ignorado (9 falhas) | `readApiError` com `overrides` de domínio | listas de guarda usam o hook; `DEFAULT_ERRORS` do admin removido | 13.2 |
 
 ## Verificações executadas
 
@@ -649,8 +664,10 @@ o módulo não existe.
   1440 px) e `npm run build` com as rotas `/patient`, `/patient/dependents`,
   `/patient/dependents/[patientId]`, `/medical` e `/admin`. Conferência visual
   da lista e da área do menor em 320 px e 1280 px.
-- Observação para 13.2: com corpo vazio, `HealthSharing` exibe a mensagem
-  crua do `response.json()`; `readApiError` deve eliminar esse vazamento.
+- Observação para 13.2: com corpo vazio, `HealthSharing` exibia a mensagem
+  crua do `response.json()`; corrigido e coberto por teste na 13.2.
+- 13.2: `npm test` (221 passed), `npx playwright test` (41 passed) e
+  `npm run build`.
 
 ## Plano de execução
 

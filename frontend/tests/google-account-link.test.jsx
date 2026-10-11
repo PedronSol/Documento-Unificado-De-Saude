@@ -6,7 +6,10 @@ import { GoogleAccountLink } from "@/components/auth/google-account-link";
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({ apiFetch: vi.fn() }));
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
+  apiFetch: vi.fn(),
+}));
 
 vi.mock("@/components/auth/google-sign-in-button", () => ({
   GoogleSignInButton: ({ onCredential }) => (

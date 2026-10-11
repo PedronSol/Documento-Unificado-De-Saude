@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { apiFetch } from "@/lib/api";
+import { useApiResource } from "@/hooks/use-api-resource";
+import { apiFetch, readApiError } from "@/lib/api";
 import { DEPENDENTS_PATH, dependentPath } from "@/lib/areas";
 
 
@@ -15,33 +16,21 @@ const RELATIONSHIP_LABEL = {
   legal_guardian: "Responsável legal",
 };
 const GENERIC_ERROR = "Não foi possível concluir a ação. Tente novamente.";
+const TRANSFER_ERROR = "Não foi possível gerar o acesso. Tente novamente.";
 
 
 export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) {
-  const [pending, setPending] = useState([]);
   const [birthDates, setBirthDates] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [renouncing, setRenouncing] = useState(null);
   const [transfers, setTransfers] = useState({});
 
-  const loadPending = useCallback(async () => {
-    try {
-      const response = await apiFetch("/me/guardianships?status=pending");
-      if (response.status === 401) {
-        onUnauthenticated();
-        return;
-      }
-      const body = response.ok ? await response.json() : [];
-      setPending(Array.isArray(body) ? body : []);
-    } catch {
-      setPending([]);
-    }
-  }, [onUnauthenticated]);
-
-  useEffect(() => {
-    loadPending();
-  }, [loadPending]);
+  const pendingResource = useApiResource("/me/guardianships?status=pending", {
+    fallback: GENERIC_ERROR,
+    onUnauthenticated,
+  });
+  const pending = Array.isArray(pendingResource.data) ? pendingResource.data : [];
 
   async function mutate(path, options, errors = {}) {
     setIsSaving(true);
@@ -53,10 +42,10 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
         return false;
       }
       if (!response.ok) {
-        setError(errors[response.status] || GENERIC_ERROR);
+        setError((await readApiError(response, GENERIC_ERROR, errors)).message);
         return false;
       }
-      await loadPending();
+      pendingResource.reload();
       onChanged();
       return true;
     } catch {
@@ -97,7 +86,7 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
         return;
       }
       if (!response.ok) {
-        setError("Não foi possível gerar o acesso. Tente novamente.");
+        setError((await readApiError(response, TRANSFER_ERROR)).message);
         return;
       }
       const claim = await response.json();

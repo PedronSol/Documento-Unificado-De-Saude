@@ -20,7 +20,7 @@ import X from "lucide-react/dist/esm/icons/x";
 
 import { ClinicalSelect } from "@/components/ui/clinical-select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, readApiError } from "@/lib/api";
 
 
 const DOCUMENT_TYPES = [
@@ -58,6 +58,10 @@ function formatSize(value) {
   if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+const UPLOAD_ERROR = "Não foi possível enviar o documento.";
+const DOWNLOAD_ERROR = "Não foi possível baixar o documento.";
+const DELETE_ERROR = "Não foi possível remover o documento.";
 
 export function DigitalDocuments({
   basePath = "/me/documents",
@@ -245,18 +249,16 @@ export function DigitalDocuments({
         return;
       }
       if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        throw new Error(
-          typeof payload?.detail === "string"
-            ? payload.detail
-            : "Não foi possível enviar o documento.",
-        );
+        setError((await readApiError(response, UPLOAD_ERROR, {
+          413: "O arquivo excede o limite de 10 MB.",
+        })).message);
+        return;
       }
       const created = await response.json();
       onDocumentsChange((current) => [created, ...current]);
       handleDialogChange(false);
-    } catch (requestError) {
-      setError(requestError.message);
+    } catch {
+      setError(UPLOAD_ERROR);
     } finally {
       setIsSending(false);
     }
@@ -273,7 +275,10 @@ export function DigitalDocuments({
         onUnauthenticated();
         return;
       }
-      if (!response.ok) throw new Error("Não foi possível baixar o documento.");
+      if (!response.ok) {
+        setOperationError((await readApiError(response, DOWNLOAD_ERROR)).message);
+        return;
+      }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -281,8 +286,8 @@ export function DigitalDocuments({
       anchor.download = documentItem.original_filename;
       anchor.click();
       URL.revokeObjectURL(url);
-    } catch (requestError) {
-      setOperationError(requestError.message);
+    } catch {
+      setOperationError(DOWNLOAD_ERROR);
     } finally {
       setDownloadingId(null);
     }
@@ -301,13 +306,16 @@ export function DigitalDocuments({
         onUnauthenticated();
         return;
       }
-      if (!response.ok) throw new Error("Não foi possível remover o documento.");
+      if (!response.ok) {
+        setDeleteError((await readApiError(response, DELETE_ERROR)).message);
+        return;
+      }
       onDocumentsChange((current) =>
         current.filter((item) => item.document_id !== documentToDelete.document_id),
       );
       setDocumentToDelete(null);
-    } catch (requestError) {
-      setDeleteError(requestError.message);
+    } catch {
+      setDeleteError(DELETE_ERROR);
     } finally {
       setIsDeleting(false);
     }

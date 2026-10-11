@@ -6,10 +6,11 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import UsersRound from "lucide-react/dist/esm/icons/users-round";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, readApiError } from "@/lib/api";
 
 
 const LOAD_ERROR = "Não foi possível carregar suas equipes de cuidado.";
+const ACTION_ERROR = "Não foi possível concluir a ação. Tente novamente.";
 const CARE_RESOURCES = [
   ["/me/care-invitations", "invitations"],
   ["/me/care-groups", "groups"],
@@ -96,11 +97,7 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
         return false;
       }
       if (!response.ok) {
-        setActionError(
-          response.status === 404
-            ? "Este convite ou vínculo não está mais disponível."
-            : "Não foi possível concluir a ação. Tente novamente.",
-        );
+        setActionError((await readApiError(response, ACTION_ERROR)).message);
         await load();
         return false;
       }
@@ -108,7 +105,7 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
       await load();
       return true;
     } catch {
-      setActionError("Não foi possível concluir a ação. Tente novamente.");
+      setActionError(ACTION_ERROR);
       return false;
     } finally {
       setPendingAction(null);

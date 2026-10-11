@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import UsersRound from "lucide-react/dist/esm/icons/users-round";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { apiFetch } from "@/lib/api";
+import { useApiResource } from "@/hooks/use-api-resource";
+import { apiFetch, readApiError } from "@/lib/api";
 
 
 const RELATIONSHIP_LABEL = {
@@ -15,28 +16,15 @@ const GENERIC_ERROR = "Não foi possível concluir a ação. Tente novamente.";
 
 
 export function MyGuardiansPanel({ isAdult, onUnauthenticated }) {
-  const [guardians, setGuardians] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [releasing, setReleasing] = useState(null);
 
-  const load = useCallback(async () => {
-    try {
-      const response = await apiFetch("/me/guardians");
-      if (response.status === 401) {
-        onUnauthenticated();
-        return;
-      }
-      const body = response.ok ? await response.json() : [];
-      setGuardians(Array.isArray(body) ? body : []);
-    } catch {
-      setGuardians([]);
-    }
-  }, [onUnauthenticated]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const guardiansResource = useApiResource("/me/guardians", {
+    fallback: GENERIC_ERROR,
+    onUnauthenticated,
+  });
+  const guardians = Array.isArray(guardiansResource.data) ? guardiansResource.data : [];
 
   async function mutate(path, method) {
     setIsSaving(true);
@@ -48,10 +36,10 @@ export function MyGuardiansPanel({ isAdult, onUnauthenticated }) {
         return false;
       }
       if (!response.ok) {
-        setError(GENERIC_ERROR);
+        setError((await readApiError(response, GENERIC_ERROR)).message);
         return false;
       }
-      await load();
+      guardiansResource.reload();
       return true;
     } catch {
       setError(GENERIC_ERROR);

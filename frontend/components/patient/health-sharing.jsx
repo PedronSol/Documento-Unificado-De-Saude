@@ -29,7 +29,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { apiFetch } from "@/lib/api";
+import { useApiResource } from "@/hooks/use-api-resource";
+import { apiFetch, readApiError } from "@/lib/api";
 
 
 function formatDate(value) {
@@ -121,8 +122,16 @@ function ShareConfirmationDialog({
   );
 }
 
+const LOAD_ERROR = "Não foi possível consultar o acesso temporário.";
+const GENERATE_ERROR = "Não foi possível gerar o acesso temporário.";
+const REVOKE_ERROR = "Não foi possível revogar o acesso temporário.";
+
 export function HealthSharing({ isAdult, onUnauthenticated }) {
-  const [resource, setResource] = useState({ status: "loading", active: null });
+  const resource = useApiResource(isAdult ? "/me/shares/active" : null, {
+    fallback: LOAD_ERROR,
+    initialData: null,
+    onUnauthenticated,
+  });
   const [shareUrl, setShareUrl] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   const [feedback, setFeedback] = useState("");
@@ -130,55 +139,25 @@ export function HealthSharing({ isAdult, onUnauthenticated }) {
   const [dialogMode, setDialogMode] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [dialogError, setDialogError] = useState("");
-  const [requestVersion, setRequestVersion] = useState(0);
   const dialogTriggerRef = useRef(null);
 
-  useEffect(() => {
-    if (!isAdult) {
-      setResource({ status: "ready", active: null });
-      return undefined;
-    }
-    let current = true;
-
-    async function loadActiveShare() {
-      setResource((previous) => ({ ...previous, status: "loading" }));
-      try {
-        const response = await apiFetch("/me/shares/active");
-        if (response.status === 401) {
-          onUnauthenticated();
-          return;
-        }
-        if (!response.ok) {
-          throw new Error("Não foi possível consultar o acesso temporário.");
-        }
-        const active = await response.json();
-        if (current) {
-          setResource({ status: "ready", active });
-        }
-      } catch (error) {
-        if (current) {
-          setResource({
-            status: "error",
-            active: null,
-            error: error.message,
-          });
-        }
-      }
-    }
-
-    loadActiveShare();
-    return () => {
-      current = false;
-    };
-  }, [isAdult, onUnauthenticated, requestVersion]);
+  const active = resource.data;
 
   useEffect(() => {
-    if (!resource.active) {
+    if (!active) {
       return undefined;
     }
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [resource.active]);
+  }, [active]);
+
+  function showGenerateError(message) {
+    if (dialogMode) {
+      setDialogError(message);
+    } else {
+      setActionError(message);
+    }
+  }
 
   async function generateShare() {
     setIsSaving(true);
@@ -192,20 +171,17 @@ export function HealthSharing({ isAdult, onUnauthenticated }) {
         return;
       }
       if (!response.ok) {
-        throw new Error("Não foi possível gerar o acesso temporário.");
+        showGenerateError((await readApiError(response, GENERATE_ERROR)).message);
+        return;
       }
       const created = await response.json();
-      setResource({ status: "ready", active: created });
+      resource.updateData(created);
       setShareUrl(created.share_url);
       setActionError("");
       setNow(Date.now());
       setDialogMode(null);
-    } catch (error) {
-      if (dialogMode) {
-        setDialogError(error.message);
-      } else {
-        setActionError(error.message);
-      }
+    } catch {
+      showGenerateError(GENERATE_ERROR);
     } finally {
       setIsSaving(false);
     }
@@ -215,7 +191,7 @@ export function HealthSharing({ isAdult, onUnauthenticated }) {
     setIsSaving(true);
     setDialogError("");
     try {
-      const response = await apiFetch(`/me/shares/${resource.active.share_id}`, {
+      const response = await apiFetch(`/me/shares/${active.share_id}`, {
         method: "DELETE",
       });
       if (response.status === 401) {
@@ -223,15 +199,16 @@ export function HealthSharing({ isAdult, onUnauthenticated }) {
         return;
       }
       if (!response.ok) {
-        throw new Error("Não foi possível revogar o acesso temporário.");
+        setDialogError((await readApiError(response, REVOKE_ERROR)).message);
+        return;
       }
-      setResource({ status: "ready", active: null });
+      resource.updateData(null);
       setShareUrl(null);
       setActionError("");
       setDialogMode(null);
       setFeedback("Acesso revogado.");
-    } catch (error) {
-      setDialogError(error.message);
+    } catch {
+      setDialogError(REVOKE_ERROR);
     } finally {
       setIsSaving(false);
     }
@@ -265,7 +242,6 @@ export function HealthSharing({ isAdult, onUnauthenticated }) {
     );
   }
 
-  const active = resource.active;
   const remaining = active ? formatRemaining(active.expires_at, now) : null;
 
   return (
@@ -294,7 +270,7 @@ export function HealthSharing({ isAdult, onUnauthenticated }) {
           {resource.status === "error" ? (
             <div className="health-share-state health-share-error" role="alert">
               <p>{resource.error}</p>
-              <Button variant="outline" onClick={() => setRequestVersion((value) => value + 1)}>
+              <Button variant="outline" onClick={resource.reload}>
                 Tentar novamente
               </Button>
             </div>

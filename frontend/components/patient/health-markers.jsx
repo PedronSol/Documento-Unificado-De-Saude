@@ -31,7 +31,7 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 
 import { ClinicalSelect } from "@/components/ui/clinical-select";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, readApiError } from "@/lib/api";
 
 const EMPTY_FORM = {
   type: "condition",
@@ -89,14 +89,6 @@ function sortActiveMarkers(markers) {
   });
 }
 
-async function readError(response, fallback) {
-  try {
-    const body = await response.json();
-    return typeof body.detail === "string" ? body.detail : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 function MarkerDialog({
   error,
@@ -447,6 +439,11 @@ function MarkerCollection({ markers, canEdit, onEdit, onRemove, variant, view })
   );
 }
 
+const LOAD_ACTIVE_ERROR = "Não foi possível carregar seus marcadores.";
+const LOAD_HISTORY_ERROR = "Não foi possível carregar o histórico de marcadores.";
+const SAVE_ERROR = "Não foi possível salvar o marcador.";
+const REMOVE_ERROR = "Não foi possível remover o marcador.";
+
 export function HealthMarkers({
   basePath = "/me/markers",
   initialActive = null,
@@ -485,15 +482,20 @@ export function HealthMarkers({
         return;
       }
       if (!response.ok) {
-        throw new Error("Não foi possível carregar seus marcadores.");
+        setActiveResource({
+          status: "error",
+          data: [],
+          error: (await readApiError(response, LOAD_ACTIVE_ERROR)).message,
+        });
+        return;
       }
       const data = await response.json();
       setActiveResource({
         status: "ready",
         data: Array.isArray(data) ? data : [],
       });
-    } catch (error) {
-      setActiveResource({ status: "error", data: [], error: error.message });
+    } catch {
+      setActiveResource({ status: "error", data: [], error: LOAD_ACTIVE_ERROR });
     }
   }, [basePath, onUnauthenticated]);
 
@@ -506,15 +508,20 @@ export function HealthMarkers({
         return;
       }
       if (!response.ok) {
-        throw new Error("Não foi possível carregar o histórico de marcadores.");
+        setHistoryResource({
+          status: "error",
+          data: [],
+          error: (await readApiError(response, LOAD_HISTORY_ERROR)).message,
+        });
+        return;
       }
       const data = await response.json();
       setHistoryResource({
         status: "ready",
         data: Array.isArray(data) ? data : [],
       });
-    } catch (error) {
-      setHistoryResource({ status: "error", data: [], error: error.message });
+    } catch {
+      setHistoryResource({ status: "error", data: [], error: LOAD_HISTORY_ERROR });
     }
   }, [basePath, onUnauthenticated]);
 
@@ -591,9 +598,8 @@ export function HealthMarkers({
         return;
       }
       if (!response.ok) {
-        throw new Error(
-          await readError(response, "Não foi possível salvar o marcador."),
-        );
+        setFormError((await readApiError(response, SAVE_ERROR)).message);
+        return;
       }
       const saved = await response.json();
       setActiveResource((current) => ({
@@ -607,8 +613,8 @@ export function HealthMarkers({
         ),
       }));
       setIsFormOpen(false);
-    } catch (error) {
-      setFormError(error.message);
+    } catch {
+      setFormError(SAVE_ERROR);
     } finally {
       setIsSaving(false);
     }
@@ -629,9 +635,8 @@ export function HealthMarkers({
         return;
       }
       if (!response.ok) {
-        throw new Error(
-          await readError(response, "Não foi possível remover o marcador."),
-        );
+        setRemoveError((await readApiError(response, REMOVE_ERROR)).message);
+        return;
       }
       setActiveResource((current) => ({
         status: "ready",
@@ -655,8 +660,8 @@ export function HealthMarkers({
           : { status: "idle", data: [] },
       );
       setMarkerToRemove(null);
-    } catch (error) {
-      setRemoveError(error.message);
+    } catch {
+      setRemoveError(REMOVE_ERROR);
     } finally {
       setIsRemoving(false);
     }

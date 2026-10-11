@@ -6,7 +6,8 @@ import { PatientLinkPanel } from "@/components/medical/patient-link-panel";
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -75,6 +76,7 @@ describe("PatientLinkPanel", () => {
     [409, { detail: "Responsável indisponível." }, "O responsável informado não pode ser vinculado. Verifique o CPF."],
     [409, { detail: "CPF indisponível para vínculo." }, "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível."],
     [422, { detail: [] }, "Revise os dados informados."],
+    [403, { detail: "Role." }, "Você não tem permissão para esta ação."],
   ])("explica a resposta %s", async (status, body, message) => {
     mockLinks({ create: [body, status] });
     const user = userEvent.setup();

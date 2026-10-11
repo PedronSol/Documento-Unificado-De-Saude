@@ -6,7 +6,8 @@ import { MyGuardiansPanel } from "@/components/patient/my-guardians-panel";
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -63,6 +64,26 @@ describe("MyGuardiansPanel", () => {
     await waitFor(() =>
       expect(apiFetch).toHaveBeenCalledWith("/me/guardians/4", { method: "DELETE" }),
     );
+  });
+
+  it("mostra o detalhe do backend quando o desvínculo conflita", async () => {
+    mockGuardians([activeGuardian]);
+    const original = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options = {}) => (
+      options.method === "DELETE"
+        ? respondWith({ detail: "Responsável já desvinculado." }, 409)
+        : original(path, options)
+    ));
+    const user = userEvent.setup();
+    render(<MyGuardiansPanel isAdult onUnauthenticated={vi.fn()} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Desvincular Joana Prado Ribeiro" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Desvincular responsável" }));
+
+    expect(await within(dialog).findByText("Responsável já desvinculado.")).toBeInTheDocument();
   });
 
   it("menor confirma responsável e não vê desvínculo", async () => {
