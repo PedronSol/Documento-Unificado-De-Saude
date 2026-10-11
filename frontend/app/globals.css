@@ -4312,6 +4312,25 @@ select:focus-visible {
   font-size: var(--ds-font-size-sm);
 }
 
+.patient-link-guardian {
+  display: grid;
+  gap: var(--ds-space-3);
+  min-width: 0;
+  margin: var(--ds-space-2) 0 0;
+  border: 0;
+  border-top: 1px solid var(--ds-color-warning);
+  padding: var(--ds-space-4) 0 0;
+}
+
+.patient-link-guardian legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--ds-space-1);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
 .patient-link-field {
   display: grid;
   gap: var(--ds-space-2);
