@@ -41,13 +41,47 @@ function formatSize(value) {
 const DOWNLOAD_ERROR = "Não foi possível baixar o documento.";
 const DELETE_ERROR = "Não foi possível remover o documento.";
 
+function doctorLabel(doctor) {
+  return `${doctor.display_name} · CRM ${doctor.crm_number}/${doctor.crm_state}`;
+}
+
+// Copy for the removal confirmation. A patient removing a doctor's document
+// must explicitly acknowledge who sent it before the action is enabled.
+function removalCopy(documentItem, viewer) {
+  const doctor = documentItem?.uploaded_by_doctor;
+  if (viewer === "doctor") {
+    return {
+      title: "Remover documento",
+      description: "O documento sairá do prontuário do paciente e deixará de ficar disponível para ele e para as equipes. Esta ação é registrada e não pode ser desfeita.",
+      acknowledgement: "",
+    };
+  }
+  if (doctor) {
+    return {
+      title: "Remover documento enviado por médico",
+      description: `Este documento foi enviado por ${doctorLabel(doctor)}. Ao removê-lo, ele deixará de ficar disponível para você e para as equipes que acompanham seu prontuário. Esta ação é registrada e não pode ser desfeita.`,
+      acknowledgement: `Entendo que este documento foi enviado por ${doctor.display_name}`,
+    };
+  }
+  return {
+    title: "Remover documento",
+    description: "O documento deixará de ficar disponível imediatamente. Esta ação não pode ser desfeita.",
+    acknowledgement: "",
+  };
+}
+
 export function DigitalDocuments({
   basePath = "/me/documents",
   documents,
   isAdult = false,
   onDocumentsChange = () => {},
   onUnauthenticated = () => {},
+  viewer = "patient",
 }) {
+  const canUpload = viewer === "doctor" || isAdult;
+  const canRemove = (documentItem) => (
+    viewer === "doctor" ? Boolean(documentItem.can_remove) : isAdult
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [operationError, setOperationError] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
@@ -96,7 +130,7 @@ export function DigitalDocuments({
     setDeleteError("");
     try {
       const response = await apiFetch(
-        `/me/documents/${documentToDelete.document_id}`,
+        `${basePath}/${documentToDelete.document_id}`,
         { method: "DELETE" },
       );
       if (response.status === 401) {
@@ -125,7 +159,7 @@ export function DigitalDocuments({
           <p className="eyebrow">Arquivo clínico</p>
           <h2 id="documents-title">Documentos digitais</h2>
         </div>
-        {isAdult ? (
+        {canUpload ? (
           <button className="compact-action" type="button" onClick={openDialog}>
             <Plus aria-hidden="true" size={16} />
             Adicionar documento
@@ -138,7 +172,7 @@ export function DigitalDocuments({
           <FileText aria-hidden="true" size={22} />
           <div>
             <strong>Nenhum documento disponível.</strong>
-            <p>{isAdult ? "Envie um arquivo ou digitalize sua primeira página." : "Os documentos aparecerão aqui."}</p>
+            <p>{canUpload ? "Envie um arquivo ou digitalize sua primeira página." : "Os documentos aparecerão aqui."}</p>
           </div>
         </div>
       ) : (
@@ -150,6 +184,11 @@ export function DigitalDocuments({
                 <strong>{documentItem.title}</strong>
                 <span>{TYPE_LABELS[documentItem.type] || "Documento"} · {formatSize(documentItem.size_bytes)}</span>
                 <small>{documentItem.original_filename} · {formatDate(documentItem.created_at)}</small>
+                {documentItem.uploaded_by_doctor ? (
+                  <small className="document-uploader">
+                    Enviado por {doctorLabel(documentItem.uploaded_by_doctor)}
+                  </small>
+                ) : null}
               </div>
               <span className="document-status">{STATUS_LABELS[documentItem.status] || documentItem.status}</span>
               <div className="document-actions">
@@ -161,7 +200,7 @@ export function DigitalDocuments({
                 >
                   <Download aria-hidden="true" size={17} />
                 </button>
-                {isAdult ? (
+                {canRemove(documentItem) ? (
                   <button
                     type="button"
                     aria-label={`Remover ${documentItem.title}`}
@@ -188,6 +227,7 @@ export function DigitalDocuments({
         onUploaded={(created) => onDocumentsChange((current) => [created, ...current])}
         onUnauthenticated={onUnauthenticated}
         returnFocusRef={triggerRef}
+        uploadPath={basePath}
       />
 
       <ConfirmDialog
@@ -196,8 +236,7 @@ export function DigitalDocuments({
           if (!open) setDocumentToDelete(null);
         }}
         kicker="Arquivo clínico"
-        title="Remover documento"
-        description="O documento deixará de ficar disponível imediatamente. Esta ação não pode ser desfeita."
+        {...removalCopy(documentToDelete, viewer)}
         confirmLabel="Remover documento"
         error={deleteError}
         isSaving={isDeleting}

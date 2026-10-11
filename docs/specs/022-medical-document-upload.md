@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -274,20 +274,33 @@ Teste de migração `0015` provando a coluna e o backfill a partir do evento
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| 1 | `test_migration_0015_*` (unitário e MySQL real): arquivo e revisão `0015` inexistentes | migration com `uploaded_by_user_id`, FK, check e backfill pelo evento de upload | — |
+| 2 | Durante o GREEN surgiu o caso de conta paciente+médico; spec atualizada e testes passaram a exigir `uploader_role` (falha) | coluna `uploader_role` com padrão `patient` para o backfill | mensagem forward-only alinhada às demais migrations |
+| 3 | `test_documents.py`: 13 falhas (médico recebia `403`; autoria e `uploaded_by_doctor`/`can_remove` ausentes) | `documents/operations.py` com listagem, upload e remoção compartilhados; rotas médicas reais | rotas do paciente reduzidas a autorização + operação; doubles de contrato atualizados |
+| 4 | `confirm-dialog.test.jsx`: confirmação marcada inexistente (2 falhas) | prop `acknowledgement` com reinício ao fechar | — |
+| 5 | `digital-documents.test.jsx` (4 falhas) e `medical-record.test.jsx` (2 falhas) | modo `viewer="doctor"`, `can_remove`, autor médico e diálogo reforçado do paciente | caminho de upload passa a ser o `basePath` |
+
+## Verificações executadas
+
+- Backend: `RUN_DB_INTEGRATION=1 python -m pytest` no MySQL 8 real (275
+  passed), incluindo upgrade `0014 → 0015` com backfill e a check constraint.
+- Frontend: `npm test` (248 passed), `npx playwright test` (45 passed, com
+  envio/remoção médicos e confirmação reforçada do paciente em 320 px e
+  1280 px) e `npm run build`.
+- Não executado: `npm run lint` (`eslint` não instalado, situação anterior).
 
 ## Critérios de conclusão
 
 - [x] Spec revisada e aprovada.
-- [ ] Médico autorizado envia documentos; sem acesso recebe `403`.
-- [ ] Médico remove somente documentos que enviou.
-- [ ] Paciente remove documento médico somente após confirmação marcada.
-- [ ] Autoria persistida, auditada e exibida apenas como nome e CRM.
-- [ ] Migration `0015` testada em banco limpo e com backfill no MySQL 8.
-- [ ] Prontuário médico permite enviar e remover conforme `can_remove` em
+- [x] Médico autorizado envia documentos; sem acesso recebe `403`.
+- [x] Médico remove somente documentos que enviou.
+- [x] Paciente remove documento médico somente após confirmação marcada.
+- [x] Autoria persistida, auditada e exibida apenas como nome e CRM.
+- [x] Migration `0015` testada em banco limpo e com backfill no MySQL 8.
+- [x] Prontuário médico permite enviar e remover conforme `can_remove` em
       320 px e viewport ampla.
-- [ ] Testes backend, Vitest, Playwright e build aprovados.
-- [ ] Spec `020`, roadmap e índice de specs atualizados.
+- [x] Testes backend, Vitest, Playwright e build aprovados.
+- [x] Spec `020`, roadmap e índice de specs atualizados.
 
 ## Decisões
 

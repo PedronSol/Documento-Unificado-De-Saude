@@ -186,3 +186,9 @@
     animation-duration: 0.01ms;
   }
 }
+
+.document-copy .document-uploader {
+  color: var(--ds-color-primary);
+  font-weight: var(--ds-font-weight-semibold);
+  overflow-wrap: anywhere;
+}

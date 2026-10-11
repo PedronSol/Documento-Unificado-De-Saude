@@ -42,6 +42,7 @@ export function DocumentUploadDialog({
   onUploaded,
   onUnauthenticated,
   returnFocusRef,
+  uploadPath = "/me/documents",
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -207,7 +208,7 @@ export function DocumentUploadDialog({
     body.append("type", form.type);
     body.append("file", selectedFile);
     try {
-      const response = await apiFetch("/me/documents", { method: "POST", body });
+      const response = await apiFetch(uploadPath, { method: "POST", body });
       if (response.status === 401) {
         onUnauthenticated();
         return;

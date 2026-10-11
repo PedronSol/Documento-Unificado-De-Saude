@@ -293,4 +293,124 @@ describe("DigitalDocuments", () => {
     expect(await within(dialog).findByText("Você não tem permissão para esta ação."))
       .toBeInTheDocument();
   });
+
+  const doctorDocument = {
+    ...hemograma,
+    document_id: 43,
+    title: "Laudo do eco",
+    uploaded_by_doctor: { display_name: "Dra. Ana Lima", crm_number: "123456", crm_state: "SP" },
+  };
+
+  it("identifica documentos enviados por médico", () => {
+    render(<DigitalDocuments documents={[doctorDocument, hemograma]} isAdult />);
+
+    expect(screen.getByText("Enviado por Dra. Ana Lima · CRM 123456/SP")).toBeInTheDocument();
+    expect(screen.getAllByText(/Enviado por/)).toHaveLength(1);
+  });
+
+  it("exige confirmação marcada para o paciente remover documento médico", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({ ok: true, status: 204 });
+    const onDocumentsChange = vi.fn();
+    render(
+      <DigitalDocuments
+        documents={[doctorDocument]}
+        isAdult
+        onDocumentsChange={onDocumentsChange}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remover Laudo do eco" }));
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Remover documento enviado por médico",
+    });
+    expect(dialog).toHaveTextContent("Dra. Ana Lima · CRM 123456/SP");
+    expect(dialog).toHaveTextContent(/equipes que acompanham/);
+    const confirm = within(dialog).getByRole("button", { name: "Remover documento" });
+    expect(confirm).toBeDisabled();
+
+    await user.click(within(dialog).getByRole("checkbox", {
+      name: "Entendo que este documento foi enviado por Dra. Ana Lima",
+    }));
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/me/documents/43", { method: "DELETE" }),
+    );
+  });
+
+  it("mantém a confirmação simples para documento enviado pelo paciente", async () => {
+    const user = userEvent.setup();
+    render(<DigitalDocuments documents={[hemograma]} isAdult onDocumentsChange={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Remover Hemograma" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Remover documento" });
+    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Remover documento" })).toBeEnabled();
+  });
+
+  it("permite ao médico enviar e remover somente os próprios documentos", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({ ok: true, status: 204 });
+    render(
+      <DigitalDocuments
+        basePath="/medical/patients/10/documents"
+        viewer="doctor"
+        documents={[
+          { ...doctorDocument, can_remove: true },
+          { ...hemograma, can_remove: false },
+        ]}
+        onDocumentsChange={vi.fn()}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Adicionar documento" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remover Hemograma" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remover Laudo do eco" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Remover documento" });
+    expect(dialog).toHaveTextContent(/prontuário do paciente/);
+    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Remover documento" }));
+
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/medical/patients/10/documents/43",
+        { method: "DELETE" },
+      ),
+    );
+  });
+
+  it("envia pelo caminho médico", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ ...doctorDocument, can_remove: true }),
+    });
+    const onDocumentsChange = vi.fn();
+    render(
+      <DigitalDocuments
+        basePath="/medical/patients/10/documents"
+        viewer="doctor"
+        documents={[]}
+        onDocumentsChange={onDocumentsChange}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
+    await user.type(screen.getByLabelText("Título do documento"), "Laudo do eco");
+    await user.upload(
+      screen.getByLabelText("Escolher arquivo"),
+      new File(["%PDF-1.4"], "laudo.pdf", { type: "application/pdf" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Enviar documento" }));
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
+    expect(apiFetch.mock.calls[0][0]).toBe("/medical/patients/10/documents");
+    expect(onDocumentsChange).toHaveBeenCalled();
+  });
 });

@@ -131,7 +131,8 @@ function MedicalRecord({
         <DigitalDocuments
           basePath={`/medical/patients/${patient.patient_id}/documents`}
           documents={documentsResource.data}
-          isAdult={false}
+          viewer="doctor"
+          onDocumentsChange={documentsResource.updateData}
           onUnauthenticated={onUnauthenticated}
         />
       )}

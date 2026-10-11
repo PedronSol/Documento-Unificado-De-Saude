@@ -107,8 +107,43 @@ describe("MedicalRecordView", () => {
     expect(screen.getByRole("link", { name: "Voltar para pacientes" }))
       .toHaveAttribute("href", "/medical");
     expect(
-      screen.queryByRole("button", { name: "Adicionar documento" }),
+      screen.getByRole("button", { name: "Adicionar documento" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remover Hemograma recente" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("mostra a remoção somente nos documentos enviados pelo médico", async () => {
+    apiFetch.mockImplementation((path) => {
+      if (path === "/medical/patients/10") return respondWith(record);
+      if (path === "/medical/patients/10/documents") {
+        return respondWith([
+          { ...medicalDocuments[0], can_remove: false, uploaded_by_doctor: null },
+          {
+            ...medicalDocuments[0],
+            document_id: 43,
+            title: "Laudo do eco",
+            can_remove: true,
+            uploaded_by_doctor: {
+              display_name: "Dra. Helena Costa",
+              crm_number: "123456",
+              crm_state: "SP",
+            },
+          },
+        ]);
+      }
+      return respondWith([]);
+    });
+
+    renderRecord();
+
+    expect(await screen.findByRole("button", { name: "Remover Laudo do eco" }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remover Hemograma recente" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByText("Enviado por Dra. Helena Costa · CRM 123456/SP"))
+      .toBeInTheDocument();
   });
 
   it.each(["abc", "0", "-1", "01", "9007199254740993"])(
