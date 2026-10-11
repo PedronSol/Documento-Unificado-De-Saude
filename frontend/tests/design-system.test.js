@@ -40,6 +40,8 @@ describe("contrato do design system", () => {
     expect(adminStyles).toContain(".admin-main");
     expect(adminStyles).toContain(".care-card");
     expect(adminStyles).toContain(".patient-link-item");
+    expect(adminStyles).toContain(".claim-link-card");
+    expect(adminStyles).toContain(".provisional-actions");
     expect(adminStyles).toContain("var(--ds-layout-content)");
     expect(adminStyles).toContain("var(--ds-control-min-height)");
     expect(adminStyles).toContain("@media (min-width:");

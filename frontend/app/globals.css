@@ -4220,18 +4220,165 @@ select:focus-visible {
   outline-offset: 3px;
 }
 
+.claim-link-card {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-4);
+  margin-bottom: var(--ds-space-3);
+  border: 1px solid var(--ds-color-success);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-success-soft);
+  padding: var(--ds-space-4);
+}
+
+.claim-link-qr {
+  justify-self: center;
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface);
+  padding: var(--ds-space-3);
+}
+
+.claim-link-copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-2);
+}
+
+.claim-link-copy label {
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.claim-link-copy>div {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.claim-link-copy input,
+.patient-link-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ds-control-min-height);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface);
+  padding: 0 var(--ds-space-3);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-md);
+}
+
+.claim-link-copy button,
+.provisional-actions button,
+.patient-link-provisional-actions button {
+  display: inline-flex;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border: 1px solid var(--ds-color-primary-border);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-primary-soft);
+  padding: 0 var(--ds-space-4);
+  color: var(--ds-color-primary);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.patient-link-provisional-actions button[type="submit"] {
+  border-color: var(--ds-color-primary);
+  background: var(--ds-color-primary);
+  color: var(--ds-color-on-primary);
+}
+
+.claim-link-copy small {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-body);
+}
+
+.patient-link-provisional {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-4);
+  border: 1px solid var(--ds-color-warning);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-warning-soft);
+  padding: var(--ds-space-4);
+}
+
+.patient-link-provisional>p {
+  margin: 0;
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+}
+
+.patient-link-field {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.patient-link-field label {
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.patient-link-provisional-actions,
+.provisional-actions>div {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.provisional-actions {
+  display: grid;
+  width: min(100%, var(--ds-layout-content));
+  gap: var(--ds-space-3);
+  margin: var(--ds-space-4) auto 0;
+  border: 1px solid var(--ds-color-warning);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-color-warning-soft);
+  padding: var(--ds-space-4);
+}
+
+.provisional-actions>p {
+  display: grid;
+  gap: var(--ds-space-1);
+  margin: 0;
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+}
+
+.claim-link-copy button:focus-visible,
+.provisional-actions button:focus-visible,
+.patient-link-provisional-actions button:focus-visible,
+.patient-link-field input:focus-visible {
+  outline: 3px solid var(--ds-color-focus);
+  outline-offset: 3px;
+}
+
 @media (min-width: 30rem) {
   .admin-tabs button {
     padding: 0 var(--ds-space-3);
     font-size: var(--ds-font-size-sm);
   }
 
-  .admin-issued-link>div {
+  .admin-issued-link>div,
+  .claim-link-copy>div {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .patient-link-provisional-actions,
+  .provisional-actions>div {
+    display: flex;
+    flex-wrap: wrap;
   }
 }
 
 @media (min-width: 48rem) {
+  .claim-link-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
   .admin-hero {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
