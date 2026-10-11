@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC REVIEW
+SPEC APPROVED
 
 ## Dependências
 
@@ -76,8 +76,21 @@ armazenamento, as validações de arquivo, a auditoria e o sigilo contra a role
    `removed_at`, `document.removed` na mesma transação e limpeza física após o
    commit.
 8. O paciente adulto e o responsável continuam podendo remover qualquer
-   documento ativo do próprio prontuário, inclusive os enviados por médico
-   (decisão 1, em revisão).
+   documento ativo do próprio prontuário, inclusive os enviados por médico. A
+   API não muda; a proteção contra remoção indevida fica na confirmação:
+   - Toda remoção de documento, pelo paciente, responsável ou médico, exige o
+     diálogo de confirmação acessível já existente, com foco inicial em
+     `Cancelar` e nenhuma requisição antes da confirmação.
+   - Quando o documento foi enviado por médico e quem remove é o paciente ou o
+     responsável, o diálogo usa o título `Remover documento enviado por
+     médico`, informa o nome e o CRM do médico, explica que o documento deixará
+     de ficar disponível para o paciente e para as equipes que acompanham o
+     prontuário e que a ação é registrada e não pode ser desfeita, e exige
+     marcar `Entendo que este documento foi enviado por {nome}` antes de
+     habilitar `Remover documento`.
+   - Na remoção pelo médico, o diálogo informa que o documento sairá do
+     prontuário do paciente.
+   - Fechar ou cancelar o diálogo desmarca a confirmação.
 9. As listagens do paciente e do médico passam a informar
    `uploaded_by_doctor`: `null` quando o envio não foi feito por médico, ou
    `{ display_name, crm_number, crm_state }` do médico que enviou. Nunca expõem
@@ -210,6 +223,9 @@ Migration `0015_document_uploader.py`, forward-only, conforme a regra 13.
 - Itens enviados por médico exibem `Enviado por {nome} · CRM {número}/{UF}`,
   com quebra de texto em 320 px.
 - Mensagens de erro usam `readApiError` (spec `037`).
+- `ConfirmDialog` ganha a prop opcional `acknowledgement` (rótulo de checkbox
+  obrigatório); sem ela, o comportamento atual é preservado em todos os
+  consumidores.
 
 ## Segurança e autorização
 
@@ -241,8 +257,11 @@ Teste de migração `0015` provando a coluna e o backfill a partir do evento
 7. `DELETE` de documento ausente, removido ou de outro paciente: `404`.
 8. Listagens com `uploaded_by_doctor` e `can_remove` corretos.
 9. Rollback quando a auditoria falha no envio e na remoção médicos.
-10. Frontend: envio pelo prontuário, remoção somente com `can_remove`,
-    indicação do médico autor; Playwright em 320 px e 1280 px.
+10. `ConfirmDialog` com `acknowledgement`: confirmação desabilitada até marcar,
+    reiniciada ao fechar; consumidores existentes sem mudança.
+11. Frontend: envio pelo prontuário, remoção somente com `can_remove`,
+    indicação do médico autor, confirmação reforçada do paciente para documento
+    médico; Playwright em 320 px e 1280 px.
 
 ## Evidência TDD
 
@@ -252,9 +271,10 @@ Teste de migração `0015` provando a coluna e o backfill a partir do evento
 
 ## Critérios de conclusão
 
-- [ ] Spec revisada e aprovada.
+- [x] Spec revisada e aprovada.
 - [ ] Médico autorizado envia documentos; sem acesso recebe `403`.
 - [ ] Médico remove somente documentos que enviou.
+- [ ] Paciente remove documento médico somente após confirmação marcada.
 - [ ] Autoria persistida, auditada e exibida apenas como nome e CRM.
 - [ ] Migration `0015` testada em banco limpo e com backfill no MySQL 8.
 - [ ] Prontuário médico permite enviar e remover conforme `can_remove` em
@@ -262,13 +282,10 @@ Teste de migração `0015` provando a coluna e o backfill a partir do evento
 - [ ] Testes backend, Vitest, Playwright e build aprovados.
 - [ ] Spec `020`, roadmap e índice de specs atualizados.
 
-## Decisões para revisão
+## Decisões
 
-1. **Paciente remove documento enviado por médico?** Proposta: sim. O paciente
-   adulto ou o responsável continua controlando o próprio prontuário, e a
-   remoção fica auditada. Alternativa: somente o médico autor remove.
-2. **`403` ao tentar remover documento de outra pessoa.** Proposta: `403`
-   explicativo, pois o documento já é visível ao médico. Alternativa: `404`
-   uniforme.
-3. **Envio a paciente menor e provisório.** Proposta: permitido, como os
-   marcadores médicos da spec `036`.
+| # | Decisão | Status |
+|---|---|---|
+| 1 | Paciente e responsável podem remover documento enviado por médico, com diálogo explícito e confirmação marcada obrigatória | APROVADA |
+| 2 | `403` explicativo ao médico que tenta remover documento de outra pessoa | APROVADA |
+| 3 | Envio médico permitido a paciente menor e provisório | APROVADA |
