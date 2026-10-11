@@ -191,7 +191,7 @@ test.describe('Página Home', () => {
         body: JSON.stringify(MOCK_DOCUMENTS),
       })
     );
-    await page.route(/\/me\/(care-(invitations|groups|requests|doctors)|guardianships\?status=pending)$/, (route) =>
+    await page.route(/\/me\/(care-(invitations|groups|requests|doctors)|guardianships\?status=pending|guardians)$/, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',

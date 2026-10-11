@@ -188,6 +188,7 @@ test.describe("Governança administrativa", () => {
       "GET /me/care-requests": [],
       "GET /me/care-doctors": [],
       "GET /me/guardianships?status=pending": [],
+      "GET /me/guardians": [],
       "GET /me/care-invitations": [
         {
           invitation_id: 4,

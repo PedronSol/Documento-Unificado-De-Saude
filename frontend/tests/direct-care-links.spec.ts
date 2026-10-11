@@ -350,3 +350,72 @@ test.describe("Responsável legal", () => {
     });
   });
 });
+
+
+test.describe("Transferência e desvínculo", () => {
+  test("dependente adulto desvincula responsável e responsável gera acesso", async ({ page }) => {
+    let released = false;
+    let transferRequested = false;
+    const envelope = {
+      ...patientEnvelope,
+      dependents: [{
+        patient_id: 41,
+        guardianship_id: 4,
+        has_own_access: false,
+        preferred_name: "Ana",
+        full_name: "Ana Prado Ribeiro",
+        avatar_url: null,
+        health_status: "pending",
+        blood_type: null,
+        is_adult: true,
+        age: 18,
+      }],
+    };
+    await mockApi(page, async (key, route) => {
+      if (key === "GET /me") {
+        await fulfill(route, envelope);
+        return true;
+      }
+      if (key === "GET /me/shares/active") {
+        await fulfill(route, null);
+        return true;
+      }
+      if (key === "GET /me/guardians") {
+        await fulfill(route, released ? [] : [{
+          guardianship_id: 7,
+          guardian_display_name: "Joana Prado Ribeiro",
+          relationship: "parent",
+          status: "active",
+          awaiting_my_confirmation: false,
+        }]);
+        return true;
+      }
+      if (key === "DELETE /me/guardians/7") {
+        released = true;
+        await fulfill(route, null, 204);
+        return true;
+      }
+      if (key === "POST /me/dependents/41/claim-link") {
+        transferRequested = true;
+        await fulfill(route, { token: "t".repeat(43), expires_at: "2026-10-18T12:00:00", recipient: "patient" }, 201);
+        return true;
+      }
+      return false;
+    });
+
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 900 }]) {
+      released = false;
+      await page.setViewportSize(viewport);
+      await page.goto("/home");
+      const transfer = page.getByRole("button", { name: "Gerar acesso para Ana" });
+      await expect(transfer).toBeVisible();
+      await transfer.click();
+      await expect(page.getByLabel("Link para o paciente assumir a conta")).toBeVisible();
+      await page.getByRole("button", { name: "Desvincular Joana Prado Ribeiro" }).click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Desvincular responsável" }).click();
+      await expect(page.getByRole("heading", { name: "Meus responsáveis" })).toHaveCount(0);
+      await expectNoHorizontalOverflow(page, viewport.width);
+    }
+    expect(transferRequested).toBe(true);
+  });
+});
