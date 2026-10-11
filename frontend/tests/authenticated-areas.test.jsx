@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminArea } from "@/components/admin/admin-area";
 import { MedicalArea } from "@/components/medical/medical-area";
+import { MedicalRecordArea } from "@/components/medical/medical-record-area";
 import { DependentArea } from "@/components/patient/dependent-area";
 import { DependentsList } from "@/components/patient/dependents-list";
 import { PatientArea } from "@/components/patient/patient-area";
@@ -726,6 +727,51 @@ describe("redirecionamento por papel", () => {
     expect(
       requestedPaths().every((path) => path === "/me" || path.startsWith("/admin/")),
     ).toBe(true);
+  });
+
+  it("abre o prontuário pela rota médica sem paciente atuante", async () => {
+    apiFetch.mockImplementation((path) => {
+      if (path === "/me") return respondWith(doctorIdentity);
+      if (path === "/medical/patients/42") {
+        return respondWith({
+          patient: {
+            patient_id: 42,
+            preferred_name: "Carlos",
+            full_name: "Carlos Eduardo Silva",
+            avatar_url: null,
+            health_status: "updated",
+            age: 41,
+            blood_type: "A+",
+          },
+          vaccines: [],
+          markers: { active: [], removed: [] },
+        });
+      }
+      return respondWith([]);
+    });
+
+    renderArea(<MedicalRecordArea />, {
+      pathname: "/medical/patients/42",
+      params: { patientId: "42" },
+    });
+
+    expect(await screen.findByRole("heading", { name: "Carlos Eduardo Silva" }))
+      .toBeInTheDocument();
+    expect(useSessionStore.getState().actingPatientId).toBeNull();
+    const switcherLabel = screen.getByText("Área profissional", { selector: ".single-context" });
+    expect(switcherLabel).toBeInTheDocument();
+  });
+
+  it("redireciona paciente que abre um prontuário médico pela URL", async () => {
+    apiFetch.mockImplementation(() => respondWith({ ...guardianIdentity, dependents: [] }));
+
+    renderArea(<MedicalRecordArea />, {
+      pathname: "/medical/patients/42",
+      params: { patientId: "42" },
+    });
+
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/patient"));
+    expect(requestedPaths()).toEqual(["/me"]);
   });
 
   it("carrega a área profissional sem o dashboard do paciente", async () => {

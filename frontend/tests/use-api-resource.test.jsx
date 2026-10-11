@@ -116,4 +116,29 @@ describe("useApiResource", () => {
 
     expect(result.current.status).toBe("loading");
   });
+
+  it("expõe o status do erro para estados específicos da feature", async () => {
+    vi.mocked(apiFetch).mockReturnValue(respondWith({ detail: "Paciente não autorizado." }, 403));
+
+    const { result } = renderHook(() => useApiResource("/medical/patients/10", {
+      fallback: FALLBACK,
+      initialData: null,
+    }));
+
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current).toMatchObject({
+      errorStatus: 403,
+      error: "Você não tem permissão para esta ação.",
+      data: null,
+    });
+  });
+
+  it("não informa status quando a falha é de rede", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() => useApiResource("/me/vaccines", { fallback: FALLBACK }));
+
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.errorStatus).toBeNull();
+  });
 });

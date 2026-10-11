@@ -957,9 +957,11 @@ test.describe('Página Home', () => {
     await page.getByLabel('Buscar paciente').fill('Carlos');
     await searchRequest;
 
-    await page.getByRole('button', {
+    await page.getByRole('link', {
       name: 'Abrir prontuário de Carlos Silva',
     }).click();
+    await expect(page).toHaveURL(/\/medical\/patients\/\d+$/);
+    const recordUrl = page.url();
     await expect(
       page.getByRole('heading', { name: 'Carlos Eduardo Silva' }),
     ).toBeVisible();
@@ -992,13 +994,26 @@ test.describe('Página Home', () => {
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(pageWidth).toBeLessThanOrEqual(320);
 
-    await page.getByRole('button', { name: 'Voltar para pacientes' }).click();
+    await page.getByRole('link', { name: 'Voltar para pacientes' }).click();
+    await expect(page).toHaveURL('/medical');
+    await page.goBack();
+    await expect(page).toHaveURL(recordUrl);
+    await expect(
+      page.getByRole('heading', { name: 'Carlos Eduardo Silva' }),
+    ).toBeVisible();
+
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Carlos Eduardo Silva' }),
+    ).toBeVisible();
+
     denyMedicalRecord = true;
-    await page.getByRole('button', {
-      name: 'Abrir prontuário de Carlos Silva',
-    }).click();
+    await page.goto(recordUrl);
     await expect(page.getByText('Acesso ao prontuário negado.')).toBeVisible();
     await expect(page.getByText('Losartana')).toHaveCount(0);
+    await expect(
+      page.getByRole('link', { name: 'Voltar para pacientes' }),
+    ).toHaveAttribute('href', '/medical');
   });
 
   test('redireciona para login se não há sessão', async ({ page }) => {

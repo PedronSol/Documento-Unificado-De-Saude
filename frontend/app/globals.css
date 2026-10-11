@@ -2804,7 +2804,7 @@ select:focus-visible {
 }
 
 .medical-search button,
-.medical-center-state button {
+.medical-center-action {
   min-height: var(--ds-control-min-height);
   border: 0;
   border-radius: 0;
@@ -2823,7 +2823,7 @@ select:focus-visible {
 }
 
 .medical-search button:hover,
-.medical-center-state button:hover {
+.medical-center-action:hover {
   background: var(--ds-color-primary-hover);
 }
 
@@ -2924,8 +2924,9 @@ select:focus-visible {
   background: var(--ds-color-danger);
 }
 
-.medical-patient-card>button {
+.medical-patient-card>a {
   display: inline-flex;
+  text-decoration: none;
   min-height: var(--ds-control-min-height);
   grid-column: 1 / -1;
   align-items: center;
@@ -2941,7 +2942,7 @@ select:focus-visible {
   font-weight: var(--ds-font-weight-bold);
 }
 
-.medical-patient-card>button:hover {
+.medical-patient-card>a:hover {
   background: var(--ds-color-primary-border);
 }
 
@@ -3004,8 +3005,11 @@ select:focus-visible {
   box-shadow: var(--ds-shadow-card);
 }
 
-.medical-center-state button {
+.medical-center-action {
+  display: inline-flex;
+  align-items: center;
   border-radius: var(--ds-radius-control);
+  text-decoration: none;
 }
 
 .medical-scan-line {
@@ -3282,7 +3286,7 @@ select:focus-visible {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .medical-patient-card>button {
+  .medical-patient-card>a {
     grid-column: auto;
     align-self: stretch;
     margin: calc(var(--ds-space-4) * -1);

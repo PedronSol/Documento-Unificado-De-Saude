@@ -14,9 +14,9 @@ const globals = read("../app/globals.css");
 const guide = read("../../docs/design-system.md");
 const agentRules = read("../../AGENTS.md");
 const clinicalSelect = read("../components/ui/clinical-select.jsx");
-const patientDashboard = read("../components/patient/patient-dashboard.jsx");
-const healthMarkers = read("../components/patient/health-markers.jsx");
-const digitalDocuments = read("../components/health-passport/digital-documents.jsx");
+const vaccineDialog = read("../components/vaccines/vaccine-dialog.jsx");
+const healthMarkers = read("../components/markers/marker-dialogs.jsx");
+const digitalDocuments = read("../components/documents/document-upload-dialog.jsx");
 const nextConfig = read("../next.config.mjs");
 const medicalStyles = globals.slice(globals.indexOf("/* Área médica"));
 const dialogStyles = globals.slice(
@@ -152,9 +152,9 @@ describe("contrato do design system", () => {
     expect(clinicalSelect).toContain('data-slot="clinical-select-trigger"');
     expect(clinicalSelect).toContain('data-slot="clinical-select-item"');
     expect(clinicalSelect).toContain("SelectItemIndicator");
-    expect(patientDashboard).toContain("<ClinicalSelect");
+    expect(vaccineDialog).toContain("<ClinicalSelect");
     expect(healthMarkers).toContain("<ClinicalSelect");
-    expect(patientDashboard).not.toContain("<select");
+    expect(vaccineDialog).not.toContain("<select");
     expect(healthMarkers).not.toContain("<select");
   });
 

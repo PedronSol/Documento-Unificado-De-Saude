@@ -656,6 +656,9 @@ o módulo não existe.
 | 10 | dashboard do paciente: falha de rede exibia texto técnico; `403`/`422` ao salvar vacina genéricos; `401` na remoção ignorado (4 falhas) | hook nos três recursos e `readApiError` nas mutações de vacina | mocks de `@/lib/api` preservam os helpers reais | 13.2 |
 | 11 | marcadores e compartilhamento exibiam `Failed to fetch`/erro de JSON e `403` genérico (6 falhas) | `readApiError` e mensagens constantes; compartilhamento usa o hook | `readError` local removido | 13.2 |
 | 12 | `overrides` ignorado; convites, guarda, documentos, `adminRequest` e vínculo médico sem `403` padronizado ou com `detail` ignorado (9 falhas) | `readApiError` com `overrides` de domínio | listas de guarda usam o hook; `DEFAULT_ERRORS` do admin removido | 13.2 |
+| 13 | `tests/use-api-resource.test.jsx`: `errorStatus` ausente (2 falhas) | hook expõe o status do erro | — | 13.3 |
+| 14 | `tests/medical-record.test.jsx`: `Failed to resolve import "@/components/medical/medical-record"`; lista médica ainda com botão | `MedicalRecordView` por ID de rota com estados `403`/`404`/ID inválido; lista com links | dashboard médico dividido em carteira, prontuário, ações de provisório e formatação | 13.3 |
+| 15 | REFACTOR coberto pela suíte existente | — | dashboard do paciente vira composição de `VaccinationHistory`, `AlertsSection`, `DocumentsSection`, `HealthMarkers`; marcadores e documentos divididos em diálogos e listas | 13.3 |
 
 ## Verificações executadas
 
@@ -668,6 +671,11 @@ o módulo não existe.
   crua do `response.json()`; corrigido e coberto por teste na 13.2.
 - 13.2: `npm test` (221 passed), `npx playwright test` (41 passed) e
   `npm run build`.
+- 13.3: `npm test` (234 passed), `npx playwright test` (41 passed, com
+  prontuário por URL, voltar, recarregar e `403` por link direto) e
+  `npm run build` com `/medical/patients/[patientId]`. O wrapper de rota
+  `MedicalRecordArea` recebeu teste logo após sua criação (caracterização), não
+  antes; a regra de prontuário que ele compõe teve RED próprio no ciclo 14.
 
 ## Plano de execução
 

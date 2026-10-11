@@ -23,6 +23,7 @@ export function useApiResource(path, {
     status: path ? "loading" : "idle",
     data: initialData,
     error: null,
+    errorStatus: null,
   });
 
   useEffect(() => {
@@ -32,7 +33,12 @@ export function useApiResource(path, {
     let active = true;
 
     async function load() {
-      setResource((current) => ({ ...current, status: "loading", error: null }));
+      setResource((current) => ({
+        ...current,
+        status: "loading",
+        error: null,
+        errorStatus: null,
+      }));
       try {
         const response = await apiFetch(path);
         if (!active) {
@@ -43,19 +49,29 @@ export function useApiResource(path, {
           return;
         }
         if (!response.ok) {
-          const { message } = await readApiError(response, fallback);
+          const { status, message } = await readApiError(response, fallback);
           if (active) {
-            setResource({ status: "error", data: initialData, error: message });
+            setResource({
+              status: "error",
+              data: initialData,
+              error: message,
+              errorStatus: status,
+            });
           }
           return;
         }
         const data = await response.json();
         if (active) {
-          setResource({ status: "ready", data, error: null });
+          setResource({ status: "ready", data, error: null, errorStatus: null });
         }
       } catch {
         if (active) {
-          setResource({ status: "error", data: initialData, error: fallback });
+          setResource({
+            status: "error",
+            data: initialData,
+            error: fallback,
+            errorStatus: null,
+          });
         }
       }
     }
@@ -72,6 +88,7 @@ export function useApiResource(path, {
   const updateData = useCallback((update) => setResource((current) => ({
     status: "ready",
     error: null,
+    errorStatus: null,
     data: typeof update === "function" ? update(current.data) : update,
   })), []);
 

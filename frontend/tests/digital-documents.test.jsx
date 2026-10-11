@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DigitalDocuments } from "@/components/health-passport/digital-documents";
+import { DigitalDocuments } from "@/components/documents/digital-documents";
 import { apiFetch } from "@/lib/api";
 
 
