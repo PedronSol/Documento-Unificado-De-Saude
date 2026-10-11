@@ -129,6 +129,11 @@ def test_documents_use_session_patient_and_normalized_contract():
                 "size_bytes": 1024,
                 "created_at": datetime(2026, 3, 1, 12, 0),
                 "status": "uploaded",
+                "uploaded_by_user_id": 1,
+                "uploader_role": "patient",
+                "uploader_name": None,
+                "uploader_crm_number": None,
+                "uploader_crm_state": None,
             }
         ]
     )

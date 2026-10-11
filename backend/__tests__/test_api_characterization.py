@@ -133,7 +133,7 @@ class FakeCursor:
                 for alert in self.database.alerts
                 if alert["patient_id"] == parameters[0]
             ]
-        elif "FROM documents WHERE patient_id" in sql:
+        elif "FROM documents d" in sql and "WHERE d.patient_id" in sql:
             self.result = [
                 {
                     "document_id": document["id_documento"],
@@ -144,6 +144,11 @@ class FakeCursor:
                     "size_bytes": document["size_bytes"],
                     "created_at": document["created_at"],
                     "status": document["status_documento"],
+                    "uploaded_by_user_id": 1,
+                    "uploader_role": "patient",
+                    "uploader_name": None,
+                    "uploader_crm_number": None,
+                    "uploader_crm_state": None,
                 }
                 for document in self.database.documents
                 if document["patient_id"] == parameters[0]
@@ -472,6 +477,7 @@ async def test_patient_resources_are_loaded_from_separate_endpoints(
             "size_bytes": 1024,
             "created_at": "2025-03-01T12:00:00",
             "status": "uploaded",
+            "uploaded_by_doctor": None,
         }
     ]
 

@@ -61,15 +61,19 @@ armazenamento, as validações de arquivo, a auditoria e o sigilo contra a role
 4. O médico pode enviar documentos a paciente menor e a paciente provisório,
    alinhado à regra 15 da spec `036` para marcadores. Não há
    `X-Acting-Patient` em rotas médicas.
-5. `documents` ganha `uploaded_by_user_id`, FK para `users`, preenchido pelo
-   servidor em todo novo envio (paciente, responsável ou médico). O cliente
-   nunca informa autoria.
+5. `documents` ganha `uploaded_by_user_id`, FK para `users`, e
+   `uploader_role` (`patient` ou `doctor`), ambos preenchidos pelo servidor em
+   todo novo envio: `patient` pelas rotas `/me` (paciente ou responsável) e
+   `doctor` pela rota médica. O cliente nunca informa autoria. O papel é
+   necessário porque uma mesma conta pode ser paciente e médica, ou responsável
+   e médica; somente envios pela rota médica contam como envio de médico.
 6. `DELETE /medical/patients/{patient_id}/documents/{document_id}` autoriza o
    paciente, bloqueia o documento ativo daquele paciente com `FOR UPDATE` e só
    remove se `uploaded_by_user_id` for o usuário do médico autenticado.
    - Documento ausente, removido ou de outro paciente: `404`
      `Documento não encontrado.`
-   - Documento ativo do paciente enviado por outra pessoa: `403`
+   - Documento ativo do paciente que não tenha `uploader_role = 'doctor'` e
+     `uploaded_by_user_id` do médico autenticado: `403`
      `Você só pode remover documentos enviados por você.` O documento já é
      visível ao médico autorizado, então o `403` não revela informação nova.
 7. A remoção médica segue as regras 17 e 18 da `020`: estado `removed`,
@@ -92,23 +96,26 @@ armazenamento, as validações de arquivo, a auditoria e o sigilo contra a role
      prontuário do paciente.
    - Fechar ou cancelar o diálogo desmarca a confirmação.
 9. As listagens do paciente e do médico passam a informar
-   `uploaded_by_doctor`: `null` quando o envio não foi feito por médico, ou
+   `uploaded_by_doctor`: `null` quando `uploader_role` não é `doctor`, ou
    `{ display_name, crm_number, crm_state }` do médico que enviou. Nunca expõem
    `uploaded_by_user_id`, e-mail, CPF ou outro dado do usuário.
 10. A listagem médica informa ainda `can_remove`, calculado pelo servidor como
-    "documento enviado pelo médico autenticado". A interface usa esse campo
+    `uploader_role = 'doctor'` e `uploaded_by_user_id` do médico autenticado.
+    A interface usa esse campo
     apenas para exibir o controle; o `DELETE` repete a verificação.
 11. Auditoria: `document.uploaded` e `document.removed` com
     `actor_user_id` do médico e `patient_id` do paciente, mesma allowlist de
     snapshot da `020`. Autoria e dados do médico não entram no snapshot.
 12. Admin continua recebendo `403` em todas as rotas `/medical` e `/me`.
-13. Migration forward-only `0015`: adiciona `uploaded_by_user_id` nulo e
-    preenche documentos existentes com o `actor_user_id` do evento
+13. Migration forward-only `0015`: adiciona `uploaded_by_user_id` nulo (FK
+    `RESTRICT` para `users`) e `uploader_role` `ENUM('patient','doctor')` não
+    nulo com padrão `patient`, pois todos os envios anteriores foram feitos por
+    rotas `/me`. Preenche `uploaded_by_user_id` com o `actor_user_id` do evento
     `document.uploaded` correspondente. Registros legados sem evento (os
     `removed` convertidos pela `0013`) permanecem nulos. Uma check constraint
-    exige o campo em todo documento que não esteja `removed`; documentos ativos
-    sem evento de upload não existem pela regra 11 da `020`, e o teste de
-    migração prova o backfill.
+    exige `uploaded_by_user_id` em todo documento que não esteja `removed`; o
+    teste em MySQL real prova o backfill. O código informa `uploader_role`
+    explicitamente em todo INSERT; o padrão existe apenas para o backfill.
 
 ## Matriz de autorização (alterações)
 

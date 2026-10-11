@@ -48,7 +48,43 @@ class DocumentCursor:
             (" ".join(statement.split()), parameters or ())
         )
         sql = self.connection.executed[-1][0]
-        if sql.startswith("SELECT id_documento AS document_id"):
+        if sql.startswith("SELECT u.display_name, doc.crm_number"):
+            self.result = self.connection.doctor_profiles.get(parameters[0])
+        elif sql.startswith("SELECT d.id_documento AS document_id"):
+            patient_id = parameters[0]
+            documents = [
+                item
+                for item in self.connection.documents
+                if item["patient_id"] == patient_id and item["status"] != "removed"
+            ]
+            self.result = []
+            for item in documents:
+                profile = (
+                    self.connection.doctor_profiles.get(item["uploaded_by_user_id"])
+                    if item["uploader_role"] == "doctor"
+                    else None
+                )
+                self.result.append({
+                    **{
+                        key: item[key]
+                        for key in (
+                            "document_id",
+                            "title",
+                            "type",
+                            "original_filename",
+                            "media_type",
+                            "size_bytes",
+                            "status",
+                            "created_at",
+                            "uploaded_by_user_id",
+                            "uploader_role",
+                        )
+                    },
+                    "uploader_name": profile and profile["display_name"],
+                    "uploader_crm_number": profile and profile["crm_number"],
+                    "uploader_crm_state": profile and profile["crm_state"],
+                })
+        elif sql.startswith("SELECT id_documento AS document_id"):
             if "id_documento = %s" in sql:
                 document_id, patient_id = parameters
                 document = next(
@@ -117,6 +153,10 @@ class DocumentConnection:
         self.executed = []
         self.documents = []
         self.authorized_patient = {"patient_id": 10, "user_id": 2}
+        self.doctor_profiles = {
+            8: {"display_name": "Dra. Ana Lima", "crm_number": "123456", "crm_state": "SP"},
+            9: {"display_name": "Dr. Rui Costa", "crm_number": "654321", "crm_state": "RJ"},
+        }
         self.commits = 0
         self.rollbacks = 0
         self.fail_commit = False
@@ -181,6 +221,8 @@ def document_app():
     app.dependency_overrides[get_current_doctor] = lambda: {
         "doctor_id": 7,
         "user_id": 8,
+        "crm_number": "123456",
+        "crm_state": "SP",
     }
     app.dependency_overrides[get_connection] = lambda: connection
     return app, connection, storage
@@ -209,6 +251,7 @@ async def test_uploads_valid_pdf_with_private_key_metadata_and_audit(document_ap
         "size_bytes": len(MINIMAL_PDF),
         "status": "uploaded",
         "created_at": response.json()["created_at"],
+        "uploaded_by_doctor": None,
     }
     assert len(storage.files) == 1
     storage_key, stored_content = next(iter(storage.files.items()))
@@ -225,6 +268,8 @@ async def test_uploads_valid_pdf_with_private_key_metadata_and_audit(document_ap
         "hemograma.pdf",
     )
     assert storage_key in document_insert[1]
+    assert "uploaded_by_user_id, uploader_role" in document_insert[0]
+    assert document_insert[1][-2:] == (1, "patient")
     assert MINIMAL_PDF not in document_insert[1]
     assert audit_insert[0].startswith("INSERT INTO clinical_audit_events")
     assert audit_insert[1][0:6] == (
@@ -262,6 +307,8 @@ def stored_document(**overrides):
         "status": "uploaded",
         "created_at": datetime(2026, 10, 11, 12, 0),
         "removed_at": None,
+        "uploaded_by_user_id": 1,
+        "uploader_role": "patient",
     }
     document.update(overrides)
     return document
@@ -292,11 +339,12 @@ async def test_lists_only_active_owned_documents_in_stable_order(document_app):
             "size_bytes": len(MINIMAL_PDF),
             "status": "uploaded",
             "created_at": "2026-10-11T12:00:00",
+            "uploaded_by_doctor": None,
         }
     ]
     list_query = connection.executed[0]
     assert "status_documento <> 'removed'" in list_query[0]
-    assert "ORDER BY created_at DESC, id_documento DESC" in list_query[0]
+    assert "ORDER BY d.created_at DESC, d.id_documento DESC" in list_query[0]
     assert list_query[1] == (10,)
 
 
@@ -711,30 +759,6 @@ async def test_upload_rejects_extra_or_multiple_form_fields_without_persistence(
     assert storage.files == {}
 
 
-@pytest.mark.parametrize(
-    ("method", "path"),
-    [
-        ("post", "/medical/patients/10/documents"),
-        ("delete", "/medical/patients/10/documents/42"),
-    ],
-)
-async def test_doctor_mutation_routes_are_explicitly_forbidden(
-    document_app,
-    method,
-    path,
-):
-    app, connection, _storage = document_app
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        response = await client.request(method, path)
-
-    assert response.status_code == 403
-    assert connection.executed == []
-
-
 async def test_minor_cannot_upload_or_remove_documents():
     storage = RecordingStorage()
     connection_requested = False
@@ -813,3 +837,218 @@ async def test_admin_is_denied_on_every_document_route_before_clinical_query():
     assert [response.status_code for response in responses] == [403] * 8
     assert connection_requested is False
     assert storage.files == {}
+
+
+async def test_patient_list_identifies_documents_sent_by_doctor(document_app):
+    app, connection, _storage = document_app
+    connection.documents = [
+        stored_document(uploaded_by_user_id=8, uploader_role="doctor"),
+        stored_document(document_id=41, uploaded_by_user_id=8, uploader_role="patient"),
+    ]
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.get("/me/documents")
+
+    assert [item["uploaded_by_doctor"] for item in response.json()] == [
+        {"display_name": "Dra. Ana Lima", "crm_number": "123456", "crm_state": "SP"},
+        None,
+    ]
+    assert "uploaded_by_user_id" not in response.json()[0]
+
+
+async def test_authorized_doctor_uploads_document_with_authorship_and_audit(document_app):
+    app, connection, storage = document_app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/medical/patients/10/documents",
+            data={"title": "Laudo do ecocardiograma", "type": "report"},
+            files={"file": ("laudo.pdf", MINIMAL_PDF, "application/pdf")},
+        )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["title"] == "Laudo do ecocardiograma"
+    assert body["uploaded_by_doctor"] == {
+        "display_name": "Dra. Ana Lima",
+        "crm_number": "123456",
+        "crm_state": "SP",
+    }
+    assert body["can_remove"] is True
+    document_insert = next(
+        item for item in connection.executed if item[0].startswith("INSERT INTO documents")
+    )
+    assert document_insert[1][0] == 10
+    assert document_insert[1][-2:] == (8, "doctor")
+    audit = next(
+        item for item in connection.executed
+        if item[0].startswith("INSERT INTO clinical_audit_events")
+    )
+    assert audit[1][0:6] == ("user", 8, 10, "document.uploaded", "document", 42)
+    assert len(storage.files) == 1
+    assert connection.commits >= 1
+
+
+async def test_doctor_without_access_cannot_upload(document_app):
+    app, connection, storage = document_app
+    connection.authorized_patient = None
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/medical/patients/10/documents",
+            data={"title": "Laudo", "type": "report"},
+            files={"file": ("laudo.pdf", MINIMAL_PDF, "application/pdf")},
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Paciente não autorizado."}
+    assert storage.files == {}
+    assert not any(statement.startswith("INSERT") for statement, _ in connection.executed)
+
+
+async def test_doctor_upload_reuses_file_validation(document_app):
+    app, connection, storage = document_app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/medical/patients/10/documents",
+            data={"title": "Laudo", "type": "report"},
+            files={"file": ("laudo.pdf", b"\x89PNG\r\n\x1a\n", "application/pdf")},
+        )
+
+    assert response.status_code == 422
+    assert storage.files == {}
+    assert not any(statement.startswith("INSERT") for statement, _ in connection.executed)
+
+
+async def test_doctor_removes_only_documents_sent_by_themselves(document_app):
+    app, connection, storage = document_app
+    own = stored_document(uploaded_by_user_id=8, uploader_role="doctor")
+    connection.documents = [own]
+    storage.files[own["storage_key"]] = MINIMAL_PDF
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.delete("/medical/patients/10/documents/42")
+
+    assert response.status_code == 204
+    assert own["status"] == "removed"
+    assert storage.files == {}
+    audit = next(
+        item for item in connection.executed
+        if item[0].startswith("INSERT INTO clinical_audit_events")
+    )
+    assert audit[1][0:6] == ("user", 8, 10, "document.removed", "document", 42)
+
+
+@pytest.mark.parametrize(
+    "uploader",
+    [
+        {"uploaded_by_user_id": 1, "uploader_role": "patient"},
+        {"uploaded_by_user_id": 9, "uploader_role": "doctor"},
+        {"uploaded_by_user_id": 8, "uploader_role": "patient"},
+    ],
+)
+async def test_doctor_cannot_remove_document_sent_by_someone_else(document_app, uploader):
+    app, connection, _storage = document_app
+    document = stored_document(**uploader)
+    connection.documents = [document]
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.delete("/medical/patients/10/documents/42")
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Você só pode remover documentos enviados por você.",
+    }
+    assert document["status"] == "uploaded"
+    assert not any(
+        statement.startswith("UPDATE documents") for statement, _ in connection.executed
+    )
+
+
+async def test_doctor_removal_of_missing_document_returns_404(document_app):
+    app, connection, _storage = document_app
+    connection.documents = [stored_document(document_id=43, uploaded_by_user_id=8, uploader_role="doctor")]
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.delete("/medical/patients/10/documents/42")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Documento não encontrado."}
+
+
+async def test_doctor_without_access_cannot_remove(document_app):
+    app, connection, _storage = document_app
+    connection.authorized_patient = None
+    connection.documents = [stored_document(uploaded_by_user_id=8, uploader_role="doctor")]
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.delete("/medical/patients/10/documents/42")
+
+    assert response.status_code == 403
+    assert connection.documents[0]["status"] == "uploaded"
+
+
+async def test_medical_list_flags_removable_documents(document_app):
+    app, connection, _storage = document_app
+    connection.documents = [
+        stored_document(uploaded_by_user_id=8, uploader_role="doctor"),
+        stored_document(document_id=41, uploaded_by_user_id=9, uploader_role="doctor"),
+        stored_document(document_id=40),
+    ]
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.get("/medical/patients/10/documents")
+
+    assert [(item["document_id"], item["can_remove"]) for item in response.json()] == [
+        (42, True),
+        (41, False),
+        (40, False),
+    ]
+    assert response.json()[1]["uploaded_by_doctor"]["display_name"] == "Dr. Rui Costa"
+
+
+async def test_doctor_upload_rolls_back_when_audit_fails(document_app):
+    app, connection, storage = document_app
+    connection.fail_audit = True
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/medical/patients/10/documents",
+            data={"title": "Laudo", "type": "report"},
+            files={"file": ("laudo.pdf", MINIMAL_PDF, "application/pdf")},
+        )
+
+    assert response.status_code == 503
+    assert storage.files == {}
+    assert connection.rollbacks >= 1

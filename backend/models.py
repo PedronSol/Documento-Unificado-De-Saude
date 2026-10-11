@@ -166,6 +166,14 @@ class AlertResponse(BaseModel):
     severity: Literal["low", "medium", "high"]
 
 
+class DocumentDoctorUploader(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: str
+    crm_number: str
+    crm_state: str
+
+
 class DocumentSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -183,6 +191,11 @@ class DocumentSummary(BaseModel):
         "failed",
     ]
     created_at: datetime
+    uploaded_by_doctor: Optional[DocumentDoctorUploader]
+
+
+class MedicalDocumentSummary(DocumentSummary):
+    can_remove: bool
 
 
 class UserIdentity(BaseModel):
