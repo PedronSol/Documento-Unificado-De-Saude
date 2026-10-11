@@ -3716,13 +3716,15 @@ select:focus-visible {
 
 .admin-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(max-content, 1fr));
   gap: var(--ds-space-1);
+  overflow-x: auto;
   margin-top: var(--ds-space-4);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-pill);
   background: var(--ds-color-surface-muted);
   padding: var(--ds-space-1);
+  scrollbar-width: none;
 }
 
 .admin-tabs button {
@@ -3730,9 +3732,11 @@ select:focus-visible {
   border: 0;
   border-radius: var(--ds-radius-pill);
   background: transparent;
+  padding: 0 var(--ds-space-2);
   color: var(--ds-color-text-muted);
-  font-size: var(--ds-font-size-sm);
+  font-size: var(--ds-font-size-xs);
   font-weight: var(--ds-font-weight-semibold);
+  white-space: nowrap;
   transition: background var(--ds-motion-fast) var(--ds-ease-standard);
 }
 
@@ -4140,8 +4144,9 @@ select:focus-visible {
 }
 
 @media (min-width: 30rem) {
-  .admin-tabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .admin-tabs button {
+    padding: 0 var(--ds-space-3);
+    font-size: var(--ds-font-size-sm);
   }
 
   .admin-issued-link>div {

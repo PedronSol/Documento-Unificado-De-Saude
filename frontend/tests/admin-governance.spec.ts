@@ -123,10 +123,18 @@ test.describe("Governança administrativa", () => {
     await expect(page.getByText(doctor.display_name)).toBeVisible();
     await expectNoHorizontalOverflow(page, 320);
 
+    const tabBoxes = [];
     for (const name of ["Médicos", "Grupos", "Diretório", "Auditoria"]) {
       const box = await page.getByRole("button", { name, exact: true }).boundingBox();
       expect(box?.height).toBeGreaterThanOrEqual(44);
+      tabBoxes.push(box);
     }
+    const tabTops = new Set(tabBoxes.map((box) => Math.round(box?.y ?? -1)));
+    expect(tabTops.size).toBe(1);
+    const tabsFit = await page.locator(".admin-tabs").evaluate(
+      (nav) => nav.scrollWidth <= nav.clientWidth,
+    );
+    expect(tabsFit).toBe(true);
     const verifyBox = await page
       .getByRole("button", { name: `Verificar CRM de ${doctor.display_name}` })
       .boundingBox();
