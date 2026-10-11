@@ -92,6 +92,60 @@ def test_cli_injeta_engine_e_caso_de_uso_de_migration(tmp_path):
     }
 
 
+def test_cli_create_admin_le_senha_por_prompt_e_injeta_caso_de_uso():
+    engine = FakeEngine()
+    received = {}
+
+    def create_admin_use_case(received_engine, **values):
+        received["engine"] = received_engine
+        received.update(values)
+
+    database_tasks.main(
+        [
+            "create-admin",
+            "--email",
+            "gestora@example.com",
+            "--cpf",
+            "52998224725",
+            "--name",
+            "Gestora Principal",
+        ],
+        environ={"DB_NAME": "health_test"},
+        engine_builder=lambda settings, *, include_database=True: engine,
+        create_admin_use_case=create_admin_use_case,
+        password_prompt=lambda: "senha-admin-segura",
+    )
+
+    assert received == {
+        "engine": engine,
+        "email": "gestora@example.com",
+        "cpf": "52998224725",
+        "display_name": "Gestora Principal",
+        "password": "senha-admin-segura",
+    }
+
+
+def test_cli_create_admin_nao_aceita_senha_por_argumento():
+    with pytest.raises(SystemExit):
+        database_tasks.main(
+            [
+                "create-admin",
+                "--email",
+                "gestora@example.com",
+                "--cpf",
+                "52998224725",
+                "--name",
+                "Gestora Principal",
+                "--password",
+                "senha-admin-segura",
+            ],
+            environ={},
+            engine_builder=lambda settings, *, include_database=True: FakeEngine(),
+            create_admin_use_case=lambda *args, **kwargs: None,
+            password_prompt=lambda: "nunca-usada",
+        )
+
+
 def test_seed_executa_sql_por_conexao_injetada_em_desenvolvimento(tmp_path):
     seed_path = tmp_path / "development.sql"
     seed_path.write_text(

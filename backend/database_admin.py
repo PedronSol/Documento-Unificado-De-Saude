@@ -1,10 +1,18 @@
 from pathlib import Path
 import re
 
+from pydantic import ValidationError
 from sqlalchemy.engine import Engine
+
+from models import AdminAccountCreate
+from security import hash_password
 
 
 class UnsafeEnvironmentError(RuntimeError):
+    pass
+
+
+class AdminBootstrapError(RuntimeError):
     pass
 
 
@@ -40,4 +48,47 @@ def reset_database(engine: Engine, database_name: str, app_env: str) -> None:
         connection.exec_driver_sql(
             f"CREATE DATABASE `{database_name}` "
             "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+
+
+def create_admin(
+    engine: Engine,
+    *,
+    email: str,
+    cpf: str,
+    display_name: str,
+    password: str,
+) -> None:
+    try:
+        account = AdminAccountCreate(
+            email=email,
+            cpf=cpf,
+            display_name=display_name,
+            password=password,
+        )
+    except ValidationError as error:
+        raise AdminBootstrapError("Dados administrativos inválidos.") from error
+
+    with engine.begin() as connection:
+        existing = connection.exec_driver_sql(
+            "SELECT COUNT(*) FROM users WHERE email = %s OR cpf = %s",
+            (account.email, account.cpf),
+        ).scalar_one()
+        if existing:
+            raise AdminBootstrapError("E-mail ou CPF já cadastrado.")
+        result = connection.exec_driver_sql(
+            """
+            INSERT INTO users (cpf, display_name, email, password_hash, active)
+            VALUES (%s, %s, %s, %s, TRUE)
+            """,
+            (
+                account.cpf,
+                account.display_name,
+                account.email,
+                hash_password(account.password),
+            ),
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO user_roles (user_id, role) VALUES (%s, 'admin')",
+            (result.lastrowid,),
         )

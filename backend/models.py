@@ -369,3 +369,54 @@ class OwnProfileUpdate(BaseModel):
         if any(getattr(self, field) is None for field in self.model_fields_set):
             raise ValueError("O nome não pode ser nulo.")
         return self
+
+
+class AdminAccountCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(max_length=254)
+    cpf: str
+    display_name: str = Field(min_length=3, max_length=100)
+    password: str = Field(min_length=12, max_length=128)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_admin_email(cls, value):
+        if isinstance(value, str):
+            return value.strip().casefold()
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def validate_admin_email(cls, value: str) -> str:
+        if not EMAIL_PATTERN.fullmatch(value):
+            raise ValueError("Informe um e-mail válido.")
+        return value
+
+    @field_validator("cpf", mode="before")
+    @classmethod
+    def normalize_admin_cpf(cls, value):
+        if isinstance(value, str):
+            return _normalize_cpf(value)
+        return value
+
+    @field_validator("cpf")
+    @classmethod
+    def validate_admin_cpf(cls, value: str) -> str:
+        if not _is_valid_cpf(value):
+            raise ValueError("Informe um CPF válido.")
+        return value
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def normalize_admin_name(cls, value):
+        if isinstance(value, str):
+            return _normalize_text(value)
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def validate_admin_password(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("A senha não pode conter apenas espaços.")
+        return value

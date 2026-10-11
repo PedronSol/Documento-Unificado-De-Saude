@@ -23,6 +23,21 @@ make db-reset
 deve ser executado explicitamente; o fluxo normal nunca remove o database ou o
 volume Docker.
 
+## Bootstrap administrativo
+
+Contas administrativas não têm cadastro público. A primeira conta é criada
+pelo operador, em qualquer ambiente:
+
+```bash
+make admin-create EMAIL=gestao@example.com CPF=52998224725 NAME="Gestão Central"
+```
+
+A senha é solicitada por prompt sem eco e nunca é aceita por argumento ou
+variável de ambiente. O comando recusa e-mail ou CPF já cadastrados e não
+promove contas existentes. A revisão `0008` adiciona convites profissionais,
+gestão de grupos por admin, convites de cuidado e auditoria administrativa; o
+seed de desenvolvimento torna `admin@email.com` gestor dos dados demonstrativos.
+
 ## Criar uma revisão
 
 Dentro de `backend/`, com as dependências instaladas:
