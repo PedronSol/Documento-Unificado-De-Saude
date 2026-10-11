@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -513,19 +513,39 @@ Comportamento intermediário, substituído pelas fases seguintes:
 | 4 | formulário de provisório, ações do prontuário provisório e `PatientClaim` inexistentes | painel com link/QR, correção e novo link no prontuário, página `/patient-claim` | leitura do token do fragmento extraída para `lib/fragment-token.js`; `RegistrationField` reutilizado | `patient-link-panel.test.jsx`, `doctor-dashboard.test.jsx`, `patient-claim.test.jsx`, `direct-care-links.spec.ts` |
 | 5 | `test_minor_with_new_guardian_...`: `422` (`guardian` não aceito); `test_migration_0011_...`: arquivo inexistente; marcador de menor pelo médico retornava `403` | migration `0011`, menor com responsável novo ou existente, aceite/recusa/renúncia de guarda e `X-Acting-Patient` com o responsável como ator | `user_id` do contexto passa a significar o ator; reivindicação repassa a data do dependente (falhava sempre com `403`) | `test_guardianships.py`, `test_medical_area.py`, `test_migrations.py` |
 | 6 | `setActingPatient`, `GuardianshipPanel`, contexto "Saúde de <nome>", campos do responsável e `for=guardian` inexistentes | cabeçalho de atuação no cliente, painel de guarda, seletor com dependentes, formulário do responsável e reivindicação de guarda | cabeçalho definido no clique, antes de renderizar, com remontagem do dashboard por contexto | `api.test.js`, `guardianship-panel.test.jsx`, `authenticated-home.test.jsx`, `patient-link-panel.test.jsx`, `patient-claim.test.jsx`, `direct-care-links.spec.ts` |
+| 7 | transferência `404`, `/me/guardians` inexistente, menor titular com responsável `409`; `test_migration_0012_...`: arquivo inexistente | migration `0012`, transferência a pedido, desvínculo pelo dependente adulto e confirmação do menor titular | criação de guarda extraída para `create_guardianship`, compartilhada entre provisório e solicitação | `test_guardian_transfer.py`, `test_guardianships.py`, `test_migrations.py` |
+| 8 | botão de transferência, `MyGuardiansPanel` e responsável na solicitação a menor titular inexistentes | geração de acesso próprio, "Meus responsáveis" com confirmação/desvínculo e formulário do responsável no fluxo de solicitação | `GuardianFieldset` compartilhado; tratamento de `409` por detalhe | `guardianship-panel.test.jsx`, `my-guardians-panel.test.jsx`, `patient-link-panel.test.jsx`, `authenticated-home.test.jsx`, `direct-care-links.spec.ts` |
 
 ## Critérios de conclusão
 
-- [ ] Spec aprovada antes do primeiro RED.
-- [ ] Médico só acessa paciente com conta após aceite do titular ou responsável.
-- [ ] Médico cria provisórios adultos e menores e registra marcadores.
-- [ ] Todo menor provisório tem responsável e só é administrado por guarda ativa.
-- [ ] Conta provisória só é assumida com token e dados confirmados.
-- [ ] Dependente adulto assume a conta a pedido e desvincula o responsável
+- [x] Spec aprovada antes do primeiro RED.
+- [x] Médico só acessa paciente com conta após aceite do titular ou responsável.
+- [x] Médico cria provisórios adultos e menores e registra marcadores.
+- [x] Todo menor provisório tem responsável e só é administrado por guarda ativa.
+- [x] Conta provisória só é assumida com token e dados confirmados.
+- [x] Dependente adulto assume a conta a pedido e desvincula o responsável
       quando quiser; a maioridade não muda nada sozinha.
-- [ ] Grupos do admin continuam fora do alcance do médico.
-- [ ] Fluxos funcionam em 320 px e viewport ampla.
-- [ ] Definition of Done atendida.
+- [x] Grupos do admin continuam fora do alcance do médico.
+- [x] Fluxos funcionam em 320 px e viewport ampla.
+- [x] Definition of Done atendida.
+
+## Verificações executadas
+
+- Backend: `python -m pytest` (158 passed, 52 skipped) e
+  `RUN_DB_INTEGRATION=1 python -m pytest` no MySQL 8 real (210 passed),
+  incluindo migrations `0009`–`0012`.
+- Frontend: `npm test` (96 passed), `npx playwright test` (31 passed, com os
+  cenários novos em 320 px e 1440 px) e `npm run build`.
+- Cada commit da entrega passa pytest e Vitest isoladamente.
+- `git diff --check` sem pendências.
+- Não executado: `npm run lint` (`eslint` não instalado no projeto, situação
+  anterior); conclusão com conta Google real (verificador injetado nos testes).
+- Instabilidades conhecidas, sem causa confirmada: o e2e "gerencia marcador"
+  de `login.spec.ts` falha cerca de 1 em 8–16 execuções também no código
+  anterior a esta entrega; dois testes de grupos do Step 10 falharam uma vez
+  cada em rodadas completas e não reproduziram em mais de 10 execuções.
+- Achado fora do escopo: o seletor de contexto no cabeçalho desktop (ponteiro
+  fino, ≥ 1200 px) tem 32 px de altura, abaixo dos 44 px do `AGENTS.md`.
 
 ## Decisões e observações
 

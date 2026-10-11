@@ -227,7 +227,7 @@ flowchart TD
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
 | 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
 | 14 | Consolidação operacional | 7–13, 15 | PLANNED | — |
-| 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | IN PROGRESS | `docs/specs/036-doctor-assisted-patient-registration.md` |
+| 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | DONE | [PR #11](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/11) |
 
 ## Step 0 — Baseline de specs e TDD
 
@@ -686,10 +686,10 @@ alterar os grupos geridos por admin.
       reivindicação por link/QR com e-mail/senha ou Google.
 - [x] 15.3: guarda, provisório menor com responsável, contexto do dependente
       (`X-Acting-Patient`) e marcadores de menor pelo médico.
-- [ ] 15.4: transferência a pedido, desvínculo pelo dependente adulto e
+- [x] 15.4: transferência a pedido, desvínculo pelo dependente adulto e
       guarda de menor titular de conta.
-- [ ] Auditar todas as ações na auditoria clínica do paciente afetado.
-- [ ] Cobrir médico, reivindicação, responsável e paciente em 320 px e
+- [x] Auditar todas as ações na auditoria clínica do paciente afetado.
+- [x] Cobrir médico, reivindicação, responsável e paciente em 320 px e
       viewport ampla.
 
 ### Critérios de conclusão
