@@ -216,7 +216,7 @@ flowchart TD
 | 7 | Área médica e grupos | 4, 6 | DONE | `fc2b12e` |
 | 8 | Compartilhamento e QR-Code | 6 | DONE | `333df01` |
 | 9 | Cadastro local de pacientes e Google opcional | 3, 4 | DONE | `00303f3` |
-| 10 | Governança administrativa e vínculos | 5, 7, 9 | SPEC WRITING | `docs/specs/007-administrative-access-governance.md` |
+| 10 | Governança administrativa e vínculos | 5, 7, 9 | DONE | `552a975`…`0b3a094` |
 | 11 | Armazenamento de documentos | 5, 7, 10 | SPEC REVIEW | `docs/specs/020-secure-document-storage.md` |
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
 | 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
@@ -520,24 +520,24 @@ médicos e vínculos, sem acesso direto a qualquer informação clínica.
 
 ### Tarefas
 
-- [ ] Concluir e aprovar `docs/specs/007-administrative-access-governance.md`.
-- [ ] Definir bootstrap seguro das contas administrativas, sem cadastro público.
-- [ ] Tornar `admin` exclusiva e impedir coexistência com `patient` ou `doctor`.
-- [ ] Fazer o admin emitir convite profissional de uso único; o médico pode
+- [x] Concluir e aprovar `docs/specs/007-administrative-access-governance.md`.
+- [x] Definir bootstrap seguro das contas administrativas, sem cadastro público.
+- [x] Tornar `admin` exclusiva e impedir coexistência com `patient` ou `doctor`.
+- [x] Fazer o admin emitir convite profissional de uso único; o médico pode
       autenticar sua identidade com Google, mas nunca criar o próprio cadastro.
-- [ ] Registrar `created_by_admin_user_id` em médicos e
+- [x] Registrar `created_by_admin_user_id` em médicos e
       `managed_by_admin_user_id` em grupos/vínculos administrados.
-- [ ] Permitir que admin cadastre, corrija, verifique, suspenda e desative somente
+- [x] Permitir que admin cadastre, corrija, verifique, suspenda e desative somente
       médicos criados por ele.
-- [ ] Criar diretório administrativo paginado de usuários ativos com allowlist
+- [x] Criar diretório administrativo paginado de usuários ativos com allowlist
       exclusivamente cadastral e sem qualquer join clínico.
-- [ ] Permitir que o admin convide qualquer paciente ativo para um grupo sob sua
+- [x] Permitir que o admin convide qualquer paciente ativo para um grupo sob sua
       gestão, sem alterar o cadastro do paciente.
-- [ ] Manter o vínculo `pending` até aceite do paciente; recusa ou revogação não
+- [x] Manter o vínculo `pending` até aceite do paciente; recusa ou revogação não
       concede acesso.
-- [ ] Bloquear o médico de criar o próprio vínculo ou ampliar seu grupo.
-- [ ] Criar auditoria administrativa separada, sem snapshots clínicos.
-- [ ] Criar área administrativa e caixa de convites do paciente seguindo o design
+- [x] Bloquear o médico de criar o próprio vínculo ou ampliar seu grupo.
+- [x] Criar auditoria administrativa separada, sem snapshots clínicos.
+- [x] Criar área administrativa e caixa de convites do paciente seguindo o design
       system, com testes de ownership cruzado entre admins.
 
 ### Critérios de conclusão
