@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { apiFetch } from "@/lib/api";
+import { readTokenFromFragment } from "@/lib/fragment-token";
 
 
-const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43,64}$/;
 const ERROR_MESSAGES = {
   403: "Convite inválido, expirado ou destinado a outro e-mail.",
   409: "Já existe uma conta com estes dados. Entre com ela, vincule o Google em Configurações e abra o link de convite novamente.",
@@ -16,19 +16,6 @@ const GENERIC_ERROR = "Não foi possível concluir o convite agora. Tente novame
 
 function redirectHome() {
   window.location.replace("/home");
-}
-
-
-function readTokenFromFragment() {
-  const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
-  if (window.location.hash) {
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${window.location.search}`,
-    );
-  }
-  return token && TOKEN_PATTERN.test(token) ? token : null;
 }
 
 

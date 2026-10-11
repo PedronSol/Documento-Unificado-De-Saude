@@ -39,7 +39,7 @@ async function responseDetail(response, fallback) {
 }
 
 
-function RegistrationField({
+export function RegistrationField({
   id,
   label,
   type = "text",
