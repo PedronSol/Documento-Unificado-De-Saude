@@ -85,6 +85,8 @@ def patient_row(**overrides):
         "health_status": "updated",
         "blood_type": "A+",
         "birth_date": date(1985, 4, 12),
+        "account_claimed_at": datetime(2026, 1, 1, 12, 0),
+        "provisioned_by_doctor_id": None,
         **overrides,
     }
 

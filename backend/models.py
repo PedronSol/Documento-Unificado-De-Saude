@@ -324,6 +324,8 @@ class MedicalPatientSummary(BaseModel):
 
 class MedicalPatientProfile(MedicalPatientSummary):
     blood_type: Optional[str] = None
+    account_status: Literal["active", "provisional"]
+    manages_provisional: bool
 
 
 class MedicalMarkerTimeline(BaseModel):
@@ -694,10 +696,37 @@ class AdministrativeAuditPage(BaseModel):
     has_next: bool
 
 
+class ProvisionalPatientData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: str = Field(min_length=3, max_length=100)
+    preferred_name: str = Field(min_length=1, max_length=20)
+    birth_date: date
+
+    @field_validator("full_name", "preferred_name", mode="before")
+    @classmethod
+    def normalize_provisional_names(cls, value):
+        if isinstance(value, str):
+            return _normalize_text(value)
+        return value
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_provisional_birth_date(cls, value: date) -> date:
+        return _validate_past_birth_date(value)
+
+
+def _validate_past_birth_date(value: date) -> date:
+    if value > date.today():
+        raise ValueError("A data de nascimento não pode estar no futuro.")
+    return value
+
+
 class PatientLinkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     cpf: str
+    patient: Optional[ProvisionalPatientData] = None
 
     @field_validator("cpf", mode="before")
     @classmethod
@@ -740,3 +769,91 @@ class PatientCareDoctor(BaseModel):
     crm_number: str
     crm_state: str
     since: datetime
+
+
+class ProvisionalClaimIssued(BaseModel):
+    token: str
+    expires_at: datetime
+    recipient: Literal["patient"]
+
+
+class ProvisionalPatientCreated(BaseModel):
+    result: Literal["provisional_created"]
+    patient_id: int
+    claim: ProvisionalClaimIssued
+
+
+class ClaimLinkIssued(BaseModel):
+    token: str
+    expires_at: datetime
+
+
+class ProvisionalProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: Optional[str] = Field(default=None, min_length=3, max_length=100)
+    preferred_name: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    birth_date: Optional[date] = None
+
+    @field_validator("full_name", "preferred_name", mode="before")
+    @classmethod
+    def normalize_correction_names(cls, value):
+        if isinstance(value, str):
+            return _normalize_text(value)
+        return value
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_correction_birth_date(cls, value: Optional[date]) -> Optional[date]:
+        return None if value is None else _validate_past_birth_date(value)
+
+    @model_validator(mode="after")
+    def require_correction(self):
+        if self.full_name is None and self.preferred_name is None and self.birth_date is None:
+            raise ValueError("Informe ao menos um campo.")
+        return self
+
+
+class PatientClaimBase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=43, max_length=64)
+    cpf: str
+    birth_date: date
+
+    @field_validator("cpf", mode="before")
+    @classmethod
+    def normalize_claim_cpf(cls, value):
+        if isinstance(value, str):
+            return _normalize_cpf(value)
+        return value
+
+
+class PatientClaimLocal(PatientClaimBase):
+    email: str = Field(max_length=254)
+    password: str = Field(min_length=12, max_length=128)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_claim_email(cls, value):
+        if isinstance(value, str):
+            return value.strip().casefold()
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def validate_claim_email(cls, value: str) -> str:
+        if not EMAIL_PATTERN.fullmatch(value):
+            raise ValueError("Informe um e-mail válido.")
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def validate_claim_password(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("A senha não pode conter apenas espaços.")
+        return value
+
+
+class PatientClaimGoogle(PatientClaimBase):
+    credential: str = Field(min_length=1, max_length=8192)

@@ -12,18 +12,27 @@ from care.direct_links import (
     list_doctor_pending_links,
     request_direct_link,
 )
+from care.provisional import (
+    correct_provisional_profile,
+    issue_claim,
+    load_managed_provisional,
+)
 from auth.dependencies import get_current_doctor
 from auth.dependencies import calculate_age
 from database import cursor_scope, get_connection, transaction
 from markers.service import create_marker, remove_active_marker, update_active_marker
 from models import (
+    ClaimLinkIssued,
     DoctorPendingLink,
     MarkerCreateUpdate,
     MarkerResponse,
     MedicalPatientSummary,
+    MedicalPatientProfile,
     MedicalRecordResponse,
     PatientLinkRequest,
     PatientLinkRequested,
+    ProvisionalPatientCreated,
+    ProvisionalProfileUpdate,
 )
 
 
@@ -105,8 +114,11 @@ def get_authorized_medical_patient(
                        p.avatar AS avatar_url,
                        p.status_saude AS health_status,
                        p.tipo_sanguineo AS blood_type,
-                       p.data_nascimento AS birth_date
+                       p.data_nascimento AS birth_date,
+                       u.claimed_at AS account_claimed_at,
+                       u.provisioned_by_doctor_id
                 FROM patients p
+                JOIN users u ON u.user_id = p.user_id
                 WHERE p.patient_id = %s
                   AND {AUTHORIZED_PATIENT_CLAUSE}
                 """,
@@ -169,10 +181,7 @@ def get_medical_record(
                     resource_id=patient_id,
                 )
         return {
-            "patient": {
-                **_patient_summary(patient),
-                "blood_type": patient["blood_type"],
-            },
+            "patient": _medical_profile(patient, doctor),
             "vaccines": vaccines,
             "markers": {
                 "active": active_markers,
@@ -302,18 +311,27 @@ def delete_medical_marker(
 
 @router.post(
     "/patient-links",
-    response_model=PatientLinkRequested,
+    response_model=PatientLinkRequested | ProvisionalPatientCreated,
     status_code=status.HTTP_202_ACCEPTED,
 )
 def create_patient_link(
     payload: PatientLinkRequest,
+    response: Response,
     doctor: dict = Depends(get_current_doctor),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
             with transaction(connection):
-                return request_direct_link(cursor, doctor=doctor, cpf=payload.cpf)
+                result = request_direct_link(
+                    cursor,
+                    doctor=doctor,
+                    cpf=payload.cpf,
+                    provisional=payload.patient,
+                )
+        if result["result"] == "provisional_created":
+            response.status_code = status.HTTP_201_CREATED
+        return result
     except mysql.connector.IntegrityError as error:
         if error.errno == 1062:
             raise HTTPException(
@@ -356,6 +374,62 @@ def delete_patient_link(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.patch(
+    "/patients/{patient_id}/provisional-profile",
+    response_model=MedicalPatientProfile,
+)
+def patch_provisional_profile(
+    patient_id: int,
+    correction: ProvisionalProfileUpdate,
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                correct_provisional_profile(
+                    cursor,
+                    doctor=doctor,
+                    patient_id=patient_id,
+                    correction=correction,
+                )
+        patient = get_authorized_medical_patient(
+            patient_id=patient_id,
+            doctor=doctor,
+            connection=connection,
+        )
+        return _medical_profile(patient, doctor)
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao corrigir paciente provisório", error)
+
+
+@router.post(
+    "/patients/{patient_id}/claim-link",
+    response_model=ClaimLinkIssued,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_claim_link(
+    patient_id: int,
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                load_managed_provisional(
+                    cursor,
+                    doctor_id=doctor["doctor_id"],
+                    patient_id=patient_id,
+                )
+                return issue_claim(
+                    cursor,
+                    patient_id=patient_id,
+                    issued_by_user_id=doctor["user_id"],
+                )
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao emitir link de reivindicação", error)
+
+
 def _require_adult_medical_patient(patient: dict) -> None:
     if calculate_age(patient["birth_date"]) < 18:
         raise HTTPException(
@@ -391,6 +465,19 @@ def _build_search(query: str | None) -> tuple[str, tuple[str, ...]]:
         "AND (p.nome_completo LIKE %s OR p.nome_paciente LIKE %s)",
         (pattern, pattern),
     )
+
+
+def _medical_profile(patient: dict, doctor: dict) -> dict:
+    provisional = patient["account_claimed_at"] is None
+    return {
+        **_patient_summary(patient),
+        "blood_type": patient["blood_type"],
+        "account_status": "provisional" if provisional else "active",
+        "manages_provisional": (
+            provisional
+            and patient["provisioned_by_doctor_id"] == doctor["doctor_id"]
+        ),
+    }
 
 
 def _patient_summary(patient: dict) -> dict:

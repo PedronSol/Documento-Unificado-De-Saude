@@ -464,6 +464,7 @@ def search_directory(cursor: Any, *, query: str, page: int, page_size: int) -> d
         JOIN user_roles ur ON ur.user_id = u.user_id
         WHERE {search_clause}
           AND u.active = TRUE
+          AND u.claimed_at IS NOT NULL
           AND ur.role IN ('patient', 'doctor')
           AND NOT EXISTS (
               SELECT 1 FROM user_roles admin_role
@@ -871,6 +872,7 @@ def _active_patient_id(cursor: Any, user_id: int) -> int:
         JOIN patients p ON p.user_id = u.user_id
         WHERE u.user_id = %s
           AND u.active = TRUE
+          AND u.claimed_at IS NOT NULL
           AND NOT EXISTS (
               SELECT 1 FROM user_roles admin_role
               WHERE admin_role.user_id = u.user_id

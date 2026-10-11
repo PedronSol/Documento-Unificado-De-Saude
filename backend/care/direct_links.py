@@ -4,6 +4,8 @@ from fastapi import HTTPException, status
 
 from auth.dependencies import calculate_age
 from audit.service import record_clinical_event
+from care.provisional import create_provisional_patient
+from models import ProvisionalPatientData
 
 
 LINK_REQUEST_DURATION_DAYS = 7
@@ -34,7 +36,13 @@ def _record(cursor: Any, *, actor_user_id: int, patient_id: int, action: str, li
     )
 
 
-def request_direct_link(cursor: Any, *, doctor: dict, cpf: str) -> dict:
+def request_direct_link(
+    cursor: Any,
+    *,
+    doctor: dict,
+    cpf: str,
+    provisional: ProvisionalPatientData | None = None,
+) -> dict:
     cursor.execute(
         """
         SELECT u.user_id, u.active, p.patient_id,
@@ -54,6 +62,13 @@ def request_direct_link(cursor: Any, *, doctor: dict, cpf: str) -> dict:
         (cpf,),
     )
     target = cursor.fetchone()
+    if not target and provisional is not None:
+        return create_provisional_patient(
+            cursor,
+            doctor=doctor,
+            cpf=cpf,
+            data=provisional,
+        )
     if not target:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

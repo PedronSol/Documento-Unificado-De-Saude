@@ -84,6 +84,8 @@ def test_new_patient_contracts_allow_unknown_blood_type():
         health_status="pending",
         age=34,
         blood_type=None,
+        account_status="active",
+        manages_provisional=False,
     )
     public_profile = PublicPatientSummary(
         preferred_name="Novo",
