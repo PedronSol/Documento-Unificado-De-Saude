@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { fulfillPaged } from "./e2e-support/paged";
 
 
 const API_ORIGIN = "http://localhost:8000";
@@ -34,7 +35,7 @@ const doctorIdentity = {
 };
 
 async function fulfill(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
+  await fulfillPaged(route, {
     status,
     contentType: "application/json",
     body: body === null ? "" : JSON.stringify(body),

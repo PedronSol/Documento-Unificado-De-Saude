@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { fulfillPaged } from "./e2e-support/paged";
 
 
 const API_ORIGIN = "http://localhost:8000";
@@ -32,7 +33,7 @@ const patientEnvelope = {
 };
 
 async function fulfill(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
+  await fulfillPaged(route, {
     status,
     contentType: "application/json",
     body: body === null ? "" : JSON.stringify(body),
@@ -43,6 +44,9 @@ async function mockApi(page: Page, handler: (key: string, route: Route) => Promi
   await page.route(`${API_ORIGIN}/**`, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    // Pagination is ignored when keying mocks; fulfillPaged wraps the list.
+    url.searchParams.delete("page");
+    url.searchParams.delete("page_size");
     const key = `${request.method()} ${url.pathname}${url.search}`;
     if (!(await handler(key, route))) {
       await fulfill(route, [], 200);

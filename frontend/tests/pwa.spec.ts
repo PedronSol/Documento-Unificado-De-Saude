@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fulfillPaged } from "./e2e-support/paged";
 
 test('mantém o dock em tablet touch mesmo com viewport CSS acima do breakpoint desktop', async ({ browser }) => {
   const context = await browser.newContext({
@@ -9,7 +10,7 @@ test('mantém o dock em tablet touch mesmo com viewport CSS acima do breakpoint 
   });
   const page = await context.newPage();
 
-  await page.route('**/me', (route) => route.fulfill({
+  await page.route('**/me', (route) => fulfillPaged(route, {
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({

@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -126,11 +126,13 @@ todas as outras.
 
 ### Frontend
 
-13. O hook `usePaginatedResource(path, { fallback, params })` estende o
+13. O hook `usePaginatedResource(path, { fallback, params, abortStale })` estende o
     contrato de `useApiResource` com `items`, `total`, `hasNext`, `loadMore()`,
     `isLoadingMore`, `loadMoreError` e `reload()`. Mudar `params` (busca,
     filtro ou tamanho) reinicia na página 1 e descarta respostas de
-    requisições anteriores.
+    requisições anteriores; com `abortStale` (carteira médica, spec `030`) a
+    requisição superada também é cancelada. `replaceItem` permite a
+    atualização pontual de um item já carregado no admin.
 14. **Rolagem infinita.** Um sentinela ao fim de cada lista, observado por
     `IntersectionObserver`, chama `loadMore()` quando entra no viewport e há
     `hasNext`. Nunca há duas cargas simultâneas da mesma lista.
@@ -138,7 +140,9 @@ todas as outras.
     `Carregar mais` permanece disponível enquanto houver próxima página, para
     teclado, leitores de tela, zoom e navegadores sem `IntersectionObserver`.
     Uma região `aria-live="polite"` anuncia `{carregados} de {total}` após cada
-    carga. O foco nunca é movido automaticamente pela rolagem.
+    carga, somente em listas com mais de uma página (há próxima página ou já
+    se carregou além da primeira), para não gerar ruído em listas curtas. O
+    foco nunca é movido automaticamente pela rolagem.
 16. Falha ao carregar mais mantém os itens exibidos, interrompe a carga
     automática e mostra o erro com `Tentar novamente` junto ao botão.
 17. **Barra de busca e filtros.** Cada lista paginada tem campo de busca
@@ -168,7 +172,9 @@ todas as outras.
     abas acessíveis (Radix Tabs: setas do teclado, `tab`/`tabpanel`), cada uma
     mostrando todos os seus itens.
 22. Cada aba exibe a quantidade no rótulo, por exemplo `Alergias (2)`, para que
-    nenhuma categoria fique oculta sem aviso. A aba inicial é `Alergias`.
+    nenhuma categoria fique oculta sem aviso. A aba inicial é `Alergias`. As
+    abas quebram em linhas em qualquer largura, sem rolagem horizontal que
+    esconda categorias em 320 px.
 23. A API do resumo público não muda.
 
 ## Cenários de aceitação
@@ -299,20 +305,41 @@ das páginas 1 e 3, `has_next` a partir do total e escape de `%`, `_` e `\`.
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| 1 | `test_pagination.py`: `pagination` inexistente | módulo com tamanhos, dependência, escape de `LIKE` e montagem de página | — | backend |
+| 2 | `fetch_page`/`search_clause` inexistentes (3 falhas) | contagem e página com as mesmas condições | página além do total não executa a consulta | backend |
+| 3 | `test_list_pagination.py`: 14 falhas (rotas sem `page`) | 13 listagens com busca, filtros e desempate por ID | serviços de cuidado, guarda e médico divididos em colunas/origem/ordem | backend |
+| 4 | admin sem `total`/`page_size` e diretório agrupado (6 falhas) | admin no módulo comum; diretório conta por tabela derivada | `page_params` para rotas com busca própria | backend |
+| 5 | `use-paginated-resource.test.jsx`: hook inexistente; depois `abortStale` e `replaceItem` | hook com página inicial, `loadMore` único, reinício por parâmetro | cancelamento opcional e patch local | frontend |
+| 6 | `paginated-list*.test.jsx` e `use-paginated-list.test.jsx`: componentes inexistentes | `ListToolbar`, `InfiniteListFooter`, `ListEmptyState`, `PaginatedList`, `usePaginatedList` | barra só em listas longas ou filtradas; anúncio só multipágina | frontend |
+| 7 | testes de área, documentos, prontuário, cuidado, guarda, carteira, vínculos e admin exigindo URLs paginadas | adoção em cada feature; mutações recarregam a página 1 | helpers `stripPaging`/`installPagedApiMock`/`fulfillPaged` nos testes | frontend |
+| 8 | `public-health-share.test.jsx`: abas inexistentes | resumo em Radix Tabs com contagem | abas quebram em linhas em 320 px | frontend |
+| 9 | `design-system.test.js`: `lists.css` inexistente | estilos tokenizados mobile-first | — | frontend |
+
+## Verificações executadas
+
+- Backend: `RUN_DB_INTEGRATION=1 python -m pytest` no MySQL 8 real (316
+  passed), incluindo a integração que percorre 45 vacinas reais em 20+20+5
+  sem repetição e busca `50%` literalmente.
+- Frontend: `npm test` (287 passed), `npx playwright test` (47 passed, com
+  `tests/pagination.spec.ts` em 320 px e 1280 px: rolagem infinita, botão de
+  fallback, busca e tamanho no servidor) e `npm run build`. A suíte E2E foi
+  executada três vezes seguidas sem falhas após tornar os mocks fiéis ao
+  servidor (a lista recarrega após mutações).
+- Conferência visual em 320 px da barra de busca e das abas do resumo.
+- Não executado: `npm run lint` (`eslint` não instalado, situação anterior).
 
 ## Critérios de conclusão
 
 - [x] Spec revisada e aprovada.
-- [ ] Listagens paginadas no servidor com 20 itens por padrão e somente
+- [x] Listagens paginadas no servidor com 20 itens por padrão e somente
       10/20/50/100 por página.
-- [ ] Busca e filtros aplicados no SQL antes do corte, com total coerente.
-- [ ] Rolagem infinita acessível com botão de fallback e anúncio de progresso.
-- [ ] Resumo público em abas com contagem, mostrando tudo.
-- [ ] Prontuário médico e dependentes inalterados.
-- [ ] Testes backend (inclusive MySQL real), Vitest, Playwright e build
+- [x] Busca e filtros aplicados no SQL antes do corte, com total coerente.
+- [x] Rolagem infinita acessível com botão de fallback e anúncio de progresso.
+- [x] Resumo público em abas com contagem, mostrando tudo.
+- [x] Prontuário médico e dependentes inalterados.
+- [x] Testes backend (inclusive MySQL real), Vitest, Playwright e build
       aprovados.
-- [ ] Specs afetadas, roadmap e índice atualizados.
+- [x] Specs afetadas, roadmap e índice atualizados.
 
 ## Decisões
 

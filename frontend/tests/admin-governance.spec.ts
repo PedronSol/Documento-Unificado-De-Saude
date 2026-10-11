@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { fulfillPaged } from "./e2e-support/paged";
 
 
 const API_ORIGIN = "http://localhost:8000";
@@ -48,7 +49,7 @@ function paged(items: unknown[]) {
 }
 
 async function fulfill(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
+  await fulfillPaged(route, {
     status,
     contentType: "application/json",
     body: body === null ? "" : JSON.stringify(body),
@@ -60,6 +61,9 @@ async function mockApi(page: Page, handlers: Record<string, unknown>) {
   await page.route(`${API_ORIGIN}/**`, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    // Pagination is ignored when keying mocks; fulfillPaged wraps the list.
+    url.searchParams.delete("page");
+    url.searchParams.delete("page_size");
     const key = `${request.method()} ${url.pathname}${url.search}`;
     calls.push(key);
     if (key in handlers) {
@@ -207,7 +211,7 @@ test.describe("Governança administrativa", () => {
 
     await page.route(`${API_ORIGIN}/me/care-invitations/4/accept`, async (route) => {
       accepted = true;
-      await route.fulfill({ status: 204, body: "" });
+      await fulfillPaged(route, { status: 204, body: "" });
     });
 
     await page.setViewportSize({ width: 320, height: 740 });

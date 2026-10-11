@@ -229,4 +229,24 @@ describe("contrato do design system", () => {
       expect(read(`../styles/${file}`)).not.toBe("");
     }
   });
+
+  it("estiliza listas paginadas e abas do resumo só com tokens mobile-first", () => {
+    const lists = read("../styles/lists.css");
+    expect(styleImports).toContain("lists.css");
+    for (const selector of [
+      ".list-toolbar",
+      ".list-toolbar-search",
+      ".infinite-list-more",
+      ".infinite-list-sentinel",
+      ".list-empty-filtered",
+      ".public-share-tab",
+    ]) {
+      expect(lists).toContain(selector);
+    }
+    expect(lists).toContain("var(--ds-control-min-height)");
+    expect(lists).toContain("@media (min-width:");
+    expect(lists).not.toMatch(/@media \(max-width/);
+    expect(lists).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(lists).not.toMatch(/rgb\(/);
+  });
 });

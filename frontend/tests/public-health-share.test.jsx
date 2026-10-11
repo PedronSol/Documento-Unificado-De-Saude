@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PublicHealthShare } from "@/components/sharing/public-health-share";
@@ -56,9 +57,6 @@ describe("PublicHealthShare", () => {
     expect(await screen.findByRole("heading", { name: "Resumo de Carlos" })).toBeInTheDocument();
     expect(screen.getByText("A+")).toBeInTheDocument();
     expect(screen.getByText("Dipirona")).toBeInTheDocument();
-    expect(screen.getByText("Losartana")).toBeInTheDocument();
-    expect(screen.getByText("Hipertensão")).toBeInTheDocument();
-    expect(screen.getByText("Nenhuma condição registrada.")).toBeInTheDocument();
     expect(document.body.textContent).not.toContain("CPF");
     expect(document.body.textContent).not.toContain("E-mail");
   });
@@ -85,5 +83,35 @@ describe("PublicHealthShare", () => {
       await screen.findByRole("heading", { name: "Este acesso não está disponível" }),
     ).toBeInTheDocument();
     expect(publicApiFetch).not.toHaveBeenCalled();
+  });
+
+  it("separa as categorias em abas com contagem e mostra todos os itens", async () => {
+    publicApiFetch.mockReturnValue(respondWith(summary));
+    const user = userEvent.setup();
+
+    render(<PublicHealthShare />);
+
+    const tablist = await screen.findByRole("tablist", { name: "Categorias clínicas" });
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent);
+    expect(tabs).toEqual([
+      "Alergias (1)",
+      "Medicações ativas (1)",
+      "Condições (0)",
+      "Diagnósticos (1)",
+    ]);
+    expect(screen.getByRole("tab", { name: "Alergias (1)" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Dipirona");
+
+    await user.click(screen.getByRole("tab", { name: "Medicações ativas (1)" }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Losartana");
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("50 mg");
+
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Condições (0)" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Nenhuma condição registrada.");
+
+    await user.click(screen.getByRole("tab", { name: "Diagnósticos (1)" }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Hipertensão");
   });
 });

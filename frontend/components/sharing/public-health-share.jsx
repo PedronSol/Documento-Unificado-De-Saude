@@ -6,6 +6,12 @@ import Droplets from "lucide-react/dist/esm/icons/droplets";
 import HeartPulse from "lucide-react/dist/esm/icons/heart-pulse";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import { useEffect, useRef, useState } from "react";
+import {
+  Content as TabsContent,
+  List as TabsList,
+  Root as TabsRoot,
+  Trigger as TabsTrigger,
+} from "@radix-ui/react-tabs";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,40 +154,50 @@ export function PublicHealthShare() {
         </div>
       </section>
 
-      <section className="public-share-grid" aria-label="Informações clínicas compartilhadas">
+      {/* All categories stay complete; tabs only organize them (spec 038). */}
+      <TabsRoot className="public-share-tabs" defaultValue="allergies">
+        <TabsList className="public-share-tablist" aria-label="Categorias clínicas">
+          {GROUPS.map(([key, label]) => (
+            <TabsTrigger className="public-share-tab" key={key} value={key}>
+              {label} ({summary.markers[key].length})
+            </TabsTrigger>
+          ))}
+        </TabsList>
         {GROUPS.map(([key, label]) => {
           const items = summary.markers[key];
           return (
-            <Card className="public-share-card" key={key}>
-              <CardHeader>
-                <HeartPulse aria-hidden="true" size={19} />
-                <CardTitle><h2>{label}</h2></CardTitle>
-                <Badge variant="secondary">{items.length}</Badge>
-              </CardHeader>
-              <CardContent>
-                {items.length === 0 ? (
-                  <p className="public-share-empty">{EMPTY_LABEL[key]}</p>
-                ) : (
-                  <ul>
-                    {items.map((item) => (
-                      <li key={`${key}-${item.name}`}>
-                        <strong>{item.name}</strong>
-                        {item.description ? <p>{item.description}</p> : null}
-                        {key === "medications" && (item.dosage || item.frequency) ? (
-                          <dl>
-                            {item.dosage ? <div><dt>Dosagem</dt><dd>{item.dosage}</dd></div> : null}
-                            {item.frequency ? <div><dt>Frequência</dt><dd>{item.frequency}</dd></div> : null}
-                          </dl>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+            <TabsContent className="public-share-panel" key={key} value={key}>
+              <Card className="public-share-card">
+                <CardHeader>
+                  <HeartPulse aria-hidden="true" size={19} />
+                  <CardTitle><h2>{label}</h2></CardTitle>
+                  <Badge variant="secondary">{items.length}</Badge>
+                </CardHeader>
+                <CardContent>
+                  {items.length === 0 ? (
+                    <p className="public-share-empty">{EMPTY_LABEL[key]}</p>
+                  ) : (
+                    <ul>
+                      {items.map((item) => (
+                        <li key={`${key}-${item.name}`}>
+                          <strong>{item.name}</strong>
+                          {item.description ? <p>{item.description}</p> : null}
+                          {key === "medications" && (item.dosage || item.frequency) ? (
+                            <dl>
+                              {item.dosage ? <div><dt>Dosagem</dt><dd>{item.dosage}</dd></div> : null}
+                              {item.frequency ? <div><dt>Frequência</dt><dd>{item.frequency}</dd></div> : null}
+                            </dl>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
           );
         })}
-      </section>
+      </TabsRoot>
 
       <footer className="public-share-footer">
         <ShieldCheck aria-hidden="true" size={18} />

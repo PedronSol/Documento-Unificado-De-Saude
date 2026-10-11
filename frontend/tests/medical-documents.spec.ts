@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { fulfillPaged } from "./e2e-support/paged";
 
 
 const API_ORIGIN = "http://localhost:8000";
@@ -42,7 +43,7 @@ function document(overrides: Record<string, unknown>) {
 }
 
 async function fulfill(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
+  await fulfillPaged(route, {
     status,
     contentType: "application/json",
     body: body === null ? "" : JSON.stringify(body),
@@ -101,7 +102,9 @@ for (const viewport of [{ width: 320, height: 900 }, { width: 1280, height: 900 
       }
       if (key.startsWith("DELETE /medical/patients/10/documents/")) {
         deleted.push(key);
-        await route.fulfill({ status: 204 });
+        const removedId = Number(key.split("/").at(-1));
+        documents = documents.filter((item) => item.document_id !== removedId);
+        await fulfillPaged(route, { status: 204 });
         return true;
       }
       return false;
@@ -134,16 +137,18 @@ for (const viewport of [{ width: 320, height: 900 }, { width: 1280, height: 900 
 
   test(`paciente confirma explicitamente a remoção de documento médico em ${viewport.width} px`, async ({ page }) => {
     const deleted: string[] = [];
+    let documents = [document({ title: "Laudo do eco", uploaded_by_doctor: doctorUploader })];
     await mockApi(page, async (key, route) => {
       if (key === "GET /me") return fulfill(route, patientIdentity).then(() => true);
       if (key === "GET /me/shares/active") return fulfill(route, null).then(() => true);
       if (key === "GET /me/documents") {
-        await fulfill(route, [document({ title: "Laudo do eco", uploaded_by_doctor: doctorUploader })]);
+        await fulfill(route, documents);
         return true;
       }
       if (key.startsWith("DELETE /me/documents/")) {
         deleted.push(key);
-        await route.fulfill({ status: 204 });
+        documents = [];
+        await fulfillPaged(route, { status: 204 });
         return true;
       }
       return false;
