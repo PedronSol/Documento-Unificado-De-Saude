@@ -33,6 +33,7 @@ Exemplo: `001-database-migrations.md`.
 | `032-mobile-context-dock.md` | Navegação de contexto em mobile | IMPLEMENTED |
 | `033-mobile-pwa.md` | Experiência mobile-first e PWA instalável | IMPLEMENTED |
 | `036-doctor-assisted-patient-registration.md` | Cadastro assistido de pacientes e responsáveis legais | IMPLEMENTED |
+| `037-frontend-organization.md` | Organização incremental do frontend por área e feature | SPEC APPROVED |
 | `040-health-summary-sharing.md` | Compartilhamento temporário | IMPLEMENTED |
 
 ## Template
