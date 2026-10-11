@@ -227,7 +227,7 @@ flowchart TD
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
 | 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
 | 14 | Consolidação operacional | 7–13, 15 | PLANNED | — |
-| 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | SPEC REVIEW | `docs/specs/036-doctor-assisted-patient-registration.md` |
+| 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | IN PROGRESS | `docs/specs/036-doctor-assisted-patient-registration.md` |
 
 ## Step 0 — Baseline de specs e TDD
 
@@ -679,7 +679,7 @@ alterar os grupos geridos por admin.
 
 ### Tarefas
 
-- [ ] Revisar e aprovar `docs/specs/036-doctor-assisted-patient-registration.md`.
+- [x] Revisar e aprovar `docs/specs/036-doctor-assisted-patient-registration.md`.
 - [ ] 15.1: vínculo direto, autorização médica por grupo ou vínculo e
       solicitação a paciente cadastrado com aceite.
 - [ ] 15.2: paciente provisório adulto, correção pelo médico autor e

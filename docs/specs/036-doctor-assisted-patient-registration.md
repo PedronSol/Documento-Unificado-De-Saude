@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC REVIEW
+SPEC APPROVED
 
 ## Dependências
 
@@ -292,6 +292,7 @@ PATCH  /medical/patients/{patient_id}/provisional-profile
 POST   /medical/patients/{patient_id}/claim-link
 
 GET    /me/care-requests
+GET    /me/care-doctors
 POST   /me/care-requests/{link_id}/accept
 POST   /me/care-requests/{link_id}/reject
 DELETE /me/care-doctors/{link_id}
@@ -341,7 +342,9 @@ CORS passa a permitir o cabeçalho `X-Acting-Patient`. Schemas de entrada usam
 
 ## Dados propostos
 
-Migration forward-only `0009`:
+Migrations forward-only por fase: `0009` (15.1) cria `doctor_patient_links`;
+`0010` (15.2) altera `users` e cria `patient_claims`; `0011` (15.3) cria
+`patient_guardianships` e estende `patient_claims`. Estrutura final:
 
 ```text
 users
@@ -424,6 +427,14 @@ Login local e Google passam a exigir `claimed_at` não nulo.
 | 15.4 | Transferência a pedido, desvínculo pelo dependente adulto e menor titular de conta |
 
 Cada fase fecha seu ciclo RED/GREEN/REFACTOR, frontend incluído.
+
+Comportamento intermediário, substituído pelas fases seguintes:
+
+- Em 15.1, CPF sem paciente retorna `404` (15.2 passa a criar provisório) e
+  paciente menor retorna `409` "Paciente menor exige responsável" (15.3 passa
+  a aceitar `guardian`).
+- Em 15.1 o médico vê nas solicitações pendentes somente nome do paciente,
+  CPF mascarado e validade, nunca dado clínico.
 
 ## Evidência TDD
 
