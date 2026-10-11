@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from config import AppSettings
 
 
@@ -32,6 +34,8 @@ def test_app_settings_are_built_from_an_injected_mapping():
     assert settings.public_app_url == "https://app.example"
     assert settings.google_auth_enabled is True
     assert settings.google_client_id == "client-id.apps.googleusercontent.com"
+    assert settings.document_storage_root == Path(".data/documents")
+    assert settings.document_max_bytes == 10485760
     assert settings.database.host == "mysql.internal"
     assert settings.database.port == 3307
     assert settings.database.user == "app"
@@ -71,3 +75,26 @@ def test_google_auth_configuration_is_documented_for_backend_and_frontend():
     assert (
         "NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}" in compose
     )
+
+
+def test_document_storage_configuration_is_validated_and_documented():
+    configured = AppSettings.from_mapping(
+        {
+            "DOCUMENT_STORAGE_ROOT": "/private/documents",
+            "DOCUMENT_MAX_BYTES": "2048",
+        }
+    )
+    assert configured.document_storage_root == Path("/private/documents")
+    assert configured.document_max_bytes == 2048
+
+    for invalid in ("0", "10485761", "not-a-number"):
+        with pytest.raises(ValueError, match="DOCUMENT_MAX_BYTES"):
+            AppSettings.from_mapping({"DOCUMENT_MAX_BYTES": invalid})
+
+    example = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
+    compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "DOCUMENT_STORAGE_ROOT=.data/documents" in example
+    assert "DOCUMENT_MAX_BYTES=10485760" in example
+    assert "DOCUMENT_STORAGE_ROOT: /var/lib/dus/documents" in compose
+    assert "DOCUMENT_MAX_BYTES: ${DOCUMENT_MAX_BYTES:-10485760}" in compose
+    assert "document_data:/var/lib/dus/documents" in compose

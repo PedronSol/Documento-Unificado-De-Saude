@@ -50,6 +50,19 @@ const record = {
   markers: { active: [marker], removed: [] },
 };
 
+const medicalDocuments = [
+  {
+    document_id: 42,
+    title: "Hemograma recente",
+    type: "exam",
+    original_filename: "hemograma.pdf",
+    media_type: "application/pdf",
+    size_bytes: 2048,
+    status: "uploaded",
+    created_at: "2026-10-11T12:00:00",
+  },
+];
+
 function respondWith(body, status = 200) {
   return Promise.resolve({
     ok: status >= 200 && status < 300,
@@ -214,6 +227,9 @@ describe("DoctorDashboard", () => {
       if (path === "/medical/patients/10") {
         return respondWith(record);
       }
+      if (path === "/medical/patients/10/documents") {
+        return respondWith(medicalDocuments);
+      }
       return respondWith([patient]);
     });
     const user = userEvent.setup();
@@ -248,7 +264,51 @@ describe("DoctorDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("COVID-19 (Pfizer)")).toBeInTheDocument();
     expect(screen.getByText("Losartana")).toBeInTheDocument();
+    expect(screen.getByText("Hemograma recente")).toBeInTheDocument();
     expect(apiFetch).toHaveBeenCalledWith("/medical/patients/10");
+    expect(apiFetch).toHaveBeenCalledWith("/medical/patients/10/documents");
+    expect(
+      screen.queryByRole("button", { name: "Adicionar documento" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mantém o prontuário quando somente os documentos falham", async () => {
+    const retry = deferred();
+    let documentRequests = 0;
+    apiFetch.mockImplementation((path) => {
+      if (path === "/medical/patients/10") return respondWith(record);
+      if (path === "/medical/patients/10/documents") {
+        documentRequests += 1;
+        if (documentRequests > 1) return retry.promise;
+        return Promise.reject(new TypeError("network unavailable"));
+      }
+      return respondWith([patient]);
+    });
+    const user = userEvent.setup();
+
+    render(
+      <DoctorDashboard
+        user={{ display_name: "Dra. Helena Costa" }}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Abrir prontuário de Carlos Silva",
+      }),
+    );
+
+    expect(await screen.findByText("COVID-19 (Pfizer)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("alert", {
+        name: "Não foi possível carregar os documentos deste paciente.",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(screen.getByRole("status", { name: "Carregando documentos" })).toBeInTheDocument();
+    await act(async () => retry.resolve(respondWith(medicalDocuments)));
+    expect(await screen.findByText("Hemograma recente")).toBeInTheDocument();
   });
 
   it("cria marcador pela rota médica e mantém o diálogo acessível", async () => {

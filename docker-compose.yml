@@ -59,6 +59,10 @@ services:
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
       GOOGLE_AUTH_ENABLED: ${GOOGLE_AUTH_ENABLED:-false}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      DOCUMENT_STORAGE_ROOT: /var/lib/dus/documents
+      DOCUMENT_MAX_BYTES: ${DOCUMENT_MAX_BYTES:-10485760}
+    volumes:
+      - document_data:/var/lib/dus/documents
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -95,3 +99,4 @@ services:
 
 volumes:
   db_data:
+  document_data:

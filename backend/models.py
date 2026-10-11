@@ -167,11 +167,22 @@ class AlertResponse(BaseModel):
 
 
 class DocumentSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     document_id: int
-    title: str
-    type: str
-    created_on: date
-    status: Literal["viewed", "new"]
+    title: str = Field(min_length=1, max_length=120)
+    type: Literal["exam", "prescription", "report", "other"]
+    original_filename: str = Field(min_length=1, max_length=255)
+    media_type: Literal["application/pdf", "image/jpeg", "image/png"]
+    size_bytes: int = Field(gt=0, le=10 * 1024 * 1024)
+    status: Literal[
+        "uploaded",
+        "processing",
+        "needs_review",
+        "confirmed",
+        "failed",
+    ]
+    created_at: datetime
 
 
 class UserIdentity(BaseModel):

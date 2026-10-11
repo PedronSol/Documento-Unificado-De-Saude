@@ -139,11 +139,15 @@ class FakeCursor:
                     "document_id": document["id_documento"],
                     "title": document["titulo_documento"],
                     "type": document["tipo_documento"],
-                    "created_on": document["data_criacao_documento"],
+                    "original_filename": document["original_filename"],
+                    "media_type": document["media_type"],
+                    "size_bytes": document["size_bytes"],
+                    "created_at": document["created_at"],
                     "status": document["status_documento"],
                 }
                 for document in self.database.documents
                 if document["patient_id"] == parameters[0]
+                and document["status_documento"] != "removed"
             ]
         elif sql.startswith("DELETE FROM sessions WHERE expires_at"):
             self.rowcount = 0
@@ -295,8 +299,11 @@ class FakeDatabase:
                 "patient_id": PATIENT_ID,
                 "titulo_documento": "Hemograma",
                 "tipo_documento": "exam",
-                "data_criacao_documento": date(2025, 3, 1),
-                "status_documento": "new",
+                "original_filename": "hemograma.pdf",
+                "media_type": "application/pdf",
+                "size_bytes": 1024,
+                "created_at": datetime(2025, 3, 1, 12, 0),
+                "status_documento": "uploaded",
             }
         ]
         self.audit_events = []
@@ -454,8 +461,11 @@ async def test_patient_resources_are_loaded_from_separate_endpoints(
             "document_id": 1,
             "title": "Hemograma",
             "type": "exam",
-            "created_on": "2025-03-01",
-            "status": "new",
+            "original_filename": "hemograma.pdf",
+            "media_type": "application/pdf",
+            "size_bytes": 1024,
+            "created_at": "2025-03-01T12:00:00",
+            "status": "uploaded",
         }
     ]
 

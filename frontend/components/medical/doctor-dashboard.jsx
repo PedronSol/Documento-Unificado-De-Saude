@@ -22,6 +22,7 @@ import Syringe from "lucide-react/dist/esm/icons/syringe";
 import UsersRound from "lucide-react/dist/esm/icons/users-round";
 
 import { UserAvatar } from "@/components/identity/user-avatar";
+import { DigitalDocuments } from "@/components/health-passport/digital-documents";
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { PatientLinkPanel } from "@/components/medical/patient-link-panel";
 import { HealthMarkers } from "@/components/patient/health-markers";
@@ -285,7 +286,14 @@ function ProvisionalActions({ patient, onPatientUpdated, onUnauthenticated }) {
 }
 
 
-function MedicalRecord({ record, onBack, onPatientUpdated, onUnauthenticated }) {
+function MedicalRecord({
+  documentsResource,
+  onBack,
+  onPatientUpdated,
+  onRetryDocuments,
+  onUnauthenticated,
+  record,
+}) {
   const patient = record.patient;
 
   return (
@@ -365,6 +373,38 @@ function MedicalRecord({ record, onBack, onPatientUpdated, onUnauthenticated }) 
           </div>
         )}
       </section>
+
+      {documentsResource.status === "loading" ? (
+        <section className="clinical-section" aria-labelledby="medical-documents-title">
+          <header><h2 id="medical-documents-title">Documentos digitais</h2></header>
+          <div
+            className="medical-list-state"
+            role="status"
+            aria-label="Carregando documentos"
+          >
+            Carregando documentos autorizados…
+          </div>
+        </section>
+      ) : documentsResource.status === "error" ? (
+        <section className="clinical-section" aria-label="Documentos digitais">
+          <header><h2>Documentos digitais</h2></header>
+          <div
+            className="form-error marker-resource-error"
+            role="alert"
+            aria-label="Não foi possível carregar os documentos deste paciente."
+          >
+            <p>Não foi possível carregar os documentos deste paciente.</p>
+            <button type="button" onClick={onRetryDocuments}>Tentar novamente</button>
+          </div>
+        </section>
+      ) : (
+        <DigitalDocuments
+          basePath={`/medical/patients/${patient.patient_id}/documents`}
+          documents={documentsResource.data}
+          isAdult={false}
+          onUnauthenticated={onUnauthenticated}
+        />
+      )}
 
       <HealthMarkers
         key={patient.patient_id}
@@ -480,8 +520,18 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
   async function openRecord(patientId) {
     setRecordResource({ status: "loading", patientId, data: null });
     try {
-      const response = await apiFetch(`/medical/patients/${patientId}`);
-      if (response.status === 401) {
+      const [recordResult, documentsResult] = await Promise.allSettled([
+        apiFetch(`/medical/patients/${patientId}`),
+        apiFetch(`/medical/patients/${patientId}/documents`),
+      ]);
+      if (recordResult.status === "rejected") {
+        throw new Error("Não foi possível carregar o prontuário.");
+      }
+      const response = recordResult.value;
+      const documentsResponse = documentsResult.status === "fulfilled"
+        ? documentsResult.value
+        : null;
+      if (response.status === 401 || documentsResponse?.status === 401) {
         onUnauthenticated();
         return;
       }
@@ -492,10 +542,23 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
       if (!response.ok) {
         throw new Error("Não foi possível carregar o prontuário.");
       }
+      const record = await response.json();
+      let documentsResource = { status: "error", data: [] };
+      if (documentsResponse?.ok) {
+        try {
+          documentsResource = {
+            status: "ready",
+            data: await documentsResponse.json(),
+          };
+        } catch {
+          documentsResource = { status: "error", data: [] };
+        }
+      }
       setRecordResource({
         status: "ready",
         patientId,
-        data: await response.json(),
+        data: record,
+        documents: documentsResource,
       });
     } catch (error) {
       setRecordResource({
@@ -504,6 +567,31 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
         data: null,
         error: error.message,
       });
+    }
+  }
+
+  async function retryMedicalDocuments() {
+    const patientId = recordResource?.patientId;
+    if (!patientId) return;
+    setRecordResource((current) => ({
+      ...current,
+      documents: { status: "loading", data: [] },
+    }));
+    try {
+      const response = await apiFetch(`/medical/patients/${patientId}/documents`);
+      if (response.status === 401) {
+        onUnauthenticated();
+        return;
+      }
+      if (!response.ok) throw new Error();
+      const documents = await response.json();
+      setRecordResource((current) => current?.patientId === patientId
+        ? { ...current, documents: { status: "ready", data: documents } }
+        : current);
+    } catch {
+      setRecordResource((current) => current?.patientId === patientId
+        ? { ...current, documents: { status: "error", data: [] } }
+        : current);
     }
   }
 
@@ -555,6 +643,7 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
     return (
       <main className="doctor-main">
         <MedicalRecord
+          documentsResource={recordResource.documents}
           record={recordResource.data}
           onBack={() => setRecordResource(null)}
           onPatientUpdated={(updatedPatient) => setRecordResource((current) => ({
@@ -562,6 +651,7 @@ export function DoctorDashboard({ user, onUnauthenticated }) {
             data: { ...current.data, patient: updatedPatient },
           }))}
           onUnauthenticated={onUnauthenticated}
+          onRetryDocuments={retryMedicalDocuments}
         />
       </main>
     );

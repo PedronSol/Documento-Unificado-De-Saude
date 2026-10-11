@@ -2,14 +2,13 @@
 
 ## Status
 
-SPEC REVIEW
+SPEC APPROVED
 
 ## Dependências
 
 - Step 5 e spec `005-clinical-audit.md`, implementados.
 - Step 7 e spec `030-medical-panel.md`, implementados.
-- Step 10 e spec `007-administrative-access-governance.md`, antes da
-  implementação desta entrega.
+- Step 10 e spec `007-administrative-access-governance.md`, implementados.
 - Contratos e ownership da spec `004-resource-contracts-authorization.md`,
   implementados.
 - Step 11 do roadmap.
@@ -33,7 +32,8 @@ médico ou o vínculo, não recebe metadados nem conteúdo do documento.
 
 ## Objetivos
 
-- Permitir que paciente adulto envie PDF, JPEG ou PNG de até 10 MiB.
+- Permitir que paciente adulto, inclusive responsável atuando por dependente
+  com guarda ativa, envie PDF, JPEG ou PNG de até 10 MiB.
 - Validar extensão, MIME declarado, assinatura real, tamanho e integridade
   estrutural básica antes de publicar o arquivo.
 - Armazenar no banco somente metadados, checksum e uma chave interna aleatória.
@@ -46,7 +46,9 @@ médico ou o vínculo, não recebe metadados nem conteúdo do documento.
 - Implementar remoção lógica imediata e limpeza física controlada e repetível.
 - Auditar upload, liberação de download e remoção sem registrar conteúdo ou
   identificadores sensíveis do arquivo.
-- Atualizar a seção de documentos do dashboard no mesmo incremento vertical.
+- Atualizar a seção de documentos do dashboard no mesmo incremento vertical,
+  permitindo também digitalizar uma página com a câmera do dispositivo antes
+  de enviá-la pelo mesmo fluxo seguro.
 
 ## Não objetivos
 
@@ -60,13 +62,18 @@ médico ou o vínculo, não recebe metadados nem conteúdo do documento.
   implementação futura, mas não incluirá configuração especulativa de provedor.
 - Implementar antivírus, deduplicação, versionamento, edição ou restauração.
 - Alterar ou substituir o documento depois do upload.
+- Montar PDF multipágina, capturar várias páginas no mesmo documento, recortar,
+  corrigir perspectiva, aplicar filtros ou melhorar automaticamente a imagem.
+- Gravar vídeo, áudio ou enviar o fluxo ao vivo da câmera para o backend.
 - Modernizar áreas do dashboard sem relação com documentos.
 
 ## Regras de negócio e técnicas
 
 1. Somente um paciente adulto autenticado e com perfil consistente pode enviar
-   ou remover documentos. Pacientes menores podem listar e baixar os próprios
-   documentos, mas não alterá-los.
+   ou remover documentos. Conforme a spec `036`, o responsável adulto com
+   guarda ativa também pode fazê-lo no contexto do dependente; o ator continua
+   sendo o usuário responsável e o ownership é do dependente. Pacientes menores
+   agindo por conta própria podem listar e baixar, mas não alterar documentos.
 2. `patient_id`, `actor_user_id`, datas, estado, tamanho, MIME real, checksum e
    chave de armazenamento são derivados pelo servidor; nenhum desses campos é
    aceito do cliente.
@@ -155,15 +162,46 @@ médico ou o vínculo, não recebe metadados nem conteúdo do documento.
 27. O sigilo contra a role `admin` é regra da aplicação. A segurança de
     operadores com acesso direto à infraestrutura pertence ao Step 14 e deve
     usar controles operacionais, backup e acesso ao volume fora desta API.
+28. O digitalizador é uma alternativa ao seletor de arquivo e fica disponível
+    ao paciente adulto, inclusive ao responsável adulto no contexto autorizado
+    do dependente. A interface solicita acesso à câmera apenas
+    depois de uma ação explícita em `Digitalizar com a câmera`; abrir o dashboard
+    ou o diálogo de upload nunca dispara a permissão.
+29. A captura usa `navigator.mediaDevices.getUserMedia` com vídeo, áudio
+    desabilitado e preferência não obrigatória pela câmera traseira. O recurso
+    depende de contexto seguro (`HTTPS` ou `localhost`). Navegador sem suporte,
+    câmera ausente ou ocupada e permissão negada ou dispensada produzem feedback
+    acessível e mantêm a seleção de arquivo disponível.
+30. O stream existe somente durante a captura. Todas as tracks são encerradas
+    ao capturar, cancelar, fechar o diálogo, trocar para arquivo ou desmontar o
+    componente. O frame capturado vira um `File` JPEG local com nome seguro sem
+    dado do paciente, passa a ser a prévia estática e pode ser refeito antes do
+    envio; a imagem não é enviada automaticamente.
+31. A foto digitalizada usa o mesmo `POST /me/documents`, os mesmos campos,
+    validações, limite de 10 MiB, ownership e auditoria de qualquer JPEG. A API
+    não aceita nem registra a origem `camera`, e o backend não confia na captura
+    do navegador para validar o arquivo.
+32. A captura, a prévia e o arquivo preparado ficam apenas em memória. O
+    frontend não os grava em `localStorage`, `sessionStorage`, IndexedDB, Cache
+    API ou service worker; object URLs são revogadas e referências são
+    descartadas ao substituir a imagem, concluir o upload ou fechar o diálogo.
+33. A aplicação limita câmera ao próprio origin por
+    `Permissions-Policy: camera=(self)` e não delega acesso a iframes. A prévia
+    ao vivo e as ações de capturar, refazer, cancelar e enviar possuem nome
+    acessível, foco visível e alvo mínimo de 44 px.
+34. A seção de documentos continua renderizada quando a lista está vazia para
+    apresentar o estado vazio e, ao paciente adulto, as ações de escolher
+    arquivo e digitalizar. A ausência de documentos não pode esconder a porta
+    de entrada do primeiro upload.
 
 ## Matriz de autorização
 
 | Operação | Papel | Ownership | Falhas relevantes |
 |---|---|---|---|
 | `GET /me/documents` | paciente | `patient_id` da sessão | `401`, `403` |
-| `POST /me/documents` | paciente adulto | `patient_id` da sessão | `401`, `403`, `413`, `422`, `503` |
+| `POST /me/documents` | paciente adulto ou responsável adulto | `patient_id` efetivo da sessão | `401`, `403`, `413`, `422`, `503` |
 | `GET /me/documents/{document_id}/file` | paciente | documento próprio ativo | `401`, `403`, `404`, `503` |
-| `DELETE /me/documents/{document_id}` | paciente adulto | documento próprio ativo | `401`, `403`, `404`, `503` |
+| `DELETE /me/documents/{document_id}` | paciente adulto ou responsável adulto | documento ativo do contexto efetivo | `401`, `403`, `404`, `503` |
 | `GET /medical/patients/{patient_id}/documents` | médico verificado | vínculo ativo aceito | `401`, `403`, `503` |
 | `GET /medical/patients/{patient_id}/documents/{document_id}/file` | médico verificado | vínculo ativo e documento ativo do paciente | `401`, `403`, `404`, `503` |
 
@@ -256,7 +294,8 @@ E falha ao apagar o binário fica pendente para limpeza sem restaurar acesso.
 
 ### Cenário: impedir mutação por menor ou outro papel
 
-Dado um paciente menor, médico sem perfil de paciente ou administrador
+Dado um paciente menor agindo por conta própria, médico sem perfil de paciente
+ou administrador
 Quando tenta enviar ou remover documento
 Então recebe `403`
 E nenhum arquivo, registro ou evento de sucesso é criado.
@@ -293,6 +332,34 @@ Então consegue selecionar tipo, escolher arquivo, enviar, baixar e confirmar
 remoção sem overflow
 E vê estados independentes de carregamento, vazio, envio, sucesso e erro
 E paciente menor vê lista e download sem controles de mutação.
+
+### Cenário: digitalizar uma página com consentimento explícito
+
+Dado um paciente adulto autenticado em contexto seguro e com câmera disponível
+Quando escolhe `Digitalizar com a câmera` e concede a permissão do navegador
+Então a interface abre a prévia ao vivo sem capturar áudio
+E permite capturar uma página, revisar a imagem estática e refazer a captura
+E encerra todas as tracks antes de exibir a imagem estática
+E somente envia o JPEG pelo contrato existente após o paciente informar título
+e tipo e confirmar o envio.
+
+### Cenário: preservar privacidade ao abandonar a digitalização
+
+Dado que a prévia da câmera está ativa ou existe uma foto ainda não enviada
+Quando o paciente cancela, fecha o diálogo, troca para o seletor de arquivo ou
+sai da tela
+Então todas as tracks da câmera são encerradas
+E a prévia, o arquivo temporário e seu object URL são descartados
+E nenhum upload, registro clínico ou evento de sucesso é criado.
+
+### Cenário: manter alternativa quando a câmera não puder ser usada
+
+Dado um paciente adulto em navegador sem suporte, sem câmera, com câmera
+ocupada, em contexto inseguro ou que negou ou dispensou a permissão
+Quando tenta iniciar a digitalização
+Então recebe mensagem acessível sem detalhe técnico sensível
+E consegue continuar pelo seletor de PDF, JPG ou PNG
+E a interface não solicita novamente a permissão sem nova ação explícita.
 
 ## Contratos afetados
 
@@ -338,6 +405,10 @@ Os schemas Pydantic de resposta e os valores de `type` e `status` são usados
 diretamente nos testes de contrato. Nenhuma resposta inclui `patient_id`,
 `storage_key`, `sha256`, `removed_at` ou `storage_deleted_at`.
 
+O digitalizador não cria endpoint, campo ou resposta adicional. A foto aprovada
+no cliente é enviada como `file` JPEG no mesmo `multipart/form-data`; o servidor
+aplica todas as validações como faria com um JPEG escolhido do dispositivo.
+
 ### Erros
 
 | Situação | Status | `detail` |
@@ -354,7 +425,7 @@ do provedor. Ausência de espaço e permissão do filesystem usam o mesmo `503`.
 
 ### Dados e migration
 
-A migration forward-only `0009` evolui `documents` sem alterar migrations
+A migration forward-only `0013` evolui `documents` sem alterar migrations
 aplicadas. O modelo passa a manter:
 
 - `id_documento` e `patient_id`, preservando IDs e ownership existentes;
@@ -407,8 +478,13 @@ A seção existente `DigitalDocuments` deixa o padrão visual legado e passa a
 usar tokens `--ds-*` e componentes compartilhados. A entrega inclui:
 
 - cabeçalho de seção com ação de upload apenas para paciente adulto;
-- diálogo acessível com título, `ClinicalSelect` para tipo e input de arquivo;
+- diálogo acessível com título, `ClinicalSelect` para tipo, input de arquivo e
+  ação secundária `Digitalizar com a câmera`;
 - descrição de PDF/JPG/PNG e 10 MB antes da seleção;
+- estado de câmera com pedido de permissão somente após clique, prévia ao vivo,
+  captura de uma página, prévia estática, refazer e cancelar;
+- fallback permanente para escolher arquivo e feedback acessível para câmera
+  indisponível, ocupada, não suportada ou sem permissão;
 - itens com título, tipo, nome original, tamanho, data e estado;
 - download autenticado sem persistir blob e com revogação do object URL;
 - diálogo de confirmação para remoção, com foco devolvido ao gatilho;
@@ -435,6 +511,12 @@ motion, quebra de nomes longos e o espaço do dock multirole quando aplicável.
 - Chaves aleatórias não substituem ownership; ambas as proteções são obrigatórias.
 - Upload é entrada não confiável. Nenhuma ferramenta externa ou interpretador é
   executado nesta entrega.
+- Permissão de câmera é solicitada pelo navegador somente após gesto explícito,
+  sem áudio, limitada ao próprio origin e sem persistir a captura no cliente.
+- A câmera nunca é iniciada por paciente menor agindo por conta própria, médico
+  ou admin; responsável adulto em contexto de guarda ativa segue a autorização
+  da spec `036`. A ausência do controle no frontend não substitui o `403` do
+  backend para mutações.
 - Logs e auditoria não contêm corpo, nome original, chave, checksum ou texto do
   documento.
 - Respostas de download impedem sniffing e armazenamento em cache; o service
@@ -444,6 +526,10 @@ motion, quebra de nomes longos e o espaço do dock multirole quando aplicável.
 
 - Upload vazio, múltiplos arquivos, nome sem extensão ou campos extras falha
   sem persistência parcial.
+- Falha ao obter a câmera não fecha o diálogo nem remove título, tipo ou arquivo
+  que já tenham sido informados; ela afeta somente o estado do digitalizador.
+- Foto capturada acima de 10 MiB não pode ser enviada pela interface e ainda é
+  rejeitada pelo limite autoritativo do backend caso o cliente seja contornado.
 - Títulos ou nomes multibyte respeitam limites depois da normalização.
 - Dois uploads iguais são permitidos; checksum não implica deduplicação.
 - Colisão de chave gera nova chave antes da persistência e nunca sobrescreve.
@@ -479,14 +565,27 @@ motion, quebra de nomes longos e o espaço do dock multirole quando aplicável.
   real; a migration anterior permanece inalterada.
 - Testes de frontend cobrem estados, upload, download, remoção, menoridade,
   foco, erro isolado e nomes longos.
+- Testes de frontend simulam `mediaDevices` e cobrem ausência de solicitação no
+  carregamento, pedido após clique, preferência pela câmera traseira sem áudio,
+  captura JPEG, refazer, troca para arquivo, permissão negada, falta de suporte,
+  limite de tamanho e `stop()` de todas as tracks em cada saída do fluxo.
+- Teste de integração da configuração confirma
+  `Permissions-Policy: camera=(self)`, e o estado vazio do dashboard mantém as
+  ações de upload e digitalização para paciente adulto.
+- Teste de contrato do frontend prova que arquivo escolhido e foto capturada
+  produzem o mesmo `FormData` e que nenhum marcador de origem da câmera é
+  enviado ou persistido.
 - Playwright valida o fluxo principal em 320 px e viewport ampla, sem overflow,
-  e regressão dos consumidores do dashboard e do dock multirole.
+  e regressão dos consumidores do dashboard e do dock multirole. Com mídia
+  simulada, cobre permissão concedida e captura; com permissão negada, confirma
+  o erro recuperável e o fallback para arquivo.
 
 ## Evidência TDD
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
 | 1 | Pendente após aprovação: upload válido retorna hoje `405` | — | — | — |
+| 2 | Pendente após aprovação: ação de digitalizar e ciclo seguro da câmera ainda não existem | — | — | — |
 
 ## Critérios de conclusão
 
@@ -501,6 +600,12 @@ motion, quebra de nomes longos e o espaço do dock multirole quando aplicável.
 - [ ] Auditoria falha fechada e contém somente a allowlist.
 - [ ] Remoção lógica bloqueia acesso antes da limpeza física.
 - [ ] Dashboard permite operar documentos em 320 px e viewport ampla.
+- [ ] Paciente adulto digitaliza uma página após consentimento explícito e pode
+      revisar, refazer ou enviar a captura pelo contrato existente.
+- [ ] Câmera nunca inicia sem gesto do paciente; áudio fica desabilitado e todas
+      as tracks e prévias locais são liberadas ao sair do fluxo.
+- [ ] Indisponibilidade ou recusa da câmera mantém upload por arquivo utilizável;
+      paciente menor e demais papéis não recebem o controle de digitalização.
 - [ ] Migration passa em banco vazio e upgrade com dado legado no MySQL 8.
 - [ ] Testes afetados, regressão, build, `git diff --check` e `git status` foram
   verificados.
@@ -521,3 +626,9 @@ motion, quebra de nomes longos e o espaço do dock multirole quando aplicável.
    `021-health-document-ocr.md` e dependem desta entrega concluída.
 6. A reavaliação de 2026-10-10 moveu esta entrega do Step 9 para o Step 11 e
    incorporou o consumidor médico autorizado, mantendo admin fora do prontuário.
+7. O digitalizador captura uma página JPEG por documento e reaproveita o upload
+   existente. Captura multipágina, PDF, recorte, perspectiva e filtros exigem
+   nova revisão de produto e segurança; não são implícitos nesta entrega.
+8. A migration desta entrega é `0013`, pois as migrations `0009` a `0012`
+   passaram a atender vínculos diretos, cadastro assistido, guarda e
+   transferência de conta antes do início do Step 11.

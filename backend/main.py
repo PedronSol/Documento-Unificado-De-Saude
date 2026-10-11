@@ -12,6 +12,7 @@ from care.router import router as care_router
 from config import AppSettings
 from database import ConnectionFactory, create_connection
 from documents.router import router as documents_router
+from documents.storage import DocumentStorage, LocalDocumentStorage
 from markers.router import router as markers_router
 from medical.router import router as medical_router
 from patients.router import router as patients_router
@@ -23,6 +24,7 @@ def create_app(
     settings: AppSettings | None = None,
     connection_factory: ConnectionFactory | None = None,
     google_identity_verifier: GoogleIdentityVerifier | None = None,
+    document_storage: DocumentStorage | None = None,
 ) -> FastAPI:
     settings = settings or AppSettings.from_mapping(os.environ)
     connection_factory = connection_factory or partial(
@@ -33,6 +35,11 @@ def create_app(
     application = FastAPI(title="Documento Unificado de Saúde")
     application.state.settings = settings
     application.state.connection_factory = connection_factory
+    application.state.document_storage = (
+        document_storage
+        if document_storage is not None
+        else LocalDocumentStorage(settings.document_storage_root)
+    )
     if google_identity_verifier is not None:
         application.state.google_identity_verifier = google_identity_verifier
     elif settings.google_auth_enabled:

@@ -226,6 +226,17 @@ botão, card ou badge sem uma variante concreta.
 - confirmações simples reutilizam `ConfirmDialog`; formulários usam Radix
   Dialog com `clinical-dialog`.
 
+**Digitalizador de documento**
+
+- é uma alternativa dentro do diálogo de upload, nunca uma captura automática;
+- solicita câmera somente após gesto explícito, sem áudio e com preferência não
+  obrigatória pela câmera traseira;
+- alterna entre prévia ao vivo, revisão estática e refazer, mantendo o seletor
+  de arquivo sempre disponível;
+- encerra todas as tracks e descarta a prévia ao capturar, trocar de origem,
+  fechar ou desmontar;
+- usa os mesmos campos, limite e confirmação do upload de arquivo.
+
 **Tabs ou seletor segmentado**
 
 - pill com superfície muted e item ativo sobre surface;

@@ -45,6 +45,194 @@
   --sidebar-ring: var(--ds-color-focus);
 }
 
+/* Document storage and camera capture */
+.document-section {
+  gap: var(--ds-space-5);
+}
+
+.document-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  color: var(--ds-color-text-muted);
+  background: var(--ds-color-surface-muted);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-control);
+}
+
+.document-empty svg {
+  flex: none;
+  color: var(--ds-color-primary);
+}
+
+.document-empty strong,
+.document-copy strong {
+  display: block;
+  color: var(--ds-color-text);
+}
+
+.document-empty p {
+  margin: var(--ds-space-1) 0 0;
+}
+
+.document-list {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.document-list > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-3);
+  align-items: center;
+  padding: var(--ds-space-4);
+  background: var(--ds-color-surface-muted);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-control);
+}
+
+.document-icon {
+  display: grid;
+  place-items: center;
+  width: var(--ds-control-min-height);
+  height: var(--ds-control-min-height);
+  color: var(--ds-color-primary);
+  background: var(--ds-color-primary-soft);
+  border-radius: var(--ds-radius-control);
+}
+
+.document-copy {
+  min-width: 0;
+}
+
+.document-copy span,
+.document-copy small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ds-color-text-muted);
+}
+
+.document-copy span {
+  margin-top: var(--ds-space-1);
+  font-size: var(--ds-font-size-sm);
+}
+
+.document-copy small {
+  margin-top: var(--ds-space-1);
+  font-size: var(--ds-font-size-xs);
+}
+
+.document-status {
+  grid-column: 2;
+  justify-self: start;
+  padding: var(--ds-space-1) var(--ds-space-2);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-color-primary);
+  background: var(--ds-color-primary-soft);
+  border-radius: var(--ds-radius-pill);
+}
+
+.document-actions {
+  display: flex;
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  gap: var(--ds-space-2);
+}
+
+.document-actions button,
+.document-camera-stage button,
+.document-camera-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--ds-control-min-height);
+  min-height: var(--ds-control-min-height);
+  gap: var(--ds-space-2);
+  color: var(--ds-color-primary);
+  background: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-primary-border);
+  border-radius: var(--ds-radius-control);
+  cursor: pointer;
+}
+
+.document-actions button:focus-visible,
+.document-camera-stage button:focus-visible,
+.document-camera-action:focus-visible,
+.document-source-panel input:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.document-dialog {
+  max-height: calc(100dvh - var(--ds-space-4));
+}
+
+.document-source-panel {
+  display: grid;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-4);
+  text-align: center;
+  background: var(--ds-color-surface-muted);
+  border: 1px dashed var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+}
+
+.document-source-panel > label {
+  color: var(--ds-color-text);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.document-source-panel > span {
+  color: var(--ds-color-text-subtle);
+  font-size: var(--ds-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--ds-tracking-label);
+}
+
+.document-camera-action {
+  width: 100%;
+}
+
+.document-camera-stage {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3);
+  background: var(--ds-color-surface-muted);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-card);
+}
+
+.document-camera-stage video,
+.document-camera-stage img {
+  display: block;
+  width: 100%;
+  max-height: 46dvh;
+  object-fit: contain;
+  background: var(--ds-color-text);
+  border-radius: var(--ds-radius-control);
+}
+
+.document-selected-file {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .document-section *,
+  .document-dialog * {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+  }
+}
+
 .dark {
   --background: var(--ds-color-canvas);
   --foreground: var(--ds-color-text);

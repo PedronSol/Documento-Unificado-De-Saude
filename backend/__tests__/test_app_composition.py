@@ -6,6 +6,7 @@ from auth.router import router as auth_router
 from care.router import router as care_router
 from config import AppSettings
 from documents.router import router as documents_router
+from documents.storage import LocalDocumentStorage
 from markers.router import router as markers_router
 from main import create_app
 from medical.router import router as medical_router
@@ -28,12 +29,17 @@ EXPECTED_API_ROUTES = {
     ("DELETE", "/me/vaccines/{vaccine_id}"),
     ("GET", "/me/alerts"),
     ("GET", "/me/documents"),
+    ("POST", "/me/documents"),
+    ("GET", "/me/documents/{document_id}/file"),
+    ("DELETE", "/me/documents/{document_id}"),
     ("GET", "/me/markers"),
     ("POST", "/me/markers"),
     ("PUT", "/me/markers/{marker_id}"),
     ("DELETE", "/me/markers/{marker_id}"),
     ("GET", "/medical/patients"),
     ("GET", "/medical/patients/{patient_id}"),
+    ("GET", "/medical/patients/{patient_id}/documents"),
+    ("GET", "/medical/patients/{patient_id}/documents/{document_id}/file"),
     ("POST", "/medical/patients/{patient_id}/markers"),
     ("PUT", "/medical/patients/{patient_id}/markers/{marker_id}"),
     ("DELETE", "/medical/patients/{patient_id}/markers/{marker_id}"),
@@ -62,6 +68,27 @@ def test_create_app_registers_the_current_api_contract():
     assert application.state.settings is settings
     assert application.state.connection_factory is connection_factory
     assert create_app() is not create_app()
+
+
+def test_create_app_builds_or_injects_private_document_storage(tmp_path):
+    configured_root = tmp_path / "private-documents"
+    settings = AppSettings.from_mapping(
+        {"DOCUMENT_STORAGE_ROOT": str(configured_root)}
+    )
+
+    application = create_app(settings=settings, connection_factory=lambda: None)
+
+    assert isinstance(application.state.document_storage, LocalDocumentStorage)
+    assert application.state.document_storage.root == configured_root.resolve()
+    assert configured_root.stat().st_mode & 0o777 == 0o700
+
+    injected = object()
+    injected_application = create_app(
+        settings=settings,
+        connection_factory=lambda: None,
+        document_storage=injected,
+    )
+    assert injected_application.state.document_storage is injected
 
 
 def test_domain_routers_own_the_current_routes():
@@ -134,10 +161,15 @@ def test_domain_routers_own_the_current_routes():
         "/me/vaccines/{vaccine_id}",
         "/me/alerts",
         "/me/documents",
+        "/me/documents/{document_id}/file",
+        "/me/documents/{document_id}",
         "/me/markers",
         "/me/markers/{marker_id}",
         "/medical/patients",
         "/medical/patients/{patient_id}",
+        "/medical/patients/{patient_id}/documents",
+        "/medical/patients/{patient_id}/documents/{document_id}/file",
+        "/medical/patients/{patient_id}/documents/{document_id}",
         "/medical/patients/{patient_id}/markers",
         "/medical/patients/{patient_id}/markers/{marker_id}",
         "/me/shares",

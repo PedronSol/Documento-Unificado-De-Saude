@@ -23,6 +23,13 @@ def serialize_health_marker_snapshot(
     return validated.model_dump(mode="json")
 
 
+def serialize_document_snapshot(document: Mapping[str, Any]) -> dict:
+    return {
+        key: document[key]
+        for key in ("title", "type", "media_type", "size_bytes", "status")
+    }
+
+
 def record_clinical_event(
     cursor: Any,
     *,

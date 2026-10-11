@@ -526,12 +526,12 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
             retryLabel="Recarregar documentos"
             onRetry={documentsResource.retry}
           />
-        ) : documents.length > 0 ? (
-          <DigitalDocuments documents={documents} />
         ) : (
-          <ResourceNotice
-            title="Documentos digitais"
-            message="Nenhum documento disponível."
+          <DigitalDocuments
+            documents={documents}
+            isAdult={profile.is_adult}
+            onDocumentsChange={documentsResource.updateData}
+            onUnauthenticated={onUnauthenticated}
           />
         )}
 

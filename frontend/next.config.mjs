@@ -6,6 +6,12 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: "/:path*",
+        headers: [
+          { key: "Permissions-Policy", value: "camera=(self)" },
+        ],
+      },
+      {
         source: "/share",
         headers: [
           { key: "Cache-Control", value: "no-store, max-age=0" },

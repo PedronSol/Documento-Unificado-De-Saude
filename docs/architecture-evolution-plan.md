@@ -142,7 +142,7 @@ flowchart TD
     S8[Step 8: Compartilhamento e QR-Code]
     S9[Step 9: Cadastro local e Google opcional]
     S10[Step 10: Governança administrativa e vínculos]
-    S11[Step 11: Armazenamento de documentos]
+    S11[Step 11: Armazenamento e digitalização de documentos]
     S12[Step 12: OCR e revisão]
     S13[Step 13: Organização do frontend]
     S14[Step 14: Consolidação operacional]
@@ -223,7 +223,7 @@ flowchart TD
 | 8 | Compartilhamento e QR-Code | 6 | DONE | `333df01` |
 | 9 | Cadastro local de pacientes e Google opcional | 3, 4 | DONE | `00303f3` |
 | 10 | Governança administrativa e vínculos | 5, 7, 9 | DONE | [PR #10](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/10) |
-| 11 | Armazenamento de documentos | 5, 7, 10 | SPEC REVIEW | `docs/specs/020-secure-document-storage.md` |
+| 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | IN PROGRESS | `docs/specs/020-secure-document-storage.md` |
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
 | 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
 | 14 | Consolidação operacional | 7–13, 15 | PLANNED | — |
@@ -559,10 +559,11 @@ médicos e vínculos, sem acesso direto a qualquer informação clínica.
 - Somente aceite do paciente ativa o acesso de médicos verificados do grupo.
 - Toda concessão, correção, suspensão e revogação administrativa é auditada.
 
-## Step 11 — Armazenamento seguro de documentos
+## Step 11 — Armazenamento e digitalização segura de documentos
 
 **Objetivo:** armazenar arquivos sem acoplar binários ao banco e entregá-los
-somente ao paciente proprietário ou a médico com vínculo ativo.
+somente ao paciente proprietário ou a médico com vínculo ativo, permitindo ao
+paciente adulto capturar uma página pela câmera com consentimento explícito.
 
 **Dependências:** Steps 5, 7 e 10.
 
@@ -581,6 +582,10 @@ somente ao paciente proprietário ou a médico com vínculo ativo.
 - [ ] Negar explicitamente todo acesso administrativo a metadados e binários.
 - [ ] Implementar remoção lógica e limpeza física controlada.
 - [ ] Auditar upload, download, remoção e listagem médica.
+- [ ] Implementar digitalização de uma página pela câmera, com prévia, refazer,
+      fallback para arquivo e encerramento seguro do stream.
+- [ ] Solicitar câmera somente após gesto explícito, sem áudio, sem persistência
+      local da captura e limitada ao próprio origin.
 
 ### Critérios de conclusão
 
@@ -589,6 +594,8 @@ somente ao paciente proprietário ou a médico com vínculo ativo.
 - Paciente não acessa documento alheio.
 - Médico acessa somente documentos de paciente com vínculo ativo.
 - Admin da aplicação não acessa metadados nem conteúdo clínico.
+- Câmera não inicia sem consentimento, é liberada ao sair do fluxo e sua recusa
+  não impede o upload tradicional.
 
 ## Step 12 — OCR e revisão manual
 
@@ -802,3 +809,7 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-10 | 9 | SPEC APPROVED → IN PROGRESS | testes backend/frontend do Step 9 | Cadastro local, Google opcional, vinculação explícita, migration `0007` e interface `/register` implementados por ciclos RED/GREEN; validação final e referência de commit pendentes. |
 | 2026-10-10 | 10 | PLANNED → SPEC WRITING | `docs/specs/007-administrative-access-governance.md` | Ownership por admin, diretório cadastral mínimo, convite com aceite e auditoria administrativa registrados para revisão posterior ao Step 9. |
 | 2026-10-10 | 11 | SPEC REVIEW REAVALIADA | `docs/specs/020-secure-document-storage.md` | Acesso de leitura do médico vinculado e negação absoluta à role admin incorporados; migration prevista passou de `0007` para `0009`. |
+| 2026-10-11 | 11 | SPEC REVIEW REAVALIADA | `docs/specs/020-secure-document-storage.md` | Digitalização de uma página pela câmera foi incorporada ao upload existente, com consentimento explícito, prévia, descarte local, fallback e testes de privacidade; implementação continua aguardando aprovação. |
+| 2026-10-11 | 11 | SPEC REVIEW → SPEC APPROVED | `docs/specs/020-secure-document-storage.md` | Armazenamento, autorização, digitalização de página única, privacidade da câmera, fallback e estratégia TDD aprovados; próximo passo é confirmar o primeiro teste RED. |
+| 2026-10-11 | 11 | AJUSTE DOCUMENTAL | `docs/specs/020-secure-document-storage.md` | Migration prevista renumerada de `0009` para `0013` após a inclusão das migrations de vínculos diretos, cadastro assistido, guarda e transferência; contratos aprovados permanecem inalterados. |
+| 2026-10-11 | 11 | SPEC APPROVED → IN PROGRESS | testes backend/frontend do Step 11 | Armazenamento privado, upload e download auditados, remoção lógica, leitura médica e digitalização por câmera foram implementados em ciclos RED/GREEN; validação final e referência de commit ou PR permanecem pendentes. |

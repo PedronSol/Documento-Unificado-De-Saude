@@ -138,7 +138,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 "SELECT COUNT(*) FROM patients"
             ).scalar_one()
 
-        assert revision == "0012"
+        assert revision == "0013"
         assert patient_count > 0
         assert user_counts["total"] == 7
         assert user_counts["unique_cpfs"] == 7
@@ -369,6 +369,13 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 ).scalar_one()
                 for table in ("vaccines", "alerts", "documents")
             }
+            migrated_document = connection.exec_driver_sql(
+                """
+                SELECT titulo_documento, tipo_documento, status_documento,
+                       storage_key, sha256, created_at, removed_at
+                FROM documents WHERE id_documento = 1
+                """
+            ).mappings().one()
             legacy_tables = connection.exec_driver_sql(
                 """
                 SELECT table_name
@@ -379,7 +386,7 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 """
             ).scalars().all()
 
-        assert revision == "0012"
+        assert revision == "0013"
         assert user["display_name"] == "Ana da Silva"
         assert user["email"] == "ana@example.com"
         assert user["password_hash"] == "hash-legado"
@@ -388,6 +395,13 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
         assert roles == ["patient"]
         assert session_user_id == user["user_id"]
         assert set(related_patient_ids.values()) == {patient["patient_id"]}
+        assert migrated_document["titulo_documento"] == "Hemograma"
+        assert migrated_document["tipo_documento"] == "exam"
+        assert migrated_document["status_documento"] == "removed"
+        assert migrated_document["storage_key"] is None
+        assert migrated_document["sha256"] is None
+        assert migrated_document["created_at"] is not None
+        assert migrated_document["removed_at"] is not None
         assert legacy_tables == []
     finally:
         database_engine.dispose()

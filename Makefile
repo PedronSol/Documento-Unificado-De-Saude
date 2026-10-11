@@ -4,7 +4,7 @@ BACKEND_PORT ?= 8000
 BACKEND_PYTHON := $(abspath $(VENV)/bin/python)
 BACKEND_READY := $(VENV)/.backend-ready
 
-.PHONY: front-dev back-setup back-dev both build local-up local-down db-migrate db-seed db-reset admin-create
+.PHONY: front-dev back-setup back-dev both build local-up local-down db-migrate db-seed db-reset admin-create documents-cleanup
 
 front-dev:
 	cd frontend && npm run dev
@@ -44,3 +44,6 @@ db-reset:
 
 admin-create:
 	docker compose run --rm -it migrate python database_tasks.py create-admin --email "$(EMAIL)" --cpf "$(CPF)" --name "$(NAME)"
+
+documents-cleanup:
+	docker compose exec backend python database_tasks.py cleanup-documents
