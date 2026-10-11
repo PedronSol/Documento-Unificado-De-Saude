@@ -332,6 +332,21 @@ menor sem responsável ativo. Respostas:
 - `409` para vínculo já aberto, CPF indisponível ou responsável inválido;
 - `422` para campos faltantes, CPF inválido ou responsável menor de idade.
 
+Detalhes fixados na fase 15.2:
+
+- CPF sem conta e sem o objeto `patient` retorna `404` "Paciente não
+  encontrado.", e a interface passa a pedir os dados do provisório. `patient`
+  de menor retorna `409` "Paciente menor exige responsável." até a fase 15.3.
+- `GET /medical/patients/{patient_id}` inclui `account_status`
+  (`active` | `provisional`) e `manages_provisional` (médico autor de conta
+  ainda não assumida), usados para exibir correção e novo link.
+- `PATCH /medical/patients/{patient_id}/provisional-profile` aceita
+  `full_name`, `preferred_name` e `birth_date` (ao menos um) e retorna o
+  perfil médico; conta assumida ou de outro autor retorna `404`.
+- `POST /medical/patients/{patient_id}/claim-link` retorna `201`
+  `{"token", "expires_at"}` e revoga links pendentes anteriores.
+- Diretório e convites de grupo do admin ignoram contas não assumidas.
+
 `POST /auth/patient-claim/local` recebe `{token, cpf, birth_date,
 dependent_birth_date?, email, password}`; a versão Google troca `email` e
 `password` por `credential`. Ambas retornam `201` com `AuthenticationResponse`
@@ -349,7 +364,8 @@ Migrations forward-only por fase: `0009` (15.1) cria `doctor_patient_links`;
 ```text
 users
 ~ email VARCHAR(254) NULL (nulo somente em conta provisória)
-+ claimed_at DATETIME(6) NULL (backfill = created_at para contas existentes)
++ claimed_at DATETIME(6) NULL DEFAULT UTC_TIMESTAMP(6) (backfill = created_at;
+  somente a criação de provisório grava NULL, preservando os cadastros atuais)
 + provisioned_by_doctor_id BIGINT NULL FK doctors
 
 doctor_patient_links
@@ -442,6 +458,8 @@ Comportamento intermediário, substituído pelas fases seguintes:
 |---|---|---|---|---|
 | 1 | `test_doctor_requests_link_and_gains_access_only_after_acceptance`: `404`; `test_migration_0009_...`: arquivo inexistente | migration `0009`, solicitação, aceite, recusa, cancelamento e revogação de vínculo direto | cláusula de autorização médica única para grupo ou vínculo direto | `test_direct_care_links.py`, `test_migrations.py` |
 | 2 | `PatientLinkPanel` inexistente; "Equipes de cuidado" sem solicitações e médicos diretos | painel do médico e seção do paciente estendida | carregamento das equipes por lista de recursos | `patient-link-panel.test.jsx`, `care-invitations.test.jsx`, `direct-care-links.spec.ts` |
+| 3 | `test_doctor_creates_provisional_adult_with_immediate_access`: `422` (`patient` não aceito); `test_migration_0010_...`: arquivo inexistente | migration `0010`, provisório, correção, novo link e reivindicação local/Google | `claimed_at` com default para não alterar cadastros existentes; contador de tentativas corrigido (revogava na 4ª pela ordem do `SET`) | `test_provisional_patients.py`, `test_migrations.py` |
+| 4 | formulário de provisório, ações do prontuário provisório e `PatientClaim` inexistentes | painel com link/QR, correção e novo link no prontuário, página `/patient-claim` | leitura do token do fragmento extraída para `lib/fragment-token.js`; `RegistrationField` reutilizado | `patient-link-panel.test.jsx`, `doctor-dashboard.test.jsx`, `patient-claim.test.jsx`, `direct-care-links.spec.ts` |
 
 ## Critérios de conclusão
 
