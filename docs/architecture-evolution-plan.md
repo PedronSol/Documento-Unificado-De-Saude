@@ -223,7 +223,7 @@ flowchart TD
 | 8 | Compartilhamento e QR-Code | 6 | DONE | `333df01` |
 | 9 | Cadastro local de pacientes e Google opcional | 3, 4 | DONE | `00303f3` |
 | 10 | Governança administrativa e vínculos | 5, 7, 9 | DONE | [PR #10](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/10) |
-| 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | DONE | `e1a8d86` |
+| 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | DONE | [PR #12](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/12) |
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
 | 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
 | 14 | Consolidação operacional | 7–13, 15 | PLANNED | — |
