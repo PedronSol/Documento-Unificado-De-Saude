@@ -14,6 +14,7 @@ import UserRound from "lucide-react/dist/esm/icons/user-round";
 import { InstitutionalProfile } from "@/components/identity/institutional-profile";
 import { UserAvatar } from "@/components/identity/user-avatar";
 import { GuardianshipPanel } from "@/components/patient/guardianship-panel";
+import { MyGuardiansPanel } from "@/components/patient/my-guardians-panel";
 import { apiFetch, setActingPatient } from "@/lib/api";
 
 
@@ -288,11 +289,17 @@ export function AuthenticatedHome({ onUnauthenticated = redirectToLogin }) {
           profile={envelope.patient_profile}
           onUnauthenticated={onUnauthenticated}
           guardianshipPanel={(
-            <GuardianshipPanel
-              dependents={dependents}
-              onChanged={() => setRequestVersion((value) => value + 1)}
-              onUnauthenticated={onUnauthenticated}
-            />
+            <>
+              <GuardianshipPanel
+                dependents={dependents}
+                onChanged={() => setRequestVersion((value) => value + 1)}
+                onUnauthenticated={onUnauthenticated}
+              />
+              <MyGuardiansPanel
+                isAdult={envelope.patient_profile.is_adult}
+                onUnauthenticated={onUnauthenticated}
+              />
+            </>
           )}
         />
       ) : context === "doctor" ? (

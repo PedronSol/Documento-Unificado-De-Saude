@@ -418,6 +418,26 @@ describe("AuthenticatedHome", () => {
     expect(setActingPatient).toHaveBeenLastCalledWith(null);
   });
 
+  it("mostra os responsáveis do próprio paciente", async () => {
+    mockPatientResources({
+      "/me/guardians": [
+        {
+          guardianship_id: 4,
+          guardian_display_name: "Joana Prado Ribeiro",
+          relationship: "parent",
+          status: "active",
+          awaiting_my_confirmation: false,
+        },
+      ],
+    });
+    render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Meus responsáveis" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Joana Prado Ribeiro")).toBeInTheDocument();
+  });
+
   it("redireciona uma sessão ausente sem manter conteúdo protegido", async () => {
     apiFetch.mockReturnValue(
       respondWith({ detail: "Autenticação necessária." }, 401),
