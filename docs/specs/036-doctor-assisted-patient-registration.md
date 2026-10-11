@@ -440,7 +440,8 @@ Comportamento intermediário, substituído pelas fases seguintes:
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| 1 | `test_doctor_requests_link_and_gains_access_only_after_acceptance`: `404`; `test_migration_0009_...`: arquivo inexistente | migration `0009`, solicitação, aceite, recusa, cancelamento e revogação de vínculo direto | cláusula de autorização médica única para grupo ou vínculo direto | `test_direct_care_links.py`, `test_migrations.py` |
+| 2 | `PatientLinkPanel` inexistente; "Equipes de cuidado" sem solicitações e médicos diretos | painel do médico e seção do paciente estendida | carregamento das equipes por lista de recursos | `patient-link-panel.test.jsx`, `care-invitations.test.jsx`, `direct-care-links.spec.ts` |
 
 ## Critérios de conclusão
 

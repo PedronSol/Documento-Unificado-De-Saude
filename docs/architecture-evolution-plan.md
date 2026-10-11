@@ -680,7 +680,7 @@ alterar os grupos geridos por admin.
 ### Tarefas
 
 - [x] Revisar e aprovar `docs/specs/036-doctor-assisted-patient-registration.md`.
-- [ ] 15.1: vínculo direto, autorização médica por grupo ou vínculo e
+- [x] 15.1: vínculo direto, autorização médica por grupo ou vínculo e
       solicitação a paciente cadastrado com aceite.
 - [ ] 15.2: paciente provisório adulto, correção pelo médico autor e
       reivindicação por link/QR com e-mail/senha ou Google.
