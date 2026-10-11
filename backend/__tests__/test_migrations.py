@@ -973,6 +973,37 @@ def test_migration_0011_cria_guarda_legal_forward_only():
         migration.downgrade()
 
 
+def test_migration_0012_adiciona_transferencia_forward_only():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0012_claim_transfer.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("claim_transfer", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.altered_columns = []
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+    operations = OperationsDouble()
+    migration.op = operations
+
+    migration.upgrade()
+
+    [(table, column, options)] = operations.altered_columns
+    assert migration.revision == "0012"
+    assert migration.down_revision == "0011"
+    assert (table, column) == ("patient_claims", "claim_type")
+    assert options["type_"].enums == ["self", "guardian", "transfer"]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_seed_de_desenvolvimento_provisiona_grupos_medicos_idempotentes():
     seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(
         encoding="utf-8"
