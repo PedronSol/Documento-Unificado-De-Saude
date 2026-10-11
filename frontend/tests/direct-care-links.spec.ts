@@ -151,3 +151,81 @@ test.describe("Vínculo direto médico–paciente", () => {
     expect(accepted).toBe(true);
   });
 });
+
+
+test.describe("Paciente provisório", () => {
+  test("médico cadastra provisório e recebe link com QR em 320 px e amplo", async ({ page }) => {
+    const token = "q".repeat(43);
+    await mockApi(page, async (key, route) => {
+      if (key === "GET /me") {
+        await fulfill(route, doctorEnvelope);
+        return true;
+      }
+      if (key === "POST /medical/patient-links") {
+        const body = route.request().postDataJSON();
+        if (!body.patient) {
+          await fulfill(route, { detail: "Paciente não encontrado." }, 404);
+        } else {
+          await fulfill(route, {
+            result: "provisional_created",
+            patient_id: 40,
+            claim: { token, expires_at: "2026-10-18T12:00:00", recipient: "patient" },
+          }, 201);
+        }
+        return true;
+      }
+      return false;
+    });
+
+    for (const viewport of [{ width: 320, height: 900 }, { width: 1440, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/home");
+      await page.getByLabel("CPF do paciente").fill("529.982.247-25");
+      await page.getByRole("button", { name: "Solicitar acesso" }).click();
+      await page.getByLabel("Nome completo").fill("Joana Prado Ribeiro Albuquerque");
+      await page.getByLabel("Nome preferido").fill("Joana");
+      await page.getByLabel("Data de nascimento").fill("1979-08-15");
+      await page.getByRole("button", { name: "Cadastrar paciente provisório" }).click();
+      await expect(page.getByLabel("Link para o paciente assumir a conta")).toHaveValue(
+        new RegExp(`/patient-claim#token=${token}$`),
+      );
+      await expect(page.getByRole("img", { name: "QR-Code para assumir a conta" })).toBeVisible();
+      await expectNoHorizontalOverflow(page, viewport.width);
+    }
+  });
+
+  test("paciente assume a conta pela página de reivindicação", async ({ page }) => {
+    let submitted: Record<string, string> | null = null;
+    await mockApi(page, async (key, route) => {
+      if (key === "POST /auth/patient-claim/local") {
+        submitted = route.request().postDataJSON();
+        await fulfill(route, { user: { user_id: 40, display_name: "Joana", email: "j@example.com", roles: ["patient"] } }, 201);
+        return true;
+      }
+      return false;
+    });
+    const token = "r".repeat(43);
+
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto("about:blank");
+      await page.goto(`/patient-claim#token=${token}`);
+      await expect(page.getByRole("heading", { name: "Assumir minha conta" })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => window.location.hash)).toBe("");
+      await expectNoHorizontalOverflow(page, viewport.width);
+    }
+
+    await page.getByLabel("CPF").fill("529.982.247-25");
+    await page.getByLabel("Data de nascimento").fill("1979-08-15");
+    await page.getByLabel("E-mail").fill("joana@example.com");
+    await page.getByLabel("Senha").fill("senha-paciente-segura");
+    await page.getByRole("button", { name: "Assumir minha conta" }).click();
+    await expect.poll(() => submitted).toEqual({
+      token,
+      cpf: "529.982.247-25",
+      birth_date: "1979-08-15",
+      email: "joana@example.com",
+      password: "senha-paciente-segura",
+    });
+  });
+});
