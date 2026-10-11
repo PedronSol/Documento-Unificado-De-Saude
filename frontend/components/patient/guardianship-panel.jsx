@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 
+import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/api";
 
@@ -20,6 +21,7 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [renouncing, setRenouncing] = useState(null);
+  const [transfers, setTransfers] = useState({});
 
   const loadPending = useCallback(async () => {
     try {
@@ -78,6 +80,31 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
       },
       { 403: "A data de nascimento não confere com o cadastro do dependente." },
     );
+  }
+
+  async function issueTransfer(dependent) {
+    setIsSaving(true);
+    setError("");
+    try {
+      const response = await apiFetch(
+        `/me/dependents/${dependent.patient_id}/claim-link`,
+        { method: "POST" },
+      );
+      if (response.status === 401) {
+        onUnauthenticated();
+        return;
+      }
+      if (!response.ok) {
+        setError("Não foi possível gerar o acesso. Tente novamente.");
+        return;
+      }
+      const claim = await response.json();
+      setTransfers((current) => ({ ...current, [dependent.patient_id]: claim }));
+    } catch {
+      setError(GENERIC_ERROR);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function confirmRenounce() {
@@ -174,8 +201,25 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
                 <p>{dependent.age} anos</p>
                 <h4>{dependent.full_name}</h4>
                 <p>Use o seletor de contexto para acessar a saúde de {dependent.preferred_name}.</p>
+                {transfers[dependent.patient_id] ? (
+                  <ClaimLinkCard
+                    token={transfers[dependent.patient_id].token}
+                    expiresAt={transfers[dependent.patient_id].expires_at}
+                  />
+                ) : null}
               </div>
               <div className="care-card-actions">
+                {dependent.is_adult && !dependent.has_own_access ? (
+                  <button
+                    type="button"
+                    className="care-accept"
+                    disabled={isSaving}
+                    aria-label={`Gerar acesso para ${dependent.preferred_name}`}
+                    onClick={() => issueTransfer(dependent)}
+                  >
+                    Gerar acesso próprio
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="care-reject"

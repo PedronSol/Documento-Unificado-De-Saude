@@ -21,6 +21,7 @@ const pending = {
 const dependent = {
   patient_id: 9,
   guardianship_id: 4,
+  has_own_access: true,
   preferred_name: "Davi",
   full_name: "Davi Prado Ribeiro",
   avatar_url: null,
@@ -123,5 +124,40 @@ describe("GuardianshipPanel", () => {
     await waitFor(() =>
       expect(apiFetch).toHaveBeenCalledWith("/me/guardianships/4", { method: "DELETE" }),
     );
+  });
+
+  it("gera acesso próprio para dependente adulto sem conta", async () => {
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/me/guardianships?status=pending") {
+        return respondWith([]);
+      }
+      if (path === "/me/dependents/12/claim-link") {
+        return respondWith({
+          token: "t".repeat(43),
+          expires_at: "2026-10-18T12:00:00",
+          recipient: "patient",
+        }, 201);
+      }
+      return respondWith(null, 404);
+    });
+    const user = userEvent.setup();
+    render(
+      <GuardianshipPanel
+        dependents={[
+          { ...dependent, patient_id: 12, preferred_name: "Ana", full_name: "Ana Prado", age: 18, is_adult: true, has_own_access: false },
+          dependent,
+        ]}
+        onChanged={vi.fn()}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Gerar acesso para Davi" })).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Gerar acesso para Ana" }));
+
+    expect(await screen.findByLabelText("Link para o paciente assumir a conta")).toHaveValue(
+      `${window.location.origin}/patient-claim#token=${"t".repeat(43)}`,
+    );
+    expect(apiFetch).toHaveBeenCalledWith("/me/dependents/12/claim-link", { method: "POST" });
   });
 });
