@@ -138,7 +138,7 @@ export function PublicHealthShare() {
           <div>
             <Droplets aria-hidden="true" size={20} />
             <span>Tipo sanguíneo</span>
-            <strong>{summary.patient.blood_type}</strong>
+            <strong>{summary.patient.blood_type || "Não informado"}</strong>
           </div>
           <div>
             <Clock3 aria-hidden="true" size={20} />

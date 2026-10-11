@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import LoginForm from "@/components/auth/login-form";
 
 
@@ -32,6 +34,10 @@ export default function LoginPage() {
             <p>Use as credenciais vinculadas à sua identidade.</p>
           </div>
           <LoginForm />
+          <div className="new-patient-entry">
+            <span>Primeiro acesso?</span>
+            <Link href="/register">Criar conta de paciente</Link>
+          </div>
           <p className="privacy-note">
             A sessão é protegida e expira automaticamente.
           </p>

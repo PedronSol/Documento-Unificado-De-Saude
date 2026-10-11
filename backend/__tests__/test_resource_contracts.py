@@ -5,7 +5,13 @@ import pytest
 
 from alerts.router import get_alerts
 from documents.router import get_documents
-from models import AlertResponse, DocumentSummary
+from models import (
+    AlertResponse,
+    DocumentSummary,
+    MedicalPatientProfile,
+    PatientProfileResponse,
+    PublicPatientSummary,
+)
 from vaccines.router import delete_vaccine
 
 
@@ -60,6 +66,33 @@ class ResourceConnection:
 
     def rollback(self):
         self.rollbacks += 1
+
+
+def test_new_patient_contracts_allow_unknown_blood_type():
+    own_profile = PatientProfileResponse(
+        preferred_name="Novo",
+        full_name="Novo Paciente",
+        health_status="pending",
+        blood_type=None,
+        is_adult=True,
+        age=34,
+    )
+    medical_profile = MedicalPatientProfile(
+        patient_id=10,
+        preferred_name="Novo",
+        full_name="Novo Paciente",
+        health_status="pending",
+        age=34,
+        blood_type=None,
+    )
+    public_profile = PublicPatientSummary(
+        preferred_name="Novo",
+        blood_type=None,
+    )
+
+    assert own_profile.blood_type is None
+    assert medical_profile.blood_type is None
+    assert public_profile.blood_type is None
 
 
 def test_alerts_use_session_patient_and_normalized_contract():

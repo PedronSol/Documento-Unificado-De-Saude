@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
+import { GoogleAccountLink } from "@/components/auth/google-account-link";
 import { apiFetch } from "@/lib/api";
 
 
@@ -10,7 +11,10 @@ function redirectToLogin() {
 }
 
 
-export function SettingsPage({ onUnauthenticated = redirectToLogin }) {
+export function SettingsPage({
+  googleClientId = "",
+  onUnauthenticated = redirectToLogin,
+}) {
   const [result, setResult] = useState({ status: "loading", profile: null });
   const [displayName, setDisplayName] = useState("");
   const [preferredName, setPreferredName] = useState("");
@@ -158,6 +162,10 @@ export function SettingsPage({ onUnauthenticated = redirectToLogin }) {
 
           <button className="settings-save" type="submit">Salvar alterações</button>
         </form>
+
+        {patientProfile ? (
+          <GoogleAccountLink googleClientId={googleClientId} />
+        ) : null}
       </section>
     </main>
   );

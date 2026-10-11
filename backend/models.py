@@ -1,4 +1,5 @@
 from datetime import date, datetime
+import re
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -10,6 +11,31 @@ def _normalize_text(value: str) -> str:
 
 def normalize_marker_name(value: str) -> str:
     return _normalize_text(value).casefold()
+
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _is_valid_cpf(value: str) -> bool:
+    if len(value) != 11 or len(set(value)) == 1:
+        return False
+
+    def check_digit(partial: str, weight: int) -> int:
+        factors = range(weight, 1, -1)
+        total = sum(
+            int(digit) * factor
+            for digit, factor in zip(partial, factors)
+        )
+        remainder = total % 11
+        return 0 if remainder < 2 else 11 - remainder
+
+    first = check_digit(value[:9], 10)
+    second = check_digit(f"{value[:9]}{first}", 11)
+    return value[-2:] == f"{first}{second}"
+
+
+def _normalize_cpf(value: str) -> str:
+    return "".join(character for character in value if character in "0123456789")
 
 
 class VaccineBase(BaseModel):
@@ -100,7 +126,7 @@ class PublicPatientSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     preferred_name: str
-    blood_type: str
+    blood_type: Optional[str] = None
 
 
 class PublicMarkerSummary(BaseModel):
@@ -159,12 +185,130 @@ class AuthenticationResponse(BaseModel):
     user: UserIdentity
 
 
+class GoogleCredential(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    credential: str = Field(min_length=1, max_length=8192)
+
+
+class GoogleOnboardingResponse(BaseModel):
+    status: Literal["onboarding_required"]
+
+
+class GooglePatientRegistration(GoogleCredential):
+    cpf: str
+    preferred_name: str = Field(max_length=20)
+    birth_date: date
+
+    @field_validator("cpf", mode="before")
+    @classmethod
+    def normalize_google_cpf(cls, value):
+        if isinstance(value, str):
+            return _normalize_cpf(value)
+        return value
+
+    @field_validator("cpf")
+    @classmethod
+    def validate_google_cpf(cls, value: str) -> str:
+        if not _is_valid_cpf(value):
+            raise ValueError("Informe um CPF válido.")
+        return value
+
+    @field_validator("preferred_name", mode="before")
+    @classmethod
+    def normalize_google_preferred_name(cls, value):
+        if isinstance(value, str):
+            return _normalize_text(value)
+        return value
+
+    @field_validator("preferred_name")
+    @classmethod
+    def validate_google_preferred_name(cls, value: str) -> str:
+        if not value:
+            raise ValueError("O nome não pode ser vazio.")
+        return value
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_google_birth_date(cls, value: date) -> date:
+        if value > date.today():
+            raise ValueError("A data de nascimento não pode estar no futuro.")
+        return value
+
+
+class PatientRegistration(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(max_length=254)
+    password: str = Field(min_length=12, max_length=128)
+    cpf: str
+    display_name: str = Field(max_length=100)
+    preferred_name: str = Field(max_length=20)
+    birth_date: date
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        if isinstance(value, str):
+            return value.strip().casefold()
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        if not EMAIL_PATTERN.fullmatch(value):
+            raise ValueError("Informe um e-mail válido.")
+        return value
+
+    @field_validator("cpf", mode="before")
+    @classmethod
+    def normalize_cpf(cls, value):
+        if isinstance(value, str):
+            return _normalize_cpf(value)
+        return value
+
+    @field_validator("cpf")
+    @classmethod
+    def validate_cpf(cls, value: str) -> str:
+        if not _is_valid_cpf(value):
+            raise ValueError("Informe um CPF válido.")
+        return value
+
+    @field_validator("display_name", "preferred_name", mode="before")
+    @classmethod
+    def normalize_registration_name(cls, value):
+        if isinstance(value, str):
+            return _normalize_text(value)
+        return value
+
+    @field_validator("display_name", "preferred_name")
+    @classmethod
+    def validate_registration_name(cls, value: str) -> str:
+        if not value:
+            raise ValueError("O nome não pode ser vazio.")
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("A senha não pode conter apenas espaços.")
+        return value
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_birth_date(cls, value: date) -> date:
+        if value > date.today():
+            raise ValueError("A data de nascimento não pode estar no futuro.")
+        return value
+
+
 class PatientProfileResponse(BaseModel):
     preferred_name: str
     full_name: str
     avatar_url: Optional[str] = None
     health_status: Literal["updated", "pending", "overdue"]
-    blood_type: str
+    blood_type: Optional[str] = None
     is_adult: bool
     age: int
 
@@ -179,7 +323,7 @@ class MedicalPatientSummary(BaseModel):
 
 
 class MedicalPatientProfile(MedicalPatientSummary):
-    blood_type: str
+    blood_type: Optional[str] = None
 
 
 class MedicalMarkerTimeline(BaseModel):

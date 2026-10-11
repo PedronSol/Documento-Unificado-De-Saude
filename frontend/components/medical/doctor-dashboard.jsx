@@ -129,7 +129,7 @@ function MedicalRecord({ record, onBack, onUnauthenticated }) {
         <dl className="medical-vitals">
           <div>
             <dt>Tipo sanguíneo</dt>
-            <dd>{patient.blood_type}</dd>
+            <dd>{patient.blood_type || "Não informado"}</dd>
           </div>
           <div>
             <dt>Situação</dt>

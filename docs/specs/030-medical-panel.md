@@ -51,7 +51,7 @@ as mesmas regras de marcadores já disponíveis ao paciente.
 - Agenda, consulta, vídeo, faturamento, prescrição ou assinatura digital.
 - Alterar perfil, vacinas ou outros recursos pelo prontuário médico.
 - Exibir binários de documentos, OCR, exames estruturados ou gráficos ainda não
-  definidos; esses comportamentos pertencem aos Steps 9 e 10.
+  definidos; esses comportamentos pertencem aos Steps 11 e 12.
 - Reorganizar superfícies do frontend que não pertençam ao contexto médico.
 
 ## Regras de negócio
@@ -226,6 +226,9 @@ Então recebe `403` e não há mutação nem evento de auditoria parcial.
   }
 }
 ```
+
+`blood_type` pode ser `null` enquanto o paciente recém-cadastrado ainda não
+informou ou confirmou esse dado; a interface apresenta “Não informado”.
 
 - A ordenação é determinística: vacinas por data decrescente e depois nome;
   marcadores ativos por tipo/nome e removidos por `removed_at` decrescente.
@@ -513,7 +516,7 @@ renderizado nem persistido no navegador.
 1. Grupos e vínculos são administrados somente por seed/operação interna nesta
    versão; não será criada UI administrativa.
 2. Pacientes e médicos podem pertencer a vários grupos simultaneamente.
-3. Documento original e OCR não aparecem no prontuário até os Steps 9 e 10; o
+3. Documento original e OCR não aparecem no prontuário até os Steps 11 e 12; o
    Step 7 entrega perfil, vacinas e marcadores.
 4. Paciente inexistente e paciente fora do vínculo retornam o mesmo `403` para
    reduzir enumeração.

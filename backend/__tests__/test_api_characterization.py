@@ -530,7 +530,7 @@ async def test_login_keeps_sql_injection_payload_out_of_statement(
     statement, parameters = fake_database.executed[0]
     assert response.status_code == 401
     assert malicious_email not in statement
-    assert parameters == (malicious_email,)
+    assert parameters == (malicious_email.casefold(),)
     assert fake_database.sessions == {}
 
 

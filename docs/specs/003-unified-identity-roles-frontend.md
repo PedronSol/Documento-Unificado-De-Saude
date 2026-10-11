@@ -71,7 +71,7 @@ antecipa o painel profissional nem autoriza acesso clínico de `doctors`.
   rota clínica de `doctor`; isso pertence aos Steps 4, 5, 6 e 7.
 - Implementar gestão administrativa de usuários.
 - Concluir as áreas de rotas `patient`, `medical` e `share`; essa reorganização
-  continua no Step 11.
+  continua no Step 13.
 - Separar alertas e documentos em endpoints próprios ou remover o payload legado
   do dashboard; isso pertence ao Step 4.
 - Introduzir Redux, biblioteca de query/cache ou um design system novo.
@@ -98,8 +98,10 @@ em um dashboard SaaS genérico.
 
 ## Regras de negócio e técnicas
 
-1. Cada `User` possui uma ou mais `roles` concedidas pelo servidor entre
-   `patient`, `doctor` e `admin`.
+1. Cada `User` possui roles concedidas pelo servidor entre `patient`, `doctor` e
+   `admin`. A decisão D005 foi revisada em 2026-10-10: `patient` e `doctor`
+   podem coexistir, mas `admin` passa a ser exclusiva; a validação executável e
+   o saneamento de eventual inconsistência entram no Step 10.
 2. CPF é obrigatório (`NOT NULL`) e único para todo `User`, qualquer que seja
    sua `role`; um `User` pode ter simultaneamente os perfis `Patient` e
    `Doctor`. CPF continua sendo dado cadastral, não chave técnica. Sua
@@ -395,7 +397,7 @@ ser `BIGINT` e referenciam `patients.patient_id`.
 - `apiFetch` continua sendo o único cliente HTTP e mantendo
   `credentials: "include"`.
 - Componentes introduzidos por este step ficam organizados por responsabilidade
-  de autenticação/identidade, sem antecipar a reorganização completa do Step 11.
+  de autenticação/identidade, sem antecipar a reorganização completa do Step 13.
 - Imports de ícones são diretos e componentes pesados não entram no bundle do
   estado institucional.
 - Estado derivado de `roles` e contexto é calculado no render, não duplicado em

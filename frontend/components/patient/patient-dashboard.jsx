@@ -474,7 +474,7 @@ export default function PatientDashboard({ profile, onUnauthenticated }) {
           </div>
           <div>
             <dt>Tipo sanguíneo</dt>
-            <dd>{profile.blood_type}</dd>
+            <dd>{profile.blood_type || "Não informado"}</dd>
           </div>
         </dl>
       </section>

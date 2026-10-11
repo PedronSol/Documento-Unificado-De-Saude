@@ -13,6 +13,10 @@ from vaccines.router import router as vaccines_router
 
 
 EXPECTED_API_ROUTES = {
+    ("POST", "/auth/patient-registration"),
+    ("POST", "/auth/google"),
+    ("POST", "/auth/google/patient-registration"),
+    ("POST", "/me/external-identities/google"),
     ("POST", "/login"),
     ("POST", "/logout"),
     ("GET", "/me"),
@@ -75,6 +79,10 @@ def test_domain_routers_own_the_current_routes():
     }
 
     assert router_paths == {
+        "/auth/patient-registration",
+        "/auth/google",
+        "/auth/google/patient-registration",
+        "/me/external-identities/google",
         "/login",
         "/logout",
         "/me",

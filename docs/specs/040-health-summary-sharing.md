@@ -19,7 +19,7 @@ temporário, revogável e limitado aos dados estritamente necessários.
 O banco atual já possui marcadores ativos de alergia, medicação, condição e
 diagnóstico, além do nome de preferência e tipo sanguíneo do paciente. Ainda não
 existe modelo de biomarcadores ou taxas clínicas; eles estão planejados para o
-Step 10, depois de documentos e OCR. Esta entrega não pode antecipar esse modelo.
+Step 12, depois de documentos e OCR. Esta entrega não pode antecipar esse modelo.
 
 Também existe um `QRCard` legado sem consumidor ativo, baseado em valor estático
 e identificador universal. Ele não satisfaz expiração, revogação, auditoria nem
@@ -39,7 +39,7 @@ o design system vigente e não será tratado como fonte de verdade.
 - Compartilhar prontuário completo, vacinas, documentos, alertas legados ou
   marcadores removidos.
 - Compartilhar biomarcadores ou taxas clínicas antes de existir o modelo do
-  Step 10 e uma atualização aprovada desta spec.
+  Step 12 e uma atualização aprovada desta spec.
 - Permitir edição, download ou identificação/cadastro do destinatário.
 - Permitir que médico, admin ou paciente menor gere um compartilhamento nesta
   versão; representação legal de menores exige uma spec própria.
@@ -47,7 +47,7 @@ o design system vigente e não será tratado como fonte de verdade.
 - Armazenar token em cookie, `localStorage`, `sessionStorage`, cache ou URL
   enviada ao servidor frontend.
 - Criar serviço externo, Redis ou rate limit em memória por processo. Proteção
-  operacional adicional poderá ser tratada no Step 12.
+  operacional adicional poderá ser tratada no Step 14.
 - Modernizar superfícies sem relação com o fluxo ou reutilizar o `QRCard` legado
   se sua adaptação for maior que um componente novo e simples.
 
@@ -69,8 +69,8 @@ o design system vigente e não será tratado como fonte de verdade.
 7. O fragmento `#` impede que o navegador envie o token ao servidor frontend ou
    no cabeçalho `Referer`. A página remove o fragmento do histórico assim que o
    lê e envia o token somente no header `X-Share-Token` para a API.
-8. O resumo público contém apenas nome de preferência, tipo sanguíneo e
-   marcadores ativos dos quatro tipos já implementados.
+8. O resumo público contém apenas nome de preferência, tipo sanguíneo quando
+   informado e marcadores ativos dos quatro tipos já implementados.
 9. A resposta não contém nome completo, CPF, e-mail, idade/data de nascimento,
    avatar, IDs, timestamps dos marcadores, autoria, documentos, vacinas, alertas
    legados, marcadores removidos ou histórico.
@@ -122,7 +122,8 @@ E, depois de perder o link em memória, pode revogar ou gerar outro.
 
 Dado um link válido aberto em um navegador
 Quando a página pública lê o fragmento e consulta a API
-Então o destinatário vê nome de preferência, tipo sanguíneo e marcadores ativos
+Então o destinatário vê nome de preferência, tipo sanguíneo quando informado e
+marcadores ativos
 E não precisa realizar login
 E a leitura e a atualização de último acesso são confirmadas junto com o evento
 `health_share.accessed` antes de os dados serem retornados.
@@ -269,7 +270,8 @@ O CORS aceita `X-Share-Token` somente para origens já presentes em
 
 - `HealthShareCreatedResponse`: contrato de criação com link entregue uma vez.
 - `HealthShareMetadataResponse`: metadados seguros do acesso autenticado.
-- `PublicPatientSummary`: `preferred_name` e `blood_type`.
+- `PublicPatientSummary`: `preferred_name` e `blood_type`, que pode ser `null`
+  enquanto o dado ainda não foi informado.
 - `PublicMarkerSummary`: `name` e `description`.
 - `PublicMedicationSummary`: campos anteriores mais `dosage` e `frequency`.
 - `PublicHealthSummaryResponse`: expiração, paciente e categorias permitidas.
@@ -516,7 +518,7 @@ ainda não existe.
 2. Usar nome de preferência e tipo sanguíneo como identidade mínima; nome
    completo permanece privado.
 3. Excluir biomarcadores/taxas deste step porque o modelo só será
-   criado no Step 10.
+   criado no Step 12.
 4. Permitir geração/revogação apenas por paciente adulto até existir fluxo de
    representação legal.
 5. Usar token no fragmento mais header `X-Share-Token`, em vez de token no
