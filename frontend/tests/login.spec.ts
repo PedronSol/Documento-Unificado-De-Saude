@@ -131,13 +131,36 @@ test.describe('Página de Login', () => {
   });
 
   test('redireciona para /home após login com sucesso', async ({ page }) => {
-    await page.route('**/login', (route) =>
-      route.fulfill({
+    let authenticated = false;
+    await page.route('**/login', (route) => {
+      authenticated = true;
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_LOGIN_RESPONSE),
+      });
+    });
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: authenticated ? 200 : 401,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          authenticated ? MOCK_PROFILE_RESPONSE : { detail: 'Autenticação necessária.' }
+        ),
       })
     );
+    await page.route('**/auth/remembered', (route) => route.fulfill({ status: 204 }));
+
+    await page.goto('/');
+    await waitForHydration(page);
+    await page.getByLabel('E-mail').fill('carlos.silva@email.com');
+    await page.getByRole('textbox', { name: 'Senha' }).fill('senha123');
+    await page.getByRole('button', { name: /Entrar/i }).click();
+
+    await expect(page).toHaveURL('/home', { timeout: 10000 });
+  });
+
+  test('reabre o app em / com sessão válida e vai direto ao início', async ({ page }) => {
     await page.route('**/me', (route) =>
       route.fulfill({
         status: 200,
@@ -147,12 +170,88 @@ test.describe('Página de Login', () => {
     );
 
     await page.goto('/');
-    await waitForHydration(page);
-    await page.getByLabel('E-mail').fill('carlos.silva@email.com');
-    await page.getByRole('textbox', { name: 'Senha' }).fill('senha123');
-    await page.getByRole('button', { name: /Entrar/i }).click();
 
     await expect(page).toHaveURL('/home', { timeout: 10000 });
+  });
+
+  for (const width of [320, 1280]) {
+    test(`pede somente a senha da conta lembrada em ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
+      let authenticated = false;
+      let rememberedBody = '';
+      await page.route('**/me', (route) =>
+        route.fulfill({
+          status: authenticated ? 200 : 401,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            authenticated ? MOCK_PROFILE_RESPONSE : { detail: 'Sessão inválida ou expirada.' }
+          ),
+        })
+      );
+      await page.route('**/auth/remembered', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ first_name: 'Carlos', masked_email: 'c•••@email.com' }),
+        })
+      );
+      await page.route('**/login/remembered', (route) => {
+        authenticated = true;
+        rememberedBody = route.request().postData() ?? '';
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_LOGIN_RESPONSE),
+        });
+      });
+
+      await page.goto('/');
+      await waitForHydration(page);
+
+      await expect(page.getByText('Olá, Carlos')).toBeVisible();
+      await expect(page.getByText('c•••@email.com')).toBeVisible();
+      await expect(page.getByLabel('E-mail')).toHaveCount(0);
+      const anotherAccount = page.getByRole('button', { name: 'Usar outra conta' });
+      expect((await anotherAccount.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+
+      await page.getByRole('textbox', { name: 'Senha' }).fill('senha123');
+      await page.getByRole('button', { name: /Entrar/i }).click();
+
+      await expect(page).toHaveURL('/home', { timeout: 10000 });
+      expect(rememberedBody).toContain('name="password"');
+      expect(rememberedBody).not.toContain('name="username"');
+    });
+  }
+
+  test('usar outra conta esquece o aparelho e volta ao login completo', async ({ page }) => {
+    let forgotten = false;
+    await page.route('**/me', (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Autenticação necessária.' }),
+      })
+    );
+    await page.route('**/auth/remembered', (route) => {
+      if (route.request().method() === 'DELETE') {
+        forgotten = true;
+        return route.fulfill({ status: 204 });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ first_name: 'Carlos', masked_email: 'c•••@email.com' }),
+      });
+    });
+
+    await page.goto('/');
+    await waitForHydration(page);
+    await page.getByRole('button', { name: 'Usar outra conta' }).click();
+
+    await expect(page.getByLabel('E-mail')).toBeFocused();
+    await expect(page.getByText('Olá, Carlos')).toHaveCount(0);
+    expect(forgotten).toBe(true);
   });
 });
 
@@ -184,13 +283,29 @@ test.describe('Página Home', () => {
         body: JSON.stringify(MOCK_ALERTS),
       })
     );
-    await page.route('**/me/documents', (route) =>
-      route.fulfill({
+    await page.route('**/me/documents', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            document_id: 42,
+            title: 'Receita digitalizada',
+            type: 'prescription',
+            original_filename: 'documento-digitalizado.jpg',
+            media_type: 'image/jpeg',
+            size_bytes: 4096,
+            status: 'uploaded',
+            created_at: '2026-10-11T12:00:00',
+          }),
+        });
+      }
+      return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_DOCUMENTS),
-      })
-    );
+      });
+    });
     await page.route(/\/me\/(care-(invitations|groups|requests|doctors)|guardianships\?status=pending|guardians)$/, (route) =>
       route.fulfill({
         status: 200,
@@ -322,6 +437,70 @@ test.describe('Página Home', () => {
     await expect(page.getByRole('navigation', { name: 'Contexto de acesso' })).toHaveCount(0);
     await expect(page.locator('.authenticated-shell')).not.toHaveClass(/has-context-dock/);
   });
+
+  for (const width of [320, 1280]) {
+    test(`digitaliza uma página com consentimento em ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 320 ? 760 : 900 });
+      const documentPage = await page.request.get('/home');
+      expect(documentPage.headers()['permissions-policy']).toBe('camera=(self)');
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'mediaDevices', {
+          configurable: true,
+          value: {
+            getUserMedia: async (constraints: MediaStreamConstraints) => {
+              (window as typeof window & { __cameraConstraints?: MediaStreamConstraints })
+                .__cameraConstraints = constraints;
+              const canvas = document.createElement('canvas');
+              canvas.width = 600;
+              canvas.height = 800;
+              const context = canvas.getContext('2d');
+              context?.fillRect(0, 0, canvas.width, canvas.height);
+              const stream = canvas.captureStream();
+              (window as typeof window & { __cameraStream?: MediaStream })
+                .__cameraStream = stream;
+              return stream;
+            },
+          },
+        });
+      });
+
+      await page.getByRole('button', { name: 'Adicionar documento' }).click();
+      await expect(page.getByLabel('Título do documento')).toBeFocused();
+      await page.getByLabel('Título do documento').fill('Receita digitalizada');
+      await page.getByLabel('Tipo do documento').click();
+      await page.getByRole('option', { name: 'Receita' }).click();
+      await page.getByRole('button', { name: 'Digitalizar com a câmera' }).click();
+
+      const livePreview = page.getByLabel('Prévia ao vivo do documento');
+      await expect(livePreview).toBeVisible();
+      await page.waitForFunction(() => {
+        const video = document.querySelector('video[aria-label="Prévia ao vivo do documento"]');
+        return video instanceof HTMLVideoElement && video.videoWidth > 0;
+      });
+      expect(await page.evaluate(() => (
+        window as typeof window & { __cameraConstraints?: MediaStreamConstraints }
+      ).__cameraConstraints)).toEqual({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' } },
+      });
+
+      await page.getByRole('button', { name: 'Capturar página' }).click();
+      await expect(page.getByAltText('Página digitalizada para revisão')).toBeVisible();
+      expect(await page.evaluate(() => (
+        window as typeof window & { __cameraStream?: MediaStream }
+      ).__cameraStream?.getTracks().every((track) => track.readyState === 'ended'))).toBe(true);
+
+      const uploadRequest = page.waitForRequest((request) =>
+        request.url().endsWith('/me/documents') && request.method() === 'POST'
+      );
+      await page.getByRole('button', { name: 'Enviar documento' }).click();
+      const request = await uploadRequest;
+      expect(request.postData()).toContain('documento-digitalizado.jpg');
+      expect(request.postData()).not.toContain('source');
+      await expect(page.getByText('Receita digitalizada')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    });
+  }
 
   test('gera QR temporário e revoga o acesso em 320 px', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
@@ -560,7 +739,7 @@ test.describe('Página Home', () => {
 
     await removeTrigger.click();
     await page.getByRole('button', { name: 'Remover do resumo' }).click();
-    await expect(page.getByText('Metformina XR')).toBeHidden();
+    await expect(page.getByText('Metformina XR', { exact: true })).toBeHidden();
     await page.getByRole('button', { name: 'Remover Losartana' }).click();
     await page.getByRole('button', { name: 'Remover do resumo' }).click();
     await expect(page.getByText('Losartana')).toBeHidden();
@@ -701,6 +880,14 @@ test.describe('Página Home', () => {
               removed: medicalRemovedMarkers,
             },
           }),
+        });
+      }
+
+      if (url.pathname === '/medical/patients/10/documents') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
         });
       }
 

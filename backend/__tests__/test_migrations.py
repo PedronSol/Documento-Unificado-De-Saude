@@ -92,6 +92,30 @@ def test_cli_injeta_engine_e_caso_de_uso_de_migration(tmp_path):
     }
 
 
+def test_cli_injeta_armazenamento_no_cleanup_de_documentos(tmp_path):
+    engine = FakeEngine()
+    received = {}
+
+    def cleanup_use_case(received_engine, storage):
+        received["engine"] = received_engine
+        received["storage_root"] = storage.root
+
+    database_tasks.main(
+        ["cleanup-documents"],
+        environ={
+            "DB_NAME": "health_test",
+            "DOCUMENT_STORAGE_ROOT": str(tmp_path / "documents"),
+        },
+        engine_builder=lambda settings, *, include_database=True: engine,
+        cleanup_documents_use_case=cleanup_use_case,
+    )
+
+    assert received == {
+        "engine": engine,
+        "storage_root": (tmp_path / "documents").resolve(),
+    }
+
+
 def test_cli_create_admin_le_senha_por_prompt_e_injeta_caso_de_uso():
     engine = FakeEngine()
     received = {}
@@ -849,6 +873,89 @@ def test_migration_0009_cria_vinculos_diretos_forward_only():
         migration.downgrade()
 
 
+def test_migration_0013_evolui_documentos_para_armazenamento_seguro():
+    migration_path = (
+        PROJECT_ROOT
+        / "db"
+        / "migrations"
+        / "versions"
+        / "0013_secure_document_storage.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("secure_documents", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.altered_columns = []
+            self.statements = []
+            self.constraints = []
+            self.indexes = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+        def execute(self, statement):
+            self.statements.append(str(statement))
+
+        def create_check_constraint(self, name, table, condition):
+            self.constraints.append((name, table, condition))
+
+        def create_unique_constraint(self, name, table, columns):
+            self.constraints.append((name, table, columns))
+
+        def create_index(self, name, table, columns, **options):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+    migration.upgrade()
+
+    added = {
+        column.name: column
+        for table, column in operations.added_columns
+        if table == "documents"
+    }
+    assert migration.revision == "0013"
+    assert migration.down_revision == "0012"
+    assert {
+        "original_filename",
+        "storage_key",
+        "media_type",
+        "size_bytes",
+        "sha256",
+        "created_at",
+        "removed_at",
+        "storage_deleted_at",
+    } <= set(added)
+    assert any("status_documento = 'removed'" in sql for sql in operations.statements)
+    assert any("titulo_documento = 'Documento legado'" in sql for sql in operations.statements)
+    assert any("tipo_documento = 'other'" in sql for sql in operations.statements)
+    assert (
+        "uq_documents_storage_key",
+        "documents",
+        ["storage_key"],
+    ) in operations.constraints
+    assert (
+        "idx_documents_patient_status_created",
+        "documents",
+        ["patient_id", "status_documento", "created_at", "id_documento"],
+    ) in operations.indexes
+    assert (
+        "idx_documents_cleanup",
+        "documents",
+        ["status_documento", "storage_deleted_at"],
+    ) in operations.indexes
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
+
+
 def test_migration_0010_cria_contas_provisorias_e_reivindicacao_forward_only():
     migration_path = (
         PROJECT_ROOT / "db" / "migrations" / "versions" / "0010_provisional_patients.py"
@@ -1028,3 +1135,77 @@ def test_makefile_compose_e_ci_usam_executor_alembic():
     assert "python database_tasks.py migrate /db/alembic.ini" in compose
     assert "python -m database_tasks migrate ../db/alembic.ini" in workflow
     assert "condition: service_completed_successfully" in compose
+
+
+def test_migration_0014_adiciona_teto_de_sessao_e_login_lembrado():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0014_persistent_session.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("persistent_session", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.altered_columns = []
+            self.statements = []
+            self.tables = {}
+            self.indexes = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def alter_column(self, table, column, **options):
+            self.altered_columns.append((table, column, options))
+
+        def execute(self, statement):
+            self.statements.append(str(statement))
+
+        def create_table(self, table, *elements):
+            self.tables[table] = elements
+
+        def create_index(self, name, table, columns, **options):
+            self.indexes.append((name, table, columns))
+
+    operations = OperationsDouble()
+    migration.op = operations
+    migration.upgrade()
+
+    assert migration.revision == "0014"
+    assert migration.down_revision == "0013"
+    added = {column.name: column for table, column in operations.added_columns if table == "sessions"}
+    assert set(added) == {"absolute_expires_at"}
+    assert any(
+        "SET absolute_expires_at = expires_at" in sql for sql in operations.statements
+    )
+    assert any(
+        table == "sessions"
+        and column == "absolute_expires_at"
+        and options["nullable"] is False
+        for table, column, options in operations.altered_columns
+    )
+
+    remembered = {
+        element.name: element
+        for element in operations.tables["remembered_logins"]
+        if isinstance(element, sa.Column)
+    }
+    assert set(remembered) == {"token_hash", "user_id", "created_at", "expires_at"}
+    assert remembered["token_hash"].primary_key
+    foreign_keys = [
+        element
+        for element in operations.tables["remembered_logins"]
+        if isinstance(element, sa.ForeignKeyConstraint)
+    ]
+    assert foreign_keys[0].ondelete == "CASCADE"
+    assert ("idx_remembered_logins_user", "remembered_logins", ["user_id"]) in operations.indexes
+    assert (
+        "idx_remembered_logins_expiration",
+        "remembered_logins",
+        ["expires_at"],
+    ) in operations.indexes
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()

@@ -134,8 +134,14 @@ class FakeCursor:
             self.result = []
         elif sql.startswith("DELETE FROM sessions WHERE expires_at"):
             self.rowcount = 0
+        elif sql.startswith("DELETE FROM remembered_logins"):
+            self.rowcount = 0
+        elif sql.startswith("INSERT INTO remembered_logins"):
+            self.rowcount = 1
+        elif sql.startswith("UPDATE sessions SET expires_at"):
+            self.rowcount = 0
         elif sql.startswith("INSERT INTO sessions"):
-            token_hash, user_id, _expires_at = parameters
+            token_hash, user_id, _expires_at, _absolute_expires_at = parameters
             self.database.sessions[token_hash] = user_id
             self.rowcount = 1
         elif sql.startswith("DELETE FROM sessions WHERE token_hash"):
@@ -477,6 +483,7 @@ def test_contrato_de_login_minimo_nao_retorna_dashboard(identity_database):
             username="ana@example.com",
             password=VALID_PASSWORD,
         ),
+        remembered_token=None,
         settings=AppSettings.from_mapping({}),
         connection=identity_database.connect(),
     )

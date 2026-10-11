@@ -158,13 +158,20 @@ def link_google_identity(
 
 def create_session(cursor: Any, *, user_id: int, settings: AppSettings) -> str:
     raw_token = create_session_token()
-    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
-        hours=settings.session_duration_hours
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    absolute_expires_at = now + timedelta(hours=settings.session_max_hours)
+    expires_at = min(
+        now + timedelta(hours=settings.session_idle_hours),
+        absolute_expires_at,
     )
-    cursor.execute("DELETE FROM sessions WHERE expires_at <= UTC_TIMESTAMP()")
     cursor.execute(
-        "INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (%s, %s, %s)",
-        (hash_session_token(raw_token), user_id, expires_at),
+        "DELETE FROM sessions WHERE expires_at <= UTC_TIMESTAMP() "
+        "OR absolute_expires_at <= UTC_TIMESTAMP()"
+    )
+    cursor.execute(
+        "INSERT INTO sessions (token_hash, user_id, expires_at, absolute_expires_at) "
+        "VALUES (%s, %s, %s, %s)",
+        (hash_session_token(raw_token), user_id, expires_at, absolute_expires_at),
     )
     return raw_token
 
@@ -178,7 +185,7 @@ def set_session_cookie(
     response.set_cookie(
         key=settings.session_cookie,
         value=raw_token,
-        max_age=settings.session_duration_hours * 60 * 60,
+        max_age=settings.session_max_hours * 60 * 60,
         httponly=True,
         secure=settings.cookie_secure,
         samesite="lax",

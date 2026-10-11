@@ -5,6 +5,8 @@ from pathlib import Path
 
 from database_admin import AdminBootstrapError, create_admin, reset_database, seed_database
 from database_config import DatabaseSettings, create_database_engine
+from documents.cleanup import cleanup_removed_documents
+from documents.storage import LocalDocumentStorage
 from migration_service import upgrade_database
 
 
@@ -17,10 +19,14 @@ def main(
     seed_use_case=seed_database,
     reset_use_case=reset_database,
     create_admin_use_case=create_admin,
+    cleanup_documents_use_case=cleanup_removed_documents,
     password_prompt=None,
 ) -> None:
     parser = argparse.ArgumentParser(description="Gerencia o banco de dados do DUS")
-    parser.add_argument("command", choices=("migrate", "seed", "reset", "create-admin"))
+    parser.add_argument(
+        "command",
+        choices=("migrate", "seed", "reset", "create-admin", "cleanup-documents"),
+    )
     parser.add_argument("path", nargs="?")
     parser.add_argument("--email")
     parser.add_argument("--cpf")
@@ -50,6 +56,13 @@ def main(
                 engine,
                 Path(args.path or "../db/seeds/development.sql"),
                 app_env=values.get("APP_ENV", "production"),
+            )
+        elif args.command == "cleanup-documents":
+            cleanup_documents_use_case(
+                engine,
+                LocalDocumentStorage(
+                    Path(values.get("DOCUMENT_STORAGE_ROOT", ".data/documents"))
+                ),
             )
         else:
             reset_use_case(

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import HTTPException
 import pytest
@@ -124,8 +124,11 @@ def test_documents_use_session_patient_and_normalized_contract():
                 "document_id": 9,
                 "title": "Hemograma Completo",
                 "type": "exam",
-                "created_on": date(2026, 3, 1),
-                "status": "new",
+                "original_filename": "hemograma.pdf",
+                "media_type": "application/pdf",
+                "size_bytes": 1024,
+                "created_at": datetime(2026, 3, 1, 12, 0),
+                "status": "uploaded",
             }
         ]
     )
@@ -135,6 +138,7 @@ def test_documents_use_session_patient_and_normalized_contract():
     assert [DocumentSummary.model_validate(item) for item in result]
     assert connection.executed[0][1] == (10,)
     assert "AS document_id" in connection.executed[0][0]
+    assert "status_documento <> 'removed'" in connection.executed[0][0]
 
 
 @pytest.mark.parametrize("vaccine_id", [22, 999])

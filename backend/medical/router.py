@@ -16,6 +16,13 @@ from care.provisional import correct_provisional_profile, reissue_claim
 from auth.dependencies import get_current_doctor
 from auth.dependencies import calculate_age
 from database import cursor_scope, get_connection, transaction
+from documents.router import (
+    _download_response,
+    _load_owned_document,
+    _public_snapshot,
+    _read_integral_file,
+    get_document_storage,
+)
 from markers.service import create_marker, remove_active_marker, update_active_marker
 from models import (
     ClaimLinkIssued,
@@ -25,6 +32,7 @@ from models import (
     MedicalPatientSummary,
     MedicalPatientProfile,
     MedicalRecordResponse,
+    DocumentSummary,
     PatientLinkRequest,
     PatientLinkRequested,
     ProvisionalPatientCreated,
@@ -63,6 +71,129 @@ AUTHORIZED_PATIENT_CLAUSE = """
         )
     )
 """
+
+
+def _document_mutation_forbidden() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Profissionais não podem alterar documentos do paciente.",
+    )
+
+
+@router.post("/patients/{patient_id}/documents", include_in_schema=False)
+def forbid_medical_document_upload(
+    patient_id: int,
+    doctor: dict = Depends(get_current_doctor),
+):
+    del patient_id, doctor
+    raise _document_mutation_forbidden()
+
+
+@router.delete(
+    "/patients/{patient_id}/documents/{document_id}",
+    include_in_schema=False,
+)
+def forbid_medical_document_removal(
+    patient_id: int,
+    document_id: int,
+    doctor: dict = Depends(get_current_doctor),
+):
+    del patient_id, document_id, doctor
+    raise _document_mutation_forbidden()
+
+
+@router.get(
+    "/patients/{patient_id}/documents",
+    response_model=list[DocumentSummary],
+)
+def list_medical_documents(
+    patient_id: int,
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with transaction(connection):
+            get_authorized_medical_patient(
+                patient_id=patient_id,
+                doctor=doctor,
+                connection=connection,
+            )
+            with cursor_scope(connection, dictionary=True) as cursor:
+                cursor.execute(
+                    """
+                    SELECT id_documento AS document_id,
+                           titulo_documento AS title,
+                           tipo_documento AS type, original_filename,
+                           media_type, size_bytes,
+                           status_documento AS status, created_at
+                    FROM documents
+                    WHERE patient_id = %s
+                      AND status_documento <> 'removed'
+                    ORDER BY created_at DESC, id_documento DESC
+                    """,
+                    (patient_id,),
+                )
+                documents = cursor.fetchall()
+                record_clinical_event(
+                    cursor,
+                    actor_user_id=doctor["user_id"],
+                    patient_id=patient_id,
+                    action="medical_documents.viewed",
+                    resource_type="patient",
+                    resource_id=patient_id,
+                )
+        return documents
+    except HTTPException:
+        raise
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao listar documentos médicos", error)
+
+
+@router.get("/patients/{patient_id}/documents/{document_id}/file")
+def download_medical_document(
+    patient_id: int,
+    document_id: int,
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+    storage: Any = Depends(get_document_storage),
+):
+    try:
+        with transaction(connection):
+            get_authorized_medical_patient(
+                patient_id=patient_id,
+                doctor=doctor,
+                connection=connection,
+            )
+            with cursor_scope(connection, dictionary=True) as cursor:
+                document = _load_owned_document(
+                    cursor,
+                    document_id=document_id,
+                    patient_id=patient_id,
+                )
+                if not document:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Documento não encontrado.",
+                    )
+                content = _read_integral_file(storage, document)
+                record_clinical_event(
+                    cursor,
+                    actor_user_id=doctor["user_id"],
+                    patient_id=patient_id,
+                    action="document.downloaded",
+                    resource_type="document",
+                    resource_id=document_id,
+                    after_snapshot=_public_snapshot(document),
+                )
+        return _download_response(document, content)
+    except HTTPException:
+        raise
+    except (mysql.connector.Error, OSError, ValueError, KeyError) as error:
+        logger.error("Falha ao baixar documento médico")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Documento temporariamente indisponível.",
+        ) from error
 
 
 @router.get("/patients", response_model=list[MedicalPatientSummary])

@@ -59,11 +59,10 @@ def cursor_scope(connection: Any, *, dictionary: bool = False) -> Iterator[Any]:
 def transaction(connection: Any) -> Iterator[None]:
     try:
         yield
+        connection.commit()
     except Exception:
         connection.rollback()
         raise
-    else:
-        connection.commit()
 
 
 def get_connection(request: Request) -> Iterator[Any]:

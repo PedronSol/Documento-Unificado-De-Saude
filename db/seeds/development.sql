@@ -184,15 +184,6 @@ FROM patients p
 JOIN users u ON u.user_id = p.user_id
 WHERE u.email = 'mariana.souza@email.com';
 
-INSERT IGNORE INTO documents (
-    id_documento, patient_id, titulo_documento, tipo_documento,
-    data_criacao_documento, status_documento
-)
-SELECT
-    1, patient_id, 'Hemograma Completo', 'exam', '2025-03-01', 'new'
-FROM patients
-WHERE user_id = (SELECT user_id FROM users WHERE email = 'carlos.silva@email.com');
-
 UPDATE doctors
 SET created_by_admin_user_id = (
     SELECT user_id FROM users WHERE email = 'admin@email.com'

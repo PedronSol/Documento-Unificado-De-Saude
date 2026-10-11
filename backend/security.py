@@ -48,6 +48,14 @@ def hash_session_token(token: str) -> str:
     return _hash_token(token)
 
 
+def create_remembered_login_token() -> str:
+    return _create_token()
+
+
+def hash_remembered_login_token(token: str) -> str:
+    return _hash_token(token)
+
+
 def create_share_token() -> str:
     return _create_token()
 

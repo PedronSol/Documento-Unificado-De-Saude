@@ -45,6 +45,7 @@ __pycache__
 *.pyd
 .pytest_cache
 .coverage
+.data/
 
 # PyInstaller
 #   Usually these files are written by a python script from a template

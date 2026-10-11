@@ -16,6 +16,8 @@ const agentRules = read("../../AGENTS.md");
 const clinicalSelect = read("../components/ui/clinical-select.jsx");
 const patientDashboard = read("../components/patient/patient-dashboard.jsx");
 const healthMarkers = read("../components/patient/health-markers.jsx");
+const digitalDocuments = read("../components/health-passport/digital-documents.jsx");
+const nextConfig = read("../next.config.mjs");
 const medicalStyles = globals.slice(globals.indexOf("/* Área médica"));
 const dialogStyles = globals.slice(
   globals.indexOf(".modal-backdrop"),
@@ -121,5 +123,13 @@ describe("contrato do design system", () => {
     expect(healthMarkers).toContain("<ClinicalSelect");
     expect(patientDashboard).not.toContain("<select");
     expect(healthMarkers).not.toContain("<select");
+  });
+
+  it("governa o digitalizador com componentes e política de câmera seguros", () => {
+    expect(digitalDocuments).toContain("<ClinicalSelect");
+    expect(digitalDocuments).not.toContain("<select");
+    expect(digitalDocuments).toContain("audio: false");
+    expect(nextConfig).toContain('value: "camera=(self)"');
+    expect(guide).toContain("**Digitalizador de documento**");
   });
 });

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from config import AppSettings
 
 
@@ -11,7 +13,8 @@ def test_app_settings_are_built_from_an_injected_mapping():
         {
             "CORS_ORIGINS": "https://app.example, https://admin.example",
             "COOKIE_SECURE": "true",
-            "SESSION_DURATION_HOURS": "12",
+            "SESSION_IDLE_HOURS": "12",
+            "SESSION_MAX_HOURS": "72",
             "PUBLIC_APP_URL": "https://app.example/",
             "GOOGLE_AUTH_ENABLED": "true",
             "GOOGLE_CLIENT_ID": "client-id.apps.googleusercontent.com",
@@ -28,10 +31,13 @@ def test_app_settings_are_built_from_an_injected_mapping():
         "https://admin.example",
     )
     assert settings.cookie_secure is True
-    assert settings.session_duration_hours == 12
+    assert settings.session_idle_hours == 12
+    assert settings.session_max_hours == 72
     assert settings.public_app_url == "https://app.example"
     assert settings.google_auth_enabled is True
     assert settings.google_client_id == "client-id.apps.googleusercontent.com"
+    assert settings.document_storage_root == Path(".data/documents")
+    assert settings.document_max_bytes == 10485760
     assert settings.database.host == "mysql.internal"
     assert settings.database.port == 3307
     assert settings.database.user == "app"
@@ -45,7 +51,8 @@ def test_app_settings_preserve_current_defaults():
     assert settings.cors_origins == ("http://localhost:3000",)
     assert settings.cookie_secure is False
     assert settings.session_cookie == "dus_session"
-    assert settings.session_duration_hours == 8
+    assert settings.session_idle_hours == 24
+    assert settings.session_max_hours == 168
     assert settings.public_app_url == "http://localhost:3000"
     assert settings.google_auth_enabled is False
     assert settings.google_client_id is None
@@ -71,3 +78,47 @@ def test_google_auth_configuration_is_documented_for_backend_and_frontend():
     assert (
         "NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}" in compose
     )
+
+
+def test_document_storage_configuration_is_validated_and_documented():
+    configured = AppSettings.from_mapping(
+        {
+            "DOCUMENT_STORAGE_ROOT": "/private/documents",
+            "DOCUMENT_MAX_BYTES": "2048",
+        }
+    )
+    assert configured.document_storage_root == Path("/private/documents")
+    assert configured.document_max_bytes == 2048
+
+    for invalid in ("0", "10485761", "not-a-number"):
+        with pytest.raises(ValueError, match="DOCUMENT_MAX_BYTES"):
+            AppSettings.from_mapping({"DOCUMENT_MAX_BYTES": invalid})
+
+    example = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
+    compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "DOCUMENT_STORAGE_ROOT=.data/documents" in example
+    assert "DOCUMENT_MAX_BYTES=10485760" in example
+    assert "DOCUMENT_STORAGE_ROOT: /var/lib/dus/documents" in compose
+    assert "DOCUMENT_MAX_BYTES: ${DOCUMENT_MAX_BYTES:-10485760}" in compose
+    assert "document_data:/var/lib/dus/documents" in compose
+
+
+def test_session_lifetimes_are_validated_and_documented():
+    invalid_mappings = (
+        {"SESSION_IDLE_HOURS": "0"},
+        {"SESSION_MAX_HOURS": "-1"},
+        {"SESSION_IDLE_HOURS": "abc"},
+        {"SESSION_IDLE_HOURS": "48", "SESSION_MAX_HOURS": "24"},
+    )
+    for invalid in invalid_mappings:
+        with pytest.raises(ValueError, match="SESSION_"):
+            AppSettings.from_mapping(invalid)
+
+    example = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
+    compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "SESSION_IDLE_HOURS=24" in example
+    assert "SESSION_MAX_HOURS=168" in example
+    assert "SESSION_DURATION_HOURS" not in example
+    assert "SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-24}" in compose
+    assert "SESSION_MAX_HOURS: ${SESSION_MAX_HOURS:-168}" in compose
+    assert "SESSION_DURATION_HOURS" not in compose

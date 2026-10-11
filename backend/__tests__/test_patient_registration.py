@@ -67,8 +67,10 @@ class RegistrationCursor:
             self.lastrowid = patient_id
         elif sql.startswith("DELETE FROM sessions WHERE expires_at"):
             return
+        elif sql.startswith("UPDATE sessions SET expires_at"):
+            self.rowcount = 0
         elif sql.startswith("INSERT INTO sessions"):
-            token_hash, user_id, expires_at = parameters
+            token_hash, user_id, expires_at, _absolute_expires_at = parameters
             self.database.sessions[token_hash] = {
                 "user_id": user_id,
                 "expires_at": expires_at,
