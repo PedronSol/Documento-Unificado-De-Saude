@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any, Optional
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 
 from config import SESSION_COOKIE
 from database import cursor_scope, get_connection
@@ -129,7 +129,7 @@ def get_current_doctor(
     return doctor
 
 
-def get_current_patient(
+def get_own_patient(
     user: dict = Depends(require_patient_role),
     connection: Any = Depends(get_connection),
 ) -> dict:
@@ -148,7 +148,44 @@ def get_current_patient(
     return patient
 
 
+def get_current_patient(
+    own_patient: dict = Depends(get_own_patient),
+    acting_patient: Optional[str] = Header(default=None, alias="X-Acting-Patient"),
+    connection: Any = Depends(get_connection),
+) -> dict:
+    """Patient whose record is accessed; user_id is always the acting user."""
+    if acting_patient is None:
+        return own_patient
+    if not acting_patient.isdigit():
+        raise _acting_forbidden()
+    with cursor_scope(connection, dictionary=True) as cursor:
+        cursor.execute(
+            """
+            SELECT p.*
+            FROM patient_guardianships g
+            JOIN patients p ON p.patient_id = g.dependent_patient_id
+            WHERE g.guardian_patient_id = %s
+              AND g.dependent_patient_id = %s
+              AND g.status = 'active'
+            """,
+            (own_patient["patient_id"], int(acting_patient)),
+        )
+        dependent = cursor.fetchone()
+    if not dependent:
+        raise _acting_forbidden()
+    return {**dependent, "user_id": own_patient["user_id"], "acting_guardian": True}
+
+
+def _acting_forbidden() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Acesso não permitido para este paciente.",
+    )
+
+
 def require_adult(patient: dict = Depends(get_current_patient)) -> dict:
+    if patient.get("acting_guardian"):
+        return patient
     if calculate_age(patient["data_nascimento"]) < 18:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

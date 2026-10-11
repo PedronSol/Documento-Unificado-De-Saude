@@ -1,10 +1,18 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 import mysql.connector
 
-from auth.dependencies import get_current_patient, require_adult
+from auth.dependencies import get_current_patient, get_own_patient, require_adult
+from care.guardianship import (
+    decide_guardianship,
+    list_dependents,
+    list_pending_guardianships,
+    renounce_guardianship,
+)
 from care.direct_links import (
     decide_care_request,
     list_patient_care_doctors,
@@ -19,6 +27,9 @@ from care.service import (
 )
 from database import cursor_scope, get_connection, transaction
 from models import (
+    DependentProfile,
+    GuardianshipAcceptance,
+    PendingGuardianship,
     PatientCareDoctor,
     PatientCareGroup,
     PatientCareInvitation,
@@ -164,6 +175,105 @@ def delete_care_doctor(
                 revoke_care_doctor(cursor, patient=patient, link_id=link_id)
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao revogar médico", error)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/dependents", response_model=list[DependentProfile])
+def get_dependents(
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            return list_dependents(cursor, guardian_patient_id=patient["patient_id"])
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao listar dependentes", error)
+
+
+@router.get("/guardianships", response_model=list[PendingGuardianship])
+def get_guardianships(
+    guardianship_status: Literal["pending"] = Query(default="pending", alias="status"),
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            return list_pending_guardianships(
+                cursor,
+                guardian_patient_id=patient["patient_id"],
+            )
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao listar guardas", error)
+
+
+@router.post(
+    "/guardianships/{guardianship_id}/accept",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def accept_guardianship(
+    guardianship_id: int,
+    payload: GuardianshipAcceptance,
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    return _guardianship_mutation(
+        connection,
+        lambda cursor: decide_guardianship(
+            cursor,
+            guardian=patient,
+            guardianship_id=guardianship_id,
+            accept=True,
+            dependent_birth_date=payload.dependent_birth_date,
+        ),
+    )
+
+
+@router.post(
+    "/guardianships/{guardianship_id}/reject",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def reject_guardianship(
+    guardianship_id: int,
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    return _guardianship_mutation(
+        connection,
+        lambda cursor: decide_guardianship(
+            cursor,
+            guardian=patient,
+            guardianship_id=guardianship_id,
+            accept=False,
+        ),
+    )
+
+
+@router.delete(
+    "/guardianships/{guardianship_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_guardianship(
+    guardianship_id: int,
+    patient: dict = Depends(get_own_patient),
+    connection: Any = Depends(get_connection),
+):
+    return _guardianship_mutation(
+        connection,
+        lambda cursor: renounce_guardianship(
+            cursor,
+            guardian=patient,
+            guardianship_id=guardianship_id,
+        ),
+    )
+
+
+def _guardianship_mutation(connection: Any, mutate):
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                mutate(cursor)
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao alterar guarda", error)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

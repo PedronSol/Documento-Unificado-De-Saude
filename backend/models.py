@@ -339,9 +339,22 @@ class MedicalRecordResponse(BaseModel):
     markers: MedicalMarkerTimeline
 
 
+class DependentProfile(BaseModel):
+    patient_id: int
+    guardianship_id: int
+    preferred_name: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    health_status: Literal["updated", "pending", "overdue"]
+    blood_type: Optional[str] = None
+    is_adult: bool
+    age: int
+
+
 class CurrentUserProfileResponse(BaseModel):
     user: UserIdentity
     patient_profile: Optional[PatientProfileResponse]
+    dependents: List[DependentProfile] = []
 
 
 class OwnProfileUpdate(BaseModel):
@@ -722,11 +735,57 @@ def _validate_past_birth_date(value: date) -> date:
     return value
 
 
+class GuardianData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cpf: str
+    full_name: str = Field(min_length=3, max_length=100)
+    birth_date: date
+    relationship: Literal["parent", "legal_guardian"]
+
+    @field_validator("cpf", mode="before")
+    @classmethod
+    def normalize_guardian_cpf(cls, value):
+        if isinstance(value, str):
+            return _normalize_cpf(value)
+        return value
+
+    @field_validator("cpf")
+    @classmethod
+    def validate_guardian_cpf(cls, value: str) -> str:
+        if not _is_valid_cpf(value):
+            raise ValueError("Informe um CPF válido.")
+        return value
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def normalize_guardian_name(cls, value):
+        if isinstance(value, str):
+            return _normalize_text(value)
+        return value
+
+    @field_validator("birth_date")
+    @classmethod
+    def validate_guardian_birth_date(cls, value: date) -> date:
+        today = date.today()
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        if age < 18:
+            raise ValueError("O responsável precisa ser maior de idade.")
+        return value
+
+
 class PatientLinkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     cpf: str
     patient: Optional[ProvisionalPatientData] = None
+    guardian: Optional[GuardianData] = None
+
+    @model_validator(mode="after")
+    def guardian_differs_from_patient(self):
+        if self.guardian is not None and self.guardian.cpf == self.cpf:
+            raise ValueError("O responsável deve ter outro CPF.")
+        return self
 
     @field_validator("cpf", mode="before")
     @classmethod
@@ -774,18 +833,17 @@ class PatientCareDoctor(BaseModel):
 class ProvisionalClaimIssued(BaseModel):
     token: str
     expires_at: datetime
-    recipient: Literal["patient"]
+    recipient: Literal["patient", "guardian"]
 
 
 class ProvisionalPatientCreated(BaseModel):
     result: Literal["provisional_created"]
     patient_id: int
-    claim: ProvisionalClaimIssued
+    claim: Optional[ProvisionalClaimIssued]
 
 
-class ClaimLinkIssued(BaseModel):
-    token: str
-    expires_at: datetime
+class ClaimLinkIssued(ProvisionalClaimIssued):
+    pass
 
 
 class ProvisionalProfileUpdate(BaseModel):
@@ -820,6 +878,7 @@ class PatientClaimBase(BaseModel):
     token: str = Field(min_length=43, max_length=64)
     cpf: str
     birth_date: date
+    dependent_birth_date: Optional[date] = None
 
     @field_validator("cpf", mode="before")
     @classmethod
@@ -857,3 +916,17 @@ class PatientClaimLocal(PatientClaimBase):
 
 class PatientClaimGoogle(PatientClaimBase):
     credential: str = Field(min_length=1, max_length=8192)
+
+
+class PendingGuardianship(BaseModel):
+    guardianship_id: int
+    dependent_full_name: str
+    dependent_preferred_name: str
+    relationship: Literal["parent", "legal_guardian"]
+    requested_by: Optional[str] = None
+
+
+class GuardianshipAcceptance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dependent_birth_date: date

@@ -44,6 +44,8 @@ class FakeCursor:
                 {"role": role}
                 for role in self.database.roles.get(parameters[0], [])
             ]
+        elif "FROM patient_guardianships g" in sql:
+            self.result = []
         elif sql.startswith(
             "SELECT verification_status, professional_status FROM doctors"
         ):
@@ -416,6 +418,7 @@ async def test_me_returns_only_sanitized_profile(client, fake_database):
             "is_adult": True,
             "age": date.today().year - 1990,
         },
+        "dependents": [],
     }
 
 

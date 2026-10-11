@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 import mysql.connector
 
 from admin.service import accept_doctor_invitation
-from auth.dependencies import _load_authorized_roles, get_current_patient
+from auth.dependencies import _load_authorized_roles, get_own_patient
 from auth.google import (
     GoogleIdentityVerifier,
     get_google_identity_verifier,
@@ -282,6 +282,7 @@ def _claim_patient_account(connection, response, settings, payload, complete):
                     token=payload.token,
                     cpf=payload.cpf,
                     birth_date=payload.birth_date,
+                    dependent_birth_date=payload.dependent_birth_date,
                 )
                 if claim is not None:
                     complete(cursor, claim)
@@ -323,7 +324,7 @@ def link_google_to_current_patient(
     payload: GoogleCredential,
     settings: AppSettings = Depends(get_settings),
     verifier: GoogleIdentityVerifier | None = Depends(get_google_identity_verifier),
-    patient: dict = Depends(get_current_patient),
+    patient: dict = Depends(get_own_patient),
     connection: Any = Depends(get_connection),
 ):
     if not settings.google_auth_enabled or verifier is None:

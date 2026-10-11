@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from auth.dependencies import calculate_age
 from audit.service import record_clinical_event
 from care.provisional import create_provisional_patient
-from models import ProvisionalPatientData
+from models import GuardianData, ProvisionalPatientData
 
 
 LINK_REQUEST_DURATION_DAYS = 7
@@ -42,6 +42,7 @@ def request_direct_link(
     doctor: dict,
     cpf: str,
     provisional: ProvisionalPatientData | None = None,
+    guardian: GuardianData | None = None,
 ) -> dict:
     cursor.execute(
         """
@@ -68,6 +69,7 @@ def request_direct_link(
             doctor=doctor,
             cpf=cpf,
             data=provisional,
+            guardian=guardian,
         )
     if not target:
         raise HTTPException(
@@ -82,7 +84,9 @@ def request_direct_link(
         or target["user_id"] == doctor["user_id"]
     ):
         raise _conflict("CPF indisponível para vínculo.")
-    if calculate_age(target["birth_date"]) < 18:
+    if calculate_age(target["birth_date"]) < 18 and not _has_active_guardian(
+        cursor, target["patient_id"]
+    ):
         raise _conflict("Paciente menor exige responsável.")
 
     patient_id = target["patient_id"]
@@ -129,6 +133,18 @@ def request_direct_link(
         link_id=link_id,
     )
     return {"result": "request_sent", "link_id": link_id}
+
+
+def _has_active_guardian(cursor: Any, patient_id: int) -> bool:
+    cursor.execute(
+        """
+        SELECT 1 FROM patient_guardianships
+        WHERE dependent_patient_id = %s AND status = 'active'
+        LIMIT 1
+        """,
+        (patient_id,),
+    )
+    return cursor.fetchone() is not None
 
 
 def list_doctor_pending_links(cursor: Any, *, doctor_id: int) -> list[dict]:

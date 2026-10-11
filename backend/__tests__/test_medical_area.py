@@ -337,21 +337,23 @@ def test_medical_marker_update_and_suspension_preserve_doctor_authorship():
     )
 
 
-def test_medical_marker_mutation_rejects_minor_before_writing():
+def test_medical_marker_mutation_allows_authorized_minor_record():
     connection = MedicalConnection(
-        fetchone_results=[patient_row(user_id=7, birth_date=date(2020, 1, 1))],
+        fetchone_results=[
+            patient_row(user_id=7, birth_date=date(2020, 1, 1)),
+            marker_row(name="Asma"),
+        ],
     )
 
-    with pytest.raises(HTTPException) as error:
-        add_medical_marker(
-            patient_id=10,
-            marker=MarkerCreateUpdate(type="condition", name="Asma"),
-            doctor={"doctor_id": 3, "user_id": 8},
-            connection=connection,
-        )
+    result = add_medical_marker(
+        patient_id=10,
+        marker=MarkerCreateUpdate(type="condition", name="Asma"),
+        doctor={"doctor_id": 3, "user_id": 8},
+        connection=connection,
+    )
 
-    assert error.value.status_code == 403
-    assert not any(
+    assert result["name"] == "Asma"
+    assert any(
         statement.startswith("INSERT INTO health_markers")
         for statement, _ in connection.executed
     )

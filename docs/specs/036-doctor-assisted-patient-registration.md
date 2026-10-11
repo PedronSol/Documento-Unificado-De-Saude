@@ -347,6 +347,34 @@ Detalhes fixados na fase 15.2:
   `{"token", "expires_at"}` e revoga links pendentes anteriores.
 - Diretório e convites de grupo do admin ignoram contas não assumidas.
 
+Detalhes fixados na fase 15.3:
+
+- Menor sem `guardian` e sem responsável ativo continua retornando `409`
+  "Paciente menor exige responsável.", sinal para a interface pedir o
+  responsável. Responsável menor de idade ou com o mesmo CPF do dependente
+  retorna `422`.
+- CPF do responsável de conta não assumida, inativa, sem perfil de paciente ou
+  administrativa retorna `409` "Responsável indisponível.".
+- Menor provisório com responsável ativo recebe solicitações normalmente,
+  decididas pelo responsável. Menor titular de conta sem responsável continua
+  `409` até a fase 15.4.
+- Com `X-Acting-Patient` válido, a dependência de paciente devolve o perfil do
+  dependente com `user_id` igual ao do responsável, que passa a ser o ator de
+  toda auditoria e decisão; `require_adult` considera o responsável. Cabeçalho
+  inválido, de terceiro ou de guarda não ativa retorna `403`.
+- Vinculação Google em configurações, rotas de guarda e `/me/dependents`
+  ignoram o cabeçalho e operam sobre o próprio paciente.
+- Aceite de guarda com data de nascimento do dependente divergente retorna
+  `403`; a guarda continua pendente.
+- "Vínculos médicos ativos" da regra 21 incluem vínculos diretos e de grupo.
+- `/me` e `GET /me/dependents` incluem `dependents: [{patient_id,
+  guardianship_id, preferred_name, full_name, avatar_url, health_status,
+  blood_type, is_adult, age}]`, e o frontend envia
+  `X-Acting-Patient` em todas as requisições enquanto o contexto do dependente
+  estiver selecionado.
+- O link de reivindicação de responsável inclui `for=guardian` no fragmento,
+  para a página pedir também a data de nascimento do dependente.
+
 `POST /auth/patient-claim/local` recebe `{token, cpf, birth_date,
 dependent_birth_date?, email, password}`; a versão Google troca `email` e
 `password` por `credential`. Ambas retornam `201` com `AuthenticationResponse`

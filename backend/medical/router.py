@@ -12,11 +12,7 @@ from care.direct_links import (
     list_doctor_pending_links,
     request_direct_link,
 )
-from care.provisional import (
-    correct_provisional_profile,
-    issue_claim,
-    load_managed_provisional,
-)
+from care.provisional import correct_provisional_profile, reissue_claim
 from auth.dependencies import get_current_doctor
 from auth.dependencies import calculate_age
 from database import cursor_scope, get_connection, transaction
@@ -235,7 +231,6 @@ def add_medical_marker(
                 doctor=doctor,
                 connection=connection,
             )
-            _require_adult_medical_patient(patient)
             with cursor_scope(connection, dictionary=True) as cursor:
                 return create_marker(
                     cursor,
@@ -267,7 +262,6 @@ def update_medical_marker(
                 doctor=doctor,
                 connection=connection,
             )
-            _require_adult_medical_patient(patient)
             with cursor_scope(connection, dictionary=True) as cursor:
                 return update_active_marker(
                     cursor,
@@ -296,7 +290,6 @@ def delete_medical_marker(
                 doctor=doctor,
                 connection=connection,
             )
-            _require_adult_medical_patient(patient)
             with cursor_scope(connection, dictionary=True) as cursor:
                 remove_active_marker(
                     cursor,
@@ -328,6 +321,7 @@ def create_patient_link(
                     doctor=doctor,
                     cpf=payload.cpf,
                     provisional=payload.patient,
+                    guardian=payload.guardian,
                 )
         if result["result"] == "provisional_created":
             response.status_code = status.HTTP_201_CREATED
@@ -416,26 +410,9 @@ def post_claim_link(
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
             with transaction(connection):
-                load_managed_provisional(
-                    cursor,
-                    doctor_id=doctor["doctor_id"],
-                    patient_id=patient_id,
-                )
-                return issue_claim(
-                    cursor,
-                    patient_id=patient_id,
-                    issued_by_user_id=doctor["user_id"],
-                )
+                return reissue_claim(cursor, doctor=doctor, patient_id=patient_id)
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao emitir link de reivindicação", error)
-
-
-def _require_adult_medical_patient(patient: dict) -> None:
-    if calculate_age(patient["birth_date"]) < 18:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Menores de idade não podem ter o prontuário alterado.",
-        )
 
 
 def _raise_marker_integrity_error(error: mysql.connector.IntegrityError) -> None:

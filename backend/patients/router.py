@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import mysql.connector
 
 from auth.dependencies import get_current_user
+from care.guardianship import list_dependents
 from database import cursor_scope, get_connection, transaction
 from models import CurrentUserProfileResponse, OwnProfileUpdate
 from patients.service import find_patient_by_user_id, serialize_patient_profile
@@ -28,9 +29,12 @@ def get_me(
     patient = find_patient_by_user_id(connection, user["user_id"])
     if not patient:
         raise HTTPException(status_code=409, detail="Perfil de paciente inconsistente.")
+    with cursor_scope(connection, dictionary=True) as cursor:
+        dependents = list_dependents(cursor, guardian_patient_id=patient["patient_id"])
     return {
         "user": user,
         "patient_profile": serialize_patient_profile(patient),
+        "dependents": dependents,
     }
 
 
