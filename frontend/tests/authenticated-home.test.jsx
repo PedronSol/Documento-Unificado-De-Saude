@@ -334,27 +334,35 @@ describe("AuthenticatedHome", () => {
     expect(apiFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("mostra estado institucional para administração sem consultar conteúdo clínico", async () => {
-    apiFetch.mockReturnValue(
-      respondWith({
-        user: {
-          user_id: 8,
-          display_name: "Alex Ferreira",
-          email: "admin@example.com",
-          roles: ["admin"],
-        },
-        patient_profile: null,
-      }),
-    );
+  it("abre a área administrativa sem consultar conteúdo clínico", async () => {
+    apiFetch.mockImplementation((path) => respondWith(
+      path === "/me"
+        ? {
+          user: {
+            user_id: 8,
+            display_name: "Alex Ferreira",
+            email: "admin@example.com",
+            roles: ["admin"],
+          },
+          patient_profile: null,
+        }
+        : { items: [], page: 1, has_next: false },
+    ));
 
     render(<AuthenticatedHome onUnauthenticated={vi.fn()} />);
 
     expect(
-      await screen.findByRole("heading", { name: "Administração" }),
+      await screen.findByRole("heading", { name: "Governança administrativa" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Alex Ferreira")).toHaveLength(2);
     expect(screen.queryByText("Histórico de Vacinação")).not.toBeInTheDocument();
-    expect(apiFetch).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/admin/doctors"),
+    );
+    expect(
+      apiFetch.mock.calls.every(
+        ([path]) => path === "/me" || path.startsWith("/admin/"),
+      ),
+    ).toBe(true);
   });
 
   it("alterna uma conta combinada somente entre contextos autorizados", async () => {
