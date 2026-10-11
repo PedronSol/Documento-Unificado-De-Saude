@@ -282,19 +282,123 @@ test.describe("Responsável legal", () => {
     for (const viewport of [{ width: 320, height: 800 }, { width: 1440, height: 900 }]) {
       await page.setViewportSize(viewport);
       await page.goto("/home");
-      const dependentContext = page.getByRole("button", { name: "Saúde de Lia" });
+      await expect(page).toHaveURL("/patient");
+      const contextNav = page.getByRole("navigation", { name: "Contexto de acesso" });
+      const dependentContext = contextNav.getByRole("link", { name: "Saúde de Lia" });
       await expect(dependentContext).toBeVisible();
       if (viewport.width === 320) {
         expect((await dependentContext.boundingBox())?.height).toBeGreaterThanOrEqual(44);
       }
       await dependentContext.click();
+      await expect(page).toHaveURL("/patient/dependents/41");
       await expect(page.getByRole("heading", { name: "Lia", exact: true })).toBeVisible();
       await expect(page.getByText("Amendoim")).toBeVisible();
+      await expect(dependentContext).toHaveAttribute("aria-current", "page");
+      const banner = page.getByRole("region", { name: "Você está vendo a saúde de Lia" });
+      await expect(banner.getByText("Menor de idade")).toBeVisible();
+      const minorColors = await page.evaluate(() => {
+        const root = getComputedStyle(document.documentElement);
+        const probe = document.createElement("span");
+        probe.style.color = root.getPropertyValue("--ds-color-minor");
+        probe.style.backgroundColor = root.getPropertyValue("--ds-color-minor-soft");
+        document.body.append(probe);
+        const expected = getComputedStyle(probe);
+        const result = {
+          expectedText: expected.color,
+          expectedSoft: expected.backgroundColor,
+          banner: getComputedStyle(document.querySelector(".dependent-context-banner")!).backgroundColor,
+          badge: getComputedStyle(document.querySelector(".dependent-context-banner .minor-badge")!).color,
+          switcher: getComputedStyle(document.querySelector('.context-switcher a[aria-current="page"]')!).color,
+          action: getComputedStyle(document.querySelector(".patient-main button")!).backgroundColor,
+        };
+        probe.remove();
+        return result;
+      });
+      expect(minorColors.banner).toBe(minorColors.expectedSoft);
+      expect(minorColors.badge).toBe(minorColors.expectedText);
+      expect(minorColors.switcher).toBe(minorColors.expectedText);
+      expect(minorColors.action).not.toBe(minorColors.expectedText);
       await expectNoHorizontalOverflow(page, viewport.width);
-      await page.getByRole("button", { name: "Minha saúde" }).click();
+      await contextNav.getByRole("link", { name: "Minha saúde" }).click();
+      await expect(page).toHaveURL("/patient");
       await expect(page.getByText("Amendoim")).toHaveCount(0);
     }
     expect(new Set(actingHeaders)).toEqual(new Set(["41"]));
+  });
+
+  test("responsável lista os dependentes e não acessa dependente alheio pela URL", async ({ page }) => {
+    const actingHeaders: string[] = [];
+    const guardianEnvelope = {
+      ...patientEnvelope,
+      dependents: [
+        {
+          patient_id: 41,
+          guardianship_id: 4,
+          has_own_access: false,
+          preferred_name: "Lia",
+          full_name: "Lia Prado Ribeiro",
+          avatar_url: null,
+          health_status: "pending",
+          blood_type: null,
+          is_adult: false,
+          age: 9,
+        },
+        {
+          patient_id: 42,
+          guardianship_id: 5,
+          has_own_access: true,
+          preferred_name: "Caio",
+          full_name: "Caio Prado Ribeiro com um nome bastante longo para quebrar",
+          avatar_url: null,
+          health_status: "updated",
+          blood_type: null,
+          is_adult: true,
+          age: 19,
+        },
+      ],
+    };
+    await mockApi(page, async (key, route) => {
+      const acting = route.request().headers()["x-acting-patient"];
+      if (acting) {
+        actingHeaders.push(acting);
+      }
+      if (key === "GET /me") {
+        await fulfill(route, guardianEnvelope);
+        return true;
+      }
+      if (key === "GET /me/shares/active") {
+        await fulfill(route, null);
+        return true;
+      }
+      return false;
+    });
+
+    for (const viewport of [{ width: 320, height: 800 }, { width: 1440, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/patient");
+      await page.getByRole("link", { name: "Meus dependentes" }).click();
+      await expect(page).toHaveURL("/patient/dependents");
+      const list = page.getByRole("list", { name: "Meus dependentes" });
+      await expect(list.getByRole("listitem")).toHaveCount(2);
+      await expect(list.getByRole("listitem").nth(0).getByText("Menor de idade")).toBeVisible();
+      await expect(list.getByRole("listitem").nth(1).getByText("Menor de idade")).toHaveCount(0);
+      const link = list.getByRole("link", { name: "Ver saúde de Caio" });
+      expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      await expectNoHorizontalOverflow(page, viewport.width);
+      await link.click();
+      await expect(page).toHaveURL("/patient/dependents/42");
+      const banner = page.getByRole("region", { name: "Você está vendo a saúde de Caio" });
+      await expect(banner).toBeVisible();
+      await expect(banner.getByText("Menor de idade")).toHaveCount(0);
+      await expect(page.locator("[data-patient-tone='minor']")).toHaveCount(0);
+      await banner.getByRole("link", { name: "Voltar aos meus dependentes" }).click();
+      await expect(page).toHaveURL("/patient/dependents");
+    }
+
+    actingHeaders.length = 0;
+    await page.goto("/patient/dependents/99");
+    await expect(page).toHaveURL("/patient");
+    expect(actingHeaders).not.toContain("99");
   });
 
   test("médico informa o responsável de um menor em 320 px", async ({ page }) => {

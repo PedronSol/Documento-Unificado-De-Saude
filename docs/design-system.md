@@ -60,11 +60,24 @@ bruto. Isso permite alterar tema e contraste sem editar cada componente.
 | `primary-soft` | `#eff4ff` | `#20365f` | Ação secundária e destaque leve |
 | `success` | `#1d795e` | `#75cbae` | Sucesso e situação atualizada |
 | `warning` | `#9a6818` | `#e1b665` | Atenção e pendência |
+| `minor` | `#ad4a12` | `#f2a36b` | Identifica o contexto de paciente menor de idade |
+| `minor-soft` | `#fdf0e6` | `#3d2717` | Fundo da faixa e do selo de menor |
+| `minor-border` | `#f0c4a3` | `#6b4325` | Borda decorativa do contexto de menor |
 | `danger` | `#9b433d` | `#ef9b95` | Erro e ação destrutiva |
 | `focus` | `#4b80e8` | `#8bb0ff` | Anel de foco |
 
 Não use verde como CTA primário nem vermelho apenas para chamar atenção. Todo
 estado semântico combina cor com texto e, quando útil, ícone.
+
+O tom alaranjado `minor` é exclusivo do contexto de dependente menor de idade
+(spec `037`). Ele aparece somente na faixa de contexto, no selo
+`Menor de idade`, na borda superior do cabeçalho do dashboard, no card da lista
+de dependentes e no item ativo do seletor, sempre acompanhado do texto
+`Menor de idade`. É aplicado pelo atributo `data-patient-tone="minor"` no
+contêiner da área; componentes de feature não conhecem o contexto. Nunca use
+`minor` para ação, foco, alerta, erro ou sucesso: botões e links continuam azuis.
+Contraste do texto `minor`: 5,58:1 sobre `surface` e 4,99:1 sobre `minor-soft`
+no tema claro; 7,67:1 e 6,81:1 no escuro.
 
 ### Tipografia
 

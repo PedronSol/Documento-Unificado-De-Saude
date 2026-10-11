@@ -606,13 +606,17 @@ test.describe('Página Home', () => {
     expect(parseFloat(mobileStyle.shellPadding)).toBeGreaterThan(0);
     expect(await contextNav.evaluate((element) => element.closest('.identity-bar'))).toBeNull();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
-    await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toBeVisible();
-    await contextNav.getByRole('button', { name: 'Área profissional' }).click();
+    await expect(contextNav.getByRole('link', { name: 'Minha saúde' })).toBeVisible();
+    expect((await contextNav.getByRole('link', { name: 'Minha saúde' }).boundingBox())?.height)
+      .toBeGreaterThanOrEqual(44);
+    await contextNav.getByRole('link', { name: 'Área profissional' }).click();
+    await expect(page).toHaveURL('/medical');
     await expect(page.getByRole('heading', { name: 'Pacientes em acompanhamento' })).toBeVisible();
-    await expect(contextNav.getByRole('button', { name: 'Área profissional' })).toHaveAttribute('aria-pressed', 'true');
-    await contextNav.getByRole('button', { name: 'Minha saúde' }).focus();
+    await expect(contextNav.getByRole('link', { name: 'Área profissional' })).toHaveAttribute('aria-current', 'page');
+    await contextNav.getByRole('link', { name: 'Minha saúde' }).focus();
     await page.keyboard.press('Enter');
-    await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL('/patient');
+    await expect(contextNav.getByRole('link', { name: 'Minha saúde' })).toHaveAttribute('aria-current', 'page');
 
     await page.setViewportSize({ width: 475, height: 900 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');

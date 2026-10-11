@@ -38,8 +38,9 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
 - A fonte de verdade visual é `docs/design-system.md`; os tokens executáveis
   ficam em `frontend/styles/design-tokens.css` e usam o prefixo `--ds-*`.
 - O estilo é institucional clínico: claro, calmo e preciso. Use canvas
-  cinza-azulado, superfícies brancas, azul para ação/foco e verde apenas para
-  sucesso ou estado clínico positivo. Fluxos clínicos usam Instrument Sans;
+  cinza-azulado, superfícies brancas, azul para ação/foco, verde apenas para
+  sucesso ou estado clínico positivo e laranja (`--ds-color-minor*`) apenas para
+  identificar o contexto de dependente menor de idade, sempre com texto. Fluxos clínicos usam Instrument Sans;
   não crie uma linguagem editorial própria por área.
 - Implemente mobile-first a partir de 320 px. O CSS-base atende telas pequenas
   e expansões usam preferencialmente `min-width`; nenhuma tela pode depender de

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/api";
+import { DEPENDENTS_PATH, dependentPath } from "@/lib/areas";
 
 
 const RELATIONSHIP_LABEL = {
@@ -194,13 +196,20 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
 
       {dependents.length > 0 ? (
         <div className="care-group-list">
-          <h3>Meus dependentes</h3>
+          <h3>
+            <Link href={DEPENDENTS_PATH}>Meus dependentes</Link>
+          </h3>
           {dependents.map((dependent) => (
             <article className="care-card" key={dependent.patient_id}>
               <div className="care-card-copy">
                 <p>{dependent.age} anos</p>
                 <h4>{dependent.full_name}</h4>
-                <p>Use o seletor de contexto para acessar a saúde de {dependent.preferred_name}.</p>
+                <Link
+                  className="care-card-link"
+                  href={dependentPath(dependent.patient_id)}
+                >
+                  Ver saúde de {dependent.preferred_name}
+                </Link>
                 {transfers[dependent.patient_id] ? (
                   <ClaimLinkCard
                     token={transfers[dependent.patient_id].token}

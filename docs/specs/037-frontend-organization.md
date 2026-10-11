@@ -634,7 +634,23 @@ o módulo não existe.
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| 1 | `tests/areas.test.js`: `Failed to resolve import "@/lib/areas"` | `resolveDefaultArea` sobre a tabela `AREAS` | — | 13.1 |
+| 2 | `listContexts`, `isAreaAllowed`, `parsePatientId`, `findDependent`, `contextKeyForPath` inexistentes (24 falhas) | regras puras em `lib/areas.js` | tabela de áreas com rótulo e ícone (aberto/fechado) | 13.1 |
+| 3 | `tests/session-store.test.js`: `Failed to resolve import "@/stores/session-store"` | store Zustand em memória com carga única de `/me` | `requestIdentity` compartilhado entre `load` e `refresh` | 13.1 |
+| 4 | `tests/api.test.js`: header não lido do store e `setActingPatient` ainda exportado | `apiFetch` lê `actingPatientId` do store | variável de módulo removida | 13.1 |
+| 5 | `expireSession is not a function` | ação `expireSession` | features deixam de receber redirect por props do shell | 13.1 |
+| 6 | `tests/authenticated-areas.test.jsx`: `Failed to resolve import "@/components/shell/home-redirect"` | shell, guard com redirect, `ActingPatientScope`, `/home` resolvedor, áreas, lista e área de dependente | `Redirect` único reutilizado por guard, `/home` e dependentes; `AuthenticatedHome` removido | 13.1 |
+| 7 | `tests/design-system.test.js`: tokens `minor` ausentes, seletor ainda com `button` e sem estilos de dependentes (3 falhas) | tokens claro/escuro com contraste AA, seletor por links e bloco CSS de dependentes | guia e `AGENTS.md` documentam o tom de menor | 13.1 |
+
+## Verificações executadas
+
+- 13.1: `npm test` (176 passed), `npx playwright test` (41 passed, incluindo
+  `tests/areas.spec.ts`, lista de dependentes e tom de menor em 320 px e
+  1440 px) e `npm run build` com as rotas `/patient`, `/patient/dependents`,
+  `/patient/dependents/[patientId]`, `/medical` e `/admin`. Conferência visual
+  da lista e da área do menor em 320 px e 1280 px.
+- Observação para 13.2: com corpo vazio, `HealthSharing` exibe a mensagem
+  crua do `response.json()`; `readApiError` deve eliminar esse vazamento.
 
 ## Plano de execução
 
