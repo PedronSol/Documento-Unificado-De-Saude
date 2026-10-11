@@ -50,7 +50,7 @@ def create_app(
         allow_origins=list(settings.cors_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Share-Token"],
+        allow_headers=["Content-Type", "X-Share-Token", "X-Acting-Patient"],
     )
     application.include_router(auth_router)
     application.include_router(admin_router)

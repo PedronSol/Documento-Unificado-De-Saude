@@ -6,11 +6,16 @@ from fastapi.security import OAuth2PasswordRequestForm
 import mysql.connector
 
 from admin.service import accept_doctor_invitation
-from auth.dependencies import _load_authorized_roles, get_current_patient
+from auth.dependencies import _load_authorized_roles, get_own_patient
 from auth.google import (
     GoogleIdentityVerifier,
     get_google_identity_verifier,
     verified_google_identity,
+)
+from care.provisional import (
+    complete_google_claim,
+    complete_local_claim,
+    lock_claim,
 )
 from auth.service import (
     create_google_patient,
@@ -25,6 +30,8 @@ from models import (
     AuthenticationResponse,
     DoctorInvitationClaim,
     GoogleCredential,
+    PatientClaimGoogle,
+    PatientClaimLocal,
     GoogleOnboardingResponse,
     GooglePatientRegistration,
     PatientRegistration,
@@ -207,6 +214,109 @@ def claim_doctor_invitation_with_google(
 
 
 @router.post(
+    "/auth/patient-claim/local",
+    response_model=AuthenticationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def claim_patient_account_locally(
+    payload: PatientClaimLocal,
+    response: Response,
+    settings: AppSettings = Depends(get_settings),
+    connection: Any = Depends(get_connection),
+):
+    return _claim_patient_account(
+        connection,
+        response,
+        settings,
+        payload,
+        lambda cursor, claim: complete_local_claim(
+            cursor,
+            claim=claim,
+            email=payload.email,
+            password=payload.password,
+        ),
+    )
+
+
+@router.post(
+    "/auth/google/patient-claim",
+    response_model=AuthenticationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def claim_patient_account_with_google(
+    payload: PatientClaimGoogle,
+    response: Response,
+    settings: AppSettings = Depends(get_settings),
+    verifier: GoogleIdentityVerifier | None = Depends(get_google_identity_verifier),
+    connection: Any = Depends(get_connection),
+):
+    if not settings.google_auth_enabled or verifier is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    try:
+        external_identity = verified_google_identity(payload.credential, verifier)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credencial Google inválida.",
+        ) from error
+    return _claim_patient_account(
+        connection,
+        response,
+        settings,
+        payload,
+        lambda cursor, claim: complete_google_claim(
+            cursor,
+            claim=claim,
+            external_identity=external_identity,
+        ),
+    )
+
+
+def _claim_patient_account(connection, response, settings, payload, complete):
+    claim = None
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                claim = lock_claim(
+                    cursor,
+                    token=payload.token,
+                    cpf=payload.cpf,
+                    birth_date=payload.birth_date,
+                    dependent_birth_date=payload.dependent_birth_date,
+                )
+                if claim is not None:
+                    complete(cursor, claim)
+                    raw_token = create_session(
+                        cursor,
+                        user_id=claim["user_id"],
+                        settings=settings,
+                    )
+            if claim is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Link inválido ou dados não conferem.",
+                )
+            cursor.execute(
+                "SELECT user_id, display_name, email FROM users WHERE user_id = %s",
+                (claim["user_id"],),
+            )
+            user = cursor.fetchone()
+        user["roles"] = _load_authorized_roles(connection, claim["user_id"])
+    except mysql.connector.IntegrityError as error:
+        if error.errno == 1062:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="E-mail ou conta Google já utilizados.",
+            ) from error
+        _raise_database_unavailable("Falha de integridade na reivindicação", error)
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao reivindicar conta", error)
+
+    set_session_cookie(response, raw_token=raw_token, settings=settings)
+    return {"user": user}
+
+
+@router.post(
     "/me/external-identities/google",
     status_code=status.HTTP_204_NO_CONTENT,
 )
@@ -214,7 +324,7 @@ def link_google_to_current_patient(
     payload: GoogleCredential,
     settings: AppSettings = Depends(get_settings),
     verifier: GoogleIdentityVerifier | None = Depends(get_google_identity_verifier),
-    patient: dict = Depends(get_current_patient),
+    patient: dict = Depends(get_own_patient),
     connection: Any = Depends(get_connection),
 ):
     if not settings.google_auth_enabled or verifier is None:
@@ -290,7 +400,10 @@ def login(
 ):
     normalized_email = form_data.username.strip().casefold()
     with cursor_scope(connection, dictionary=True) as cursor:
-        cursor.execute("SELECT * FROM users WHERE email = %s", (normalized_email,))
+        cursor.execute(
+            "SELECT * FROM users WHERE email = %s AND claimed_at IS NOT NULL",
+            (normalized_email,),
+        )
         user = cursor.fetchone()
 
     if not user or not verify_password(form_data.password, user["password_hash"]):

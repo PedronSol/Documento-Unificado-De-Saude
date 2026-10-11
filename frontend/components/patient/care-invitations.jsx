@@ -10,6 +10,13 @@ import { apiFetch } from "@/lib/api";
 
 
 const LOAD_ERROR = "Não foi possível carregar suas equipes de cuidado.";
+const CARE_RESOURCES = [
+  ["/me/care-invitations", "invitations"],
+  ["/me/care-groups", "groups"],
+  ["/me/care-requests", "requests"],
+  ["/me/care-doctors", "doctors"],
+];
+const EMPTY_CARE = { invitations: [], groups: [], requests: [], doctors: [] };
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(
@@ -42,6 +49,8 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
     status: "loading",
     invitations: [],
     groups: [],
+    requests: [],
+    doctors: [],
   });
   const [feedback, setFeedback] = useState("");
   const [actionError, setActionError] = useState("");
@@ -51,28 +60,24 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
   const load = useCallback(async () => {
     setResource((current) => ({ ...current, status: "loading" }));
     try {
-      const [invitationsResponse, groupsResponse] = await Promise.all([
-        apiFetch("/me/care-invitations"),
-        apiFetch("/me/care-groups"),
-      ]);
-      if (invitationsResponse.status === 401 || groupsResponse.status === 401) {
+      const responses = await Promise.all(CARE_RESOURCES.map(([path]) => apiFetch(path)));
+      if (responses.some((response) => response.status === 401)) {
         onUnauthenticated();
         return;
       }
-      if (!invitationsResponse.ok || !groupsResponse.ok) {
+      if (responses.some((response) => !response.ok)) {
         throw new Error(LOAD_ERROR);
       }
-      const [invitations, groups] = await Promise.all([
-        invitationsResponse.json(),
-        groupsResponse.json(),
-      ]);
+      const bodies = await Promise.all(responses.map((response) => response.json()));
       setResource({
         status: "ready",
-        invitations: Array.isArray(invitations) ? invitations : [],
-        groups: Array.isArray(groups) ? groups : [],
+        ...Object.fromEntries(CARE_RESOURCES.map(([, key], index) => [
+          key,
+          Array.isArray(bodies[index]) ? bodies[index] : [],
+        ])),
       });
     } catch {
-      setResource({ status: "error", invitations: [], groups: [] });
+      setResource({ ...EMPTY_CARE, status: "error" });
     }
   }, [onUnauthenticated]);
 
@@ -112,7 +117,7 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
 
   async function confirmRevoke() {
     const revoked = await mutate(
-      `/me/care-groups/${revoking.care_group_id}`,
+      revoking.path,
       "DELETE",
       "Acesso revogado. A equipe deixa de acessar seu prontuário.",
     );
@@ -122,8 +127,7 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
   }
 
   const isEmpty = resource.status === "ready"
-    && resource.invitations.length === 0
-    && resource.groups.length === 0;
+    && Object.keys(EMPTY_CARE).every((key) => resource[key].length === 0);
 
   return (
     <section className="clinical-section care-section" aria-labelledby="care-title">
@@ -207,6 +211,85 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
         </div>
       ) : null}
 
+      {resource.status === "ready" && resource.requests.length > 0 ? (
+        <div className="care-group-list">
+          <h3>Solicitações de médicos</h3>
+          {resource.requests.map((request) => (
+            <article className="care-card care-card-pending" key={request.link_id}>
+              <div className="care-card-copy">
+                <p>Válida até {formatDate(request.expires_at)}</p>
+                <h4>{request.doctor_display_name}</h4>
+                <p>CRM {request.crm_number}/{request.crm_state}</p>
+              </div>
+              {isAdult ? (
+                <div className="care-card-actions">
+                  <button
+                    type="button"
+                    className="care-accept"
+                    disabled={pendingAction !== null}
+                    aria-label={`Aceitar solicitação de ${request.doctor_display_name}`}
+                    onClick={() => mutate(
+                      `/me/care-requests/${request.link_id}/accept`,
+                      "POST",
+                      "Solicitação aceita. O médico passa a acessar seu prontuário.",
+                    )}
+                  >
+                    Aceitar
+                  </button>
+                  <button
+                    type="button"
+                    className="care-reject"
+                    disabled={pendingAction !== null}
+                    aria-label={`Recusar solicitação de ${request.doctor_display_name}`}
+                    onClick={() => mutate(
+                      `/me/care-requests/${request.link_id}/reject`,
+                      "POST",
+                      "Solicitação recusada.",
+                    )}
+                  >
+                    Recusar
+                  </button>
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : null}
+
+      {resource.status === "ready" && resource.doctors.length > 0 ? (
+        <div className="care-group-list">
+          <h3>Médicos com acesso direto</h3>
+          {resource.doctors.map((doctor) => (
+            <article className="care-card" key={doctor.link_id}>
+              <div className="care-card-copy">
+                <p>Desde {formatDate(doctor.since)}</p>
+                <h4>{doctor.doctor_display_name}</h4>
+                <p>CRM {doctor.crm_number}/{doctor.crm_state}</p>
+              </div>
+              {isAdult ? (
+                <div className="care-card-actions">
+                  <button
+                    type="button"
+                    className="care-reject"
+                    disabled={pendingAction !== null}
+                    aria-label={`Revogar acesso de ${doctor.doctor_display_name}`}
+                    onClick={() => {
+                      setActionError("");
+                      setRevoking({
+                        name: doctor.doctor_display_name,
+                        path: `/me/care-doctors/${doctor.link_id}`,
+                      });
+                    }}
+                  >
+                    Revogar acesso
+                  </button>
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : null}
+
       {resource.status === "ready" && resource.groups.length > 0 ? (
         <div className="care-group-list">
           <h3>Com acesso ao seu prontuário</h3>
@@ -226,7 +309,10 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
                     aria-label={`Revogar acesso de ${group.name}`}
                     onClick={() => {
                       setActionError("");
-                      setRevoking(group);
+                      setRevoking({
+                        name: group.name,
+                        path: `/me/care-groups/${group.care_group_id}`,
+                      });
                     }}
                   >
                     Revogar acesso
@@ -246,9 +332,9 @@ export function CareInvitations({ isAdult, onUnauthenticated }) {
           }
         }}
         kicker="Consentimento · Prontuário"
-        title="Revogar acesso da equipe"
+        title="Revogar acesso ao prontuário"
         description={revoking
-          ? `Os médicos de ${revoking.name} deixarão de acessar seu prontuário imediatamente.`
+          ? `${revoking.name} deixará de acessar seu prontuário imediatamente.`
           : ""}
         cancelLabel="Manter acesso"
         confirmLabel="Revogar acesso"

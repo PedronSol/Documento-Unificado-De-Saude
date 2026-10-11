@@ -185,6 +185,10 @@ test.describe("Governança administrativa", () => {
       "GET /me/markers?status=removed": [],
       "GET /me/shares/active": null,
       "GET /me/care-groups": [],
+      "GET /me/care-requests": [],
+      "GET /me/care-doctors": [],
+      "GET /me/guardianships?status=pending": [],
+      "GET /me/guardians": [],
       "GET /me/care-invitations": [
         {
           invitation_id: 4,

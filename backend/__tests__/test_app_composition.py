@@ -101,6 +101,26 @@ def test_domain_routers_own_the_current_routes():
         "/me/care-invitations/{invitation_id}/reject",
         "/me/care-groups",
         "/me/care-groups/{group_id}",
+        "/me/care-requests",
+        "/me/care-requests/{link_id}/accept",
+        "/me/care-requests/{link_id}/reject",
+        "/me/care-doctors",
+        "/me/care-doctors/{link_id}",
+        "/medical/patient-links",
+        "/medical/patient-links/{link_id}",
+        "/medical/patients/{patient_id}/provisional-profile",
+        "/medical/patients/{patient_id}/claim-link",
+        "/auth/patient-claim/local",
+        "/auth/google/patient-claim",
+        "/me/dependents",
+        "/me/guardianships",
+        "/me/guardianships/{guardianship_id}/accept",
+        "/me/guardianships/{guardianship_id}/reject",
+        "/me/guardianships/{guardianship_id}",
+        "/me/guardianships/{guardianship_id}/confirm",
+        "/me/guardians",
+        "/me/guardians/{guardianship_id}",
+        "/me/dependents/{patient_id}/claim-link",
         "/auth/google/doctor-invitation",
         "/auth/patient-registration",
         "/auth/google",
@@ -138,7 +158,11 @@ def test_cors_allows_share_token_header_only_for_configured_origins():
     cors = application.user_middleware[0]
     assert cors.kwargs["allow_origins"] == ["https://app.example"]
     assert cors.kwargs["allow_credentials"] is True
-    assert cors.kwargs["allow_headers"] == ["Content-Type", "X-Share-Token"]
+    assert cors.kwargs["allow_headers"] == [
+        "Content-Type",
+        "X-Share-Token",
+        "X-Acting-Patient",
+    ]
 
 
 def test_main_is_only_the_composition_root():

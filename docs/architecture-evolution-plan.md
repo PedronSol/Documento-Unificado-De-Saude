@@ -146,6 +146,7 @@ flowchart TD
     S12[Step 12: OCR e revisão]
     S13[Step 13: Organização do frontend]
     S14[Step 14: Consolidação operacional]
+    S15[Step 15: Cadastro assistido e responsáveis]
 
     S0 --> S1
     S0 --> S2
@@ -179,6 +180,11 @@ flowchart TD
     S10 --> S14
     S12 --> S14
     S13 --> S14
+    S7 --> S15
+    S9 --> S15
+    S10 --> S15
+    S8 --> S15
+    S15 --> S14
 ```
 
 ### Leitura da árvore
@@ -220,7 +226,8 @@ flowchart TD
 | 11 | Armazenamento de documentos | 5, 7, 10 | SPEC REVIEW | `docs/specs/020-secure-document-storage.md` |
 | 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
 | 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
-| 14 | Consolidação operacional | 7–13 | PLANNED | — |
+| 14 | Consolidação operacional | 7–13, 15 | PLANNED | — |
+| 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | DONE | [PR #11](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/11) |
 
 ## Step 0 — Baseline de specs e TDD
 
@@ -640,7 +647,7 @@ inseri-los no histórico.
 
 **Objetivo:** consolidar integrações, saúde da aplicação e pipeline final.
 
-**Dependências:** Steps 7 a 13.
+**Dependências:** Steps 7 a 13 e 15.
 
 ### Tarefas
 
@@ -659,6 +666,40 @@ inseri-los no histórico.
 - CI valida migrations, backend, frontend e fluxos ponta a ponta.
 - Compose distingue processo vivo de aplicação pronta.
 - Logs permitem diagnóstico sem vazar dados clínicos.
+
+
+## Step 15 — Cadastro assistido de pacientes e responsáveis legais
+
+**Objetivo:** permitir que o médico adicione pacientes à própria lista por
+vínculo direto com consentimento, cadastre pacientes provisórios adultos ou
+menores e entregue o prontuário ao titular ou a um responsável legal, sem
+alterar os grupos geridos por admin.
+
+**Dependências:** Steps 7, 8, 9 e 10.
+
+### Tarefas
+
+- [x] Revisar e aprovar `docs/specs/036-doctor-assisted-patient-registration.md`.
+- [x] 15.1: vínculo direto, autorização médica por grupo ou vínculo e
+      solicitação a paciente cadastrado com aceite.
+- [x] 15.2: paciente provisório adulto, correção pelo médico autor e
+      reivindicação por link/QR com e-mail/senha ou Google.
+- [x] 15.3: guarda, provisório menor com responsável, contexto do dependente
+      (`X-Acting-Patient`) e marcadores de menor pelo médico.
+- [x] 15.4: transferência a pedido, desvínculo pelo dependente adulto e
+      guarda de menor titular de conta.
+- [x] Auditar todas as ações na auditoria clínica do paciente afetado.
+- [x] Cobrir médico, reivindicação, responsável e paciente em 320 px e
+      viewport ampla.
+
+### Critérios de conclusão
+
+- Médico nunca acessa prontuário de paciente com conta sem aceite.
+- Conta provisória só é assumida com token e dados confirmados.
+- Todo menor provisório tem responsável, e só guarda ativa age por ele.
+- A maioridade não altera a guarda; o dependente adulto assume a conta e
+  desvincula o responsável quando pedir.
+- Grupos geridos por admin continuam fora do alcance do médico.
 
 ## Definition of Ready
 
