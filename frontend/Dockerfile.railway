@@ -12,8 +12,10 @@ RUN npm ci
 
 COPY frontend/ .
 
-# Variáveis NEXT_PUBLIC_* são embutidas no bundle durante o build.
+# Variáveis NEXT_PUBLIC_* e o alvo do proxy /api (spec 041) são resolvidos
+# durante o build.
 ARG NEXT_PUBLIC_API_URL
+ARG API_PROXY_TARGET
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 RUN npm run build
 

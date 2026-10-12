@@ -37,6 +37,7 @@ Exemplo: `001-database-migrations.md`.
 | `037-frontend-organization.md` | Organização incremental do frontend por área e feature | IMPLEMENTED |
 | `038-list-pagination.md` | Paginação e busca de listagens no servidor | IMPLEMENTED |
 | `040-health-summary-sharing.md` | Compartilhamento temporário | IMPLEMENTED |
+| `041-same-origin-api-proxy.md` | Proxy de mesma origem para a API | IMPLEMENTED |
 
 ## Template
 

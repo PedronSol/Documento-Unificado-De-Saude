@@ -3,6 +3,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    // 10 MiB document plus multipart envelope; the backend enforces the limit.
+    proxyClientMaxBodySize: "11mb",
+  },
   async headers() {
     return [
       {
@@ -21,6 +25,16 @@ const nextConfig = {
         ],
       },
     ];
+  },
+  // Same-origin proxy keeps the session cookie first-party when the API
+  // lives on another site (spec 041). Resolved at build time.
+  async rewrites() {
+    const target = process.env.API_PROXY_TARGET?.replace(/\/+$/, "");
+    if (!target) return [];
+    if (!/^https?:\/\//.test(target)) {
+      throw new Error("API_PROXY_TARGET deve começar com http:// ou https://");
+    }
+    return [{ source: "/api/:path*", destination: `${target}/:path*` }];
   },
 }
 
