@@ -10,13 +10,18 @@ function read(relativePath) {
 
 
 const tokens = read("../styles/design-tokens.css");
-const globals = read("../app/globals.css");
+const globalsEntry = read("../app/globals.css");
+const styleImports = [...globalsEntry.matchAll(/@import '\.\.\/styles\/([\w-]+\.css)';/g)]
+  .map(([, file]) => file);
+// Feature files concatenated in cascade order, as the bundler inlines them.
+const globals = [globalsEntry, ...styleImports.map((file) => read(`../styles/${file}`))]
+  .join("\n");
 const guide = read("../../docs/design-system.md");
 const agentRules = read("../../AGENTS.md");
 const clinicalSelect = read("../components/ui/clinical-select.jsx");
-const patientDashboard = read("../components/patient/patient-dashboard.jsx");
-const healthMarkers = read("../components/patient/health-markers.jsx");
-const digitalDocuments = read("../components/health-passport/digital-documents.jsx");
+const vaccineDialog = read("../components/vaccines/vaccine-dialog.jsx");
+const healthMarkers = read("../components/markers/marker-dialogs.jsx");
+const digitalDocuments = read("../components/documents/document-upload-dialog.jsx");
 const nextConfig = read("../next.config.mjs");
 const medicalStyles = globals.slice(globals.indexOf("/* Área médica"));
 const dialogStyles = globals.slice(
@@ -31,6 +36,39 @@ const markerSwitchStyles = globals.slice(
   globals.indexOf(".marker-view-switch {"),
   globals.indexOf(".marker-groups,"),
 );
+const shellStyles = globals.slice(
+  globals.indexOf(".context-switcher {"),
+  globals.indexOf(".identity-actions,"),
+);
+const dependentStyles = globals.includes("/* Dependentes")
+  ? globals.slice(
+    globals.indexOf("/* Dependentes"),
+    globals.indexOf("/* Fim dependentes */"),
+  )
+  : "";
+
+function tokenBlocks() {
+  const darkStart = tokens.search(/\.dark\s*{/);
+  return { light: tokens.slice(0, darkStart), dark: tokens.slice(darkStart) };
+}
+
+function tokenValue(block, name) {
+  return block.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1];
+}
+
+function luminance(hex) {
+  const channels = [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16) / 255);
+  const [r, g, b] = channels.map((value) => (
+    value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  ));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(foreground, background) {
+  const [high, low] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+  return (high + 0.05) / (low + 0.05);
+}
+
 const markerEmptyStyles = globals.slice(
   globals.indexOf(".marker-empty,"),
   globals.indexOf(".marker-empty p,"),
@@ -119,9 +157,9 @@ describe("contrato do design system", () => {
     expect(clinicalSelect).toContain('data-slot="clinical-select-trigger"');
     expect(clinicalSelect).toContain('data-slot="clinical-select-item"');
     expect(clinicalSelect).toContain("SelectItemIndicator");
-    expect(patientDashboard).toContain("<ClinicalSelect");
+    expect(vaccineDialog).toContain("<ClinicalSelect");
     expect(healthMarkers).toContain("<ClinicalSelect");
-    expect(patientDashboard).not.toContain("<select");
+    expect(vaccineDialog).not.toContain("<select");
     expect(healthMarkers).not.toContain("<select");
   });
 
@@ -131,5 +169,84 @@ describe("contrato do design system", () => {
     expect(digitalDocuments).toContain("audio: false");
     expect(nextConfig).toContain('value: "camera=(self)"');
     expect(guide).toContain("**Digitalizador de documento**");
+  });
+
+  it("publica tokens de menor com contraste AA nos dois temas", () => {
+    for (const block of Object.values(tokenBlocks())) {
+      const minor = tokenValue(block, "--ds-color-minor");
+      const soft = tokenValue(block, "--ds-color-minor-soft");
+      const border = tokenValue(block, "--ds-color-minor-border");
+      const surface = tokenValue(block, "--ds-color-surface");
+      expect(minor).toBeDefined();
+      expect(soft).toBeDefined();
+      expect(border).toBeDefined();
+      expect(contrast(minor, surface)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(minor, soft)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(guide).toContain("`minor`");
+    expect(guide).toContain("Menor de idade");
+  });
+
+  it("estiliza o seletor de contexto como navegação por links", () => {
+    expect(shellStyles).toContain(".context-switcher a {");
+    expect(shellStyles).toContain('.context-switcher a[aria-current="page"]');
+    expect(shellStyles).toContain(
+      '.context-switcher a[data-tone="minor"][aria-current="page"]',
+    );
+    expect(globals).not.toContain(".context-switcher button");
+    expect(globals).not.toContain('.context-switcher button[aria-pressed="true"]');
+  });
+
+  it("aplica o tom de menor somente por tokens e atributo de contexto", () => {
+    expect(dependentStyles).toContain('[data-patient-tone="minor"]');
+    expect(dependentStyles).toContain("var(--ds-color-minor)");
+    expect(dependentStyles).toContain("var(--ds-color-minor-soft)");
+    expect(dependentStyles).toContain(".dependents-list");
+    expect(dependentStyles).toContain(".dependent-context-banner");
+    expect(dependentStyles).toContain(".minor-badge");
+    expect(dependentStyles).toContain("var(--ds-layout-content)");
+    expect(dependentStyles).toContain("var(--ds-control-min-height)");
+    expect(dependentStyles).toContain("@media (min-width:");
+    expect(dependentStyles).not.toMatch(/@media \(max-width/);
+    expect(dependentStyles).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(dependentStyles).not.toMatch(/rgb\(/);
+  });
+
+  it("mantém globals.css apenas como índice ordenado de imports", () => {
+    const statements = globalsEntry
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(statements.every((line) => line.startsWith("@import "))).toBe(true);
+    expect(styleImports.slice(0, 3)).toEqual(["design-tokens.css", "theme.css", "documents.css"]);
+    expect(styleImports).toEqual(expect.arrayContaining([
+      "base.css", "auth.css", "shell.css", "patient.css", "markers.css",
+      "vaccines.css", "dialogs.css", "medical.css", "admin.css", "dependents.css",
+    ]));
+    for (const file of styleImports) {
+      expect(read(`../styles/${file}`)).not.toBe("");
+    }
+  });
+
+  it("estiliza listas paginadas e abas do resumo só com tokens mobile-first", () => {
+    const lists = read("../styles/lists.css");
+    expect(styleImports).toContain("lists.css");
+    for (const selector of [
+      ".list-toolbar",
+      ".list-toolbar-search",
+      ".infinite-list-more",
+      ".infinite-list-sentinel",
+      ".list-empty-filtered",
+      ".public-share-tab",
+    ]) {
+      expect(lists).toContain(selector);
+    }
+    expect(lists).toContain("var(--ds-control-min-height)");
+    expect(lists).toContain("@media (min-width:");
+    expect(lists).not.toMatch(/@media \(max-width/);
+    expect(lists).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(lists).not.toMatch(/rgb\(/);
   });
 });

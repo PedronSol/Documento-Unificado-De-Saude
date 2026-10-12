@@ -27,12 +27,15 @@ Exemplo: `001-database-migrations.md`.
 | `008-persistent-session.md` | Sessão persistente e login lembrado | IMPLEMENTED |
 | `010-health-markers.md` | Marcadores do paciente | IMPLEMENTED |
 | `020-secure-document-storage.md` | Armazenamento e digitalização segura de documentos | IMPLEMENTED |
+| `022-medical-document-upload.md` | Envio de documentos pelo médico responsável | IMPLEMENTED |
 | `021-health-document-ocr.md` | OCR e revisão de documentos | SPEC WRITING |
 | `030-medical-panel.md` | Área médica e grupos de atendimento | IMPLEMENTED |
 | `031-interface-design-system.md` | Design system e interface médica | IMPLEMENTED |
 | `032-mobile-context-dock.md` | Navegação de contexto em mobile | IMPLEMENTED |
 | `033-mobile-pwa.md` | Experiência mobile-first e PWA instalável | IMPLEMENTED |
 | `036-doctor-assisted-patient-registration.md` | Cadastro assistido de pacientes e responsáveis legais | IMPLEMENTED |
+| `037-frontend-organization.md` | Organização incremental do frontend por área e feature | IMPLEMENTED |
+| `038-list-pagination.md` | Paginação e busca de listagens no servidor | IMPLEMENTED |
 | `040-health-summary-sharing.md` | Compartilhamento temporário | IMPLEMENTED |
 
 ## Template

@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 
 from models import _normalize_cpf
 
+from pagination import PageRequest, fetch_page
 from audit.service import record_administrative_event
 from care.service import end_patient_link
 from models import DoctorInvitationCreate
@@ -12,9 +13,6 @@ from security import create_invitation_token, hash_invitation_token
 
 
 INVITATION_DURATION_DAYS = 7
-MAX_PAGE_SIZE = 20
-
-
 def not_found() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -24,14 +22,6 @@ def not_found() -> HTTPException:
 
 def conflict(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
-
-
-def page_slice(rows: list[dict], *, page: int, page_size: int) -> dict:
-    return {
-        "items": rows[:page_size],
-        "page": page,
-        "has_next": len(rows) > page_size,
-    }
 
 
 def issue_doctor_invitation(
@@ -118,24 +108,20 @@ def list_doctor_invitations(
     cursor: Any,
     *,
     admin_user_id: int,
-    page: int,
-    page_size: int,
+    request: PageRequest,
 ) -> dict:
-    cursor.execute(
-        """
-        SELECT doctor_invitation_id AS invitation_id, display_name, email,
-               crm_number, crm_state,
-               IF(status = 'pending' AND expires_at <= UTC_TIMESTAMP(6),
-                  'expired', status) AS status,
-               expires_at
-        FROM doctor_invitations
-        WHERE created_by_admin_user_id = %s
-        ORDER BY created_at DESC, doctor_invitation_id DESC
-        LIMIT %s OFFSET %s
-        """,
-        (admin_user_id, page_size + 1, (page - 1) * page_size),
+    return fetch_page(
+        cursor,
+        columns="""doctor_invitation_id AS invitation_id, display_name, email,
+                   crm_number, crm_state,
+                   IF(status = 'pending' AND expires_at <= UTC_TIMESTAMP(6),
+                      'expired', status) AS status,
+                   expires_at""",
+        source="FROM doctor_invitations WHERE created_by_admin_user_id = %s",
+        params=(admin_user_id,),
+        order_by="created_at DESC, doctor_invitation_id DESC",
+        request=request,
     )
-    return page_slice(cursor.fetchall(), page=page, page_size=page_size)
 
 
 def revoke_doctor_invitation(
@@ -318,21 +304,18 @@ def list_admin_doctors(
     cursor: Any,
     *,
     admin_user_id: int,
-    page: int,
-    page_size: int,
+    request: PageRequest,
 ) -> dict:
-    cursor.execute(
-        f"""
-        SELECT {ADMIN_DOCTOR_COLUMNS}
-        FROM doctors d
+    return fetch_page(
+        cursor,
+        columns=ADMIN_DOCTOR_COLUMNS,
+        source="""FROM doctors d
         JOIN users u ON u.user_id = d.user_id
-        WHERE d.created_by_admin_user_id = %s
-        ORDER BY u.display_name, d.doctor_id
-        LIMIT %s OFFSET %s
-        """,
-        (admin_user_id, page_size + 1, (page - 1) * page_size),
+        WHERE d.created_by_admin_user_id = %s""",
+        params=(admin_user_id,),
+        order_by="u.display_name, d.doctor_id",
+        request=request,
     )
-    return page_slice(cursor.fetchall(), page=page, page_size=page_size)
 
 
 def load_admin_doctor(
@@ -443,7 +426,7 @@ def change_doctor_status(
 CPF_QUERY_CHARACTERS = frozenset("0123456789.- ")
 
 
-def search_directory(cursor: Any, *, query: str, page: int, page_size: int) -> dict:
+def search_directory(cursor: Any, *, query: str, request: PageRequest) -> dict:
     normalized_cpf = _normalize_cpf(query)
     if set(query) <= CPF_QUERY_CHARACTERS and len(normalized_cpf) == 11:
         search_clause, search_value = "u.cpf = %s", normalized_cpf
@@ -455,33 +438,32 @@ def search_directory(cursor: Any, *, query: str, page: int, page_size: int) -> d
             .replace("_", "\\_")
         )
         search_clause, search_value = "u.display_name LIKE %s", f"{escaped}%"
-    cursor.execute(
-        f"""
-        SELECT u.user_id, u.display_name, {MASKED_CPF} AS masked_cpf,
-               GROUP_CONCAT(ur.role ORDER BY FIELD(ur.role, 'patient', 'doctor'))
-                   AS profiles
-        FROM users u
-        JOIN user_roles ur ON ur.user_id = u.user_id
-        WHERE {search_clause}
-          AND u.active = TRUE
-          AND u.claimed_at IS NOT NULL
-          AND ur.role IN ('patient', 'doctor')
-          AND NOT EXISTS (
-              SELECT 1 FROM user_roles admin_role
-              WHERE admin_role.user_id = u.user_id
-                AND admin_role.role = 'admin'
-          )
-        GROUP BY u.user_id, u.display_name, u.cpf
-        ORDER BY u.display_name, u.user_id
-        LIMIT %s OFFSET %s
-        """,
-        (search_value, page_size + 1, (page - 1) * page_size),
+    # Grouped rows are counted through a derived table: one row per user.
+    return fetch_page(
+        cursor,
+        columns="user_id, display_name, masked_cpf, profiles",
+        source=f"""FROM (
+            SELECT u.user_id, u.display_name, {MASKED_CPF} AS masked_cpf,
+                   GROUP_CONCAT(ur.role ORDER BY FIELD(ur.role, 'patient', 'doctor'))
+                       AS profiles
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.user_id
+            WHERE {search_clause}
+              AND u.active = TRUE
+              AND u.claimed_at IS NOT NULL
+              AND ur.role IN ('patient', 'doctor')
+              AND NOT EXISTS (
+                  SELECT 1 FROM user_roles admin_role
+                  WHERE admin_role.user_id = u.user_id
+                    AND admin_role.role = 'admin'
+              )
+            GROUP BY u.user_id, u.display_name, u.cpf
+        ) directory""",
+        params=(search_value,),
+        order_by="display_name, user_id",
+        request=request,
+        mapper=lambda row: {**row, "profiles": row["profiles"].split(",")},
     )
-    rows = [
-        {**row, "profiles": row["profiles"].split(",")}
-        for row in cursor.fetchall()
-    ]
-    return page_slice(rows, page=page, page_size=page_size)
 
 
 def create_care_group(cursor: Any, *, admin_user_id: int, name: str) -> dict:
@@ -508,20 +490,16 @@ def list_care_groups(
     cursor: Any,
     *,
     admin_user_id: int,
-    page: int,
-    page_size: int,
+    request: PageRequest,
 ) -> dict:
-    cursor.execute(
-        """
-        SELECT care_group_id, name, status
-        FROM care_groups
-        WHERE managed_by_admin_user_id = %s
-        ORDER BY name, care_group_id
-        LIMIT %s OFFSET %s
-        """,
-        (admin_user_id, page_size + 1, (page - 1) * page_size),
+    return fetch_page(
+        cursor,
+        columns="care_group_id, name, status",
+        source="FROM care_groups WHERE managed_by_admin_user_id = %s",
+        params=(admin_user_id,),
+        order_by="name, care_group_id",
+        request=request,
     )
-    return page_slice(cursor.fetchall(), page=page, page_size=page_size)
 
 
 def load_care_group(
@@ -891,22 +869,18 @@ def list_audit_events(
     cursor: Any,
     *,
     admin_user_id: int,
-    page: int,
-    page_size: int,
+    request: PageRequest,
 ) -> dict:
-    cursor.execute(
-        """
-        SELECT administrative_audit_event_id AS event_id, actor_user_id, action,
-               target_type, target_id, details, occurred_at
-        FROM administrative_audit_events
-        WHERE managing_admin_user_id = %s
-        ORDER BY occurred_at DESC, administrative_audit_event_id DESC
-        LIMIT %s OFFSET %s
-        """,
-        (admin_user_id, page_size + 1, (page - 1) * page_size),
+    return fetch_page(
+        cursor,
+        columns="""administrative_audit_event_id AS event_id, actor_user_id, action,
+                   target_type, target_id, details, occurred_at""",
+        source="FROM administrative_audit_events WHERE managing_admin_user_id = %s",
+        params=(admin_user_id,),
+        order_by="occurred_at DESC, administrative_audit_event_id DESC",
+        request=request,
+        mapper=lambda row: {
+            **row,
+            "details": json.loads(row["details"]) if row["details"] else None,
+        },
     )
-    rows = [
-        {**row, "details": json.loads(row["details"]) if row["details"] else None}
-        for row in cursor.fetchall()
-    ]
-    return page_slice(rows, page=page, page_size=page_size)

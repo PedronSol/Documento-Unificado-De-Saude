@@ -1,13 +1,14 @@
 import logging
-from typing import Any
+from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 import mysql.connector
 
 from audit.service import record_clinical_event, serialize_vaccine_snapshot
 from auth.dependencies import get_current_patient, require_adult
 from database import cursor_scope, get_connection, transaction
 from models import VaccineCreateUpdate, VaccineResponse
+from pagination import Page, PageRequest, fetch_page, page_request, search_clause
 
 
 logger = logging.getLogger(__name__)
@@ -51,21 +52,32 @@ def add_vaccine(
         _raise_database_unavailable("Falha ao registrar vacina", error)
 
 
-@router.get("", response_model=list[VaccineResponse])
+@router.get("", response_model=Page[VaccineResponse])
 def get_vaccines(
+    page: PageRequest = Depends(page_request),
+    vaccine_status: Optional[Literal["applied", "pending", "overdue"]] = Query(
+        default=None,
+        alias="status",
+    ),
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
 ):
+    search, search_params = search_clause(page.query, ["nome_vacina", "dose"])
+    status_filter = " AND status_vacina = %s" if vaccine_status else ""
     with cursor_scope(connection, dictionary=True) as cursor:
-        cursor.execute(
-            """
-            SELECT id_vacina AS vaccine_id, nome_vacina AS name, dose,
-                   data_aplicacao AS administered_on, status_vacina AS status
-            FROM vaccines WHERE patient_id = %s
-            """,
-            (patient["patient_id"],),
+        return fetch_page(
+            cursor,
+            columns="""id_vacina AS vaccine_id, nome_vacina AS name, dose,
+                       data_aplicacao AS administered_on, status_vacina AS status""",
+            source=f"FROM vaccines WHERE patient_id = %s{status_filter}{search}",
+            params=(
+                patient["patient_id"],
+                *((vaccine_status,) if vaccine_status else ()),
+                *search_params,
+            ),
+            order_by="id_vacina",
+            request=page,
         )
-        return cursor.fetchall()
 
 
 @router.put("/{vaccine_id}")

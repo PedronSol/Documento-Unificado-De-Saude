@@ -1,12 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DigitalDocuments } from "@/components/health-passport/digital-documents";
+import { DigitalDocuments } from "@/components/documents/digital-documents";
 import { apiFetch } from "@/lib/api";
+import { staticList } from "./utils/paged-api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -32,9 +34,8 @@ describe("DigitalDocuments", () => {
   it("mantém o primeiro upload visível no estado vazio somente para adulto", async () => {
     const { rerender } = render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult
-        onDocumentsChange={vi.fn()}
       />,
     );
 
@@ -45,9 +46,8 @@ describe("DigitalDocuments", () => {
 
     rerender(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult={false}
-        onDocumentsChange={vi.fn()}
       />,
     );
     expect(
@@ -66,9 +66,8 @@ describe("DigitalDocuments", () => {
 
     render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult
-        onDocumentsChange={vi.fn()}
       />,
     );
 
@@ -121,9 +120,8 @@ describe("DigitalDocuments", () => {
 
     render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([], { reload: onDocumentsChange })}
         isAdult
-        onDocumentsChange={onDocumentsChange}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
@@ -163,9 +161,8 @@ describe("DigitalDocuments", () => {
 
     render(
       <DigitalDocuments
-        documents={[]}
+        list={staticList([])}
         isAdult
-        onDocumentsChange={vi.fn()}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
@@ -202,7 +199,7 @@ describe("DigitalDocuments", () => {
     });
 
     render(
-      <DigitalDocuments documents={[]} isAdult onDocumentsChange={vi.fn()} />,
+      <DigitalDocuments list={staticList([])} isAdult />,
     );
     await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
     await user.click(screen.getByRole("button", { name: "Digitalizar com a câmera" }));
@@ -223,7 +220,7 @@ describe("DigitalDocuments", () => {
     apiFetch.mockResolvedValue({ ok: false, status: 503 });
     render(
       <DigitalDocuments
-        documents={[{
+        list={staticList([{
           document_id: 42,
           title: "Hemograma",
           type: "exam",
@@ -232,7 +229,7 @@ describe("DigitalDocuments", () => {
           size_bytes: 1024,
           status: "uploaded",
           created_at: "2026-10-11T12:00:00",
-        }]}
+        }])}
         isAdult
       />,
     );
@@ -243,5 +240,185 @@ describe("DigitalDocuments", () => {
       "Não foi possível baixar o documento.",
     );
     expect(screen.getByText("Hemograma")).toBeInTheDocument();
+  });
+
+  const hemograma = {
+    document_id: 42,
+    title: "Hemograma",
+    type: "exam",
+    original_filename: "hemograma.pdf",
+    media_type: "application/pdf",
+    size_bytes: 1024,
+    status: "uploaded",
+    created_at: "2026-10-11T12:00:00",
+  };
+
+  it("não exibe mensagem técnica quando a rede falha no download", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
+
+    await user.click(screen.getByRole("button", { name: "Baixar Hemograma" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível baixar o documento.",
+    );
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  });
+
+  it("padroniza permissão negada na remoção", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ detail: "Role." }),
+    });
+    render(
+      <DigitalDocuments
+        list={staticList([hemograma])}
+        isAdult
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remover Hemograma" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Remover documento" }));
+
+    expect(await within(dialog).findByText("Você não tem permissão para esta ação."))
+      .toBeInTheDocument();
+  });
+
+  const doctorDocument = {
+    ...hemograma,
+    document_id: 43,
+    title: "Laudo do eco",
+    uploaded_by_doctor: { display_name: "Dra. Ana Lima", crm_number: "123456", crm_state: "SP" },
+  };
+
+  it("identifica documentos enviados por médico", () => {
+    render(<DigitalDocuments list={staticList([doctorDocument, hemograma])} isAdult />);
+
+    expect(screen.getByText("Enviado por Dra. Ana Lima · CRM 123456/SP")).toBeInTheDocument();
+    expect(screen.getAllByText(/Enviado por/)).toHaveLength(1);
+  });
+
+  it("exige confirmação marcada para o paciente remover documento médico", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({ ok: true, status: 204 });
+    const onDocumentsChange = vi.fn();
+    render(
+      <DigitalDocuments
+        list={staticList([doctorDocument], { reload: onDocumentsChange })}
+        isAdult
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remover Laudo do eco" }));
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Remover documento enviado por médico",
+    });
+    expect(dialog).toHaveTextContent("Dra. Ana Lima · CRM 123456/SP");
+    expect(dialog).toHaveTextContent(/equipes que acompanham/);
+    const confirm = within(dialog).getByRole("button", { name: "Remover documento" });
+    expect(confirm).toBeDisabled();
+
+    await user.click(within(dialog).getByRole("checkbox", {
+      name: "Entendo que este documento foi enviado por Dra. Ana Lima",
+    }));
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith("/me/documents/43", { method: "DELETE" }),
+    );
+  });
+
+  it("mantém a confirmação simples para documento enviado pelo paciente", async () => {
+    const user = userEvent.setup();
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
+
+    await user.click(screen.getByRole("button", { name: "Remover Hemograma" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Remover documento" });
+    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Remover documento" })).toBeEnabled();
+  });
+
+  it("permite ao médico enviar e remover somente os próprios documentos", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({ ok: true, status: 204 });
+    render(
+      <DigitalDocuments
+        basePath="/medical/patients/10/documents"
+        viewer="doctor"
+        list={staticList([
+          { ...doctorDocument, can_remove: true },
+          { ...hemograma, can_remove: false },
+        ])}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Adicionar documento" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remover Hemograma" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remover Laudo do eco" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Remover documento" });
+    expect(dialog).toHaveTextContent(/prontuário do paciente/);
+    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Remover documento" }));
+
+    await waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/medical/patients/10/documents/43",
+        { method: "DELETE" },
+      ),
+    );
+  });
+
+  it("envia pelo caminho médico", async () => {
+    const user = userEvent.setup();
+    apiFetch.mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ ...doctorDocument, can_remove: true }),
+    });
+    const onDocumentsChange = vi.fn();
+    render(
+      <DigitalDocuments
+        basePath="/medical/patients/10/documents"
+        viewer="doctor"
+        list={staticList([], { reload: onDocumentsChange })}
+        onUnauthenticated={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Adicionar documento" }));
+    await user.type(screen.getByLabelText("Título do documento"), "Laudo do eco");
+    await user.upload(
+      screen.getByLabelText("Escolher arquivo"),
+      new File(["%PDF-1.4"], "laudo.pdf", { type: "application/pdf" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Enviar documento" }));
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
+    expect(apiFetch.mock.calls[0][0]).toBe("/medical/patients/10/documents");
+    expect(onDocumentsChange).toHaveBeenCalled();
+  });
+
+  it("oferece busca e filtro de tipo em listas longas", async () => {
+    const user = userEvent.setup();
+    const setFilter = vi.fn();
+    render(
+      <DigitalDocuments
+        list={staticList([hemograma], { total: 25, setFilter, filters: { type: "" } })}
+        isAdult
+      />,
+    );
+
+    expect(screen.getByRole("searchbox", { name: "Buscar documentos" })).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Tipo"));
+    await user.click(screen.getByRole("option", { name: "Laudo" }));
+    expect(setFilter).toHaveBeenCalledWith("type", "report");
   });
 });

@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GuardianshipPanel } from "@/components/patient/guardianship-panel";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -58,6 +60,7 @@ function mockGuardianships({ accept = 204 } = {}) {
 describe("GuardianshipPanel", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("aceita guarda confirmando a data de nascimento do dependente", async () => {
@@ -126,6 +129,37 @@ describe("GuardianshipPanel", () => {
     );
   });
 
+  it("padroniza permissão negada ao recusar guarda", async () => {
+    mockGuardianships();
+    const original = apiFetch.getMockImplementation();
+    apiFetch.mockImplementation((path, options = {}) => (
+      path === "/me/guardianships/3/reject"
+        ? respondWith({ detail: "Role." }, 403)
+        : original(path, options)
+    ));
+    const user = userEvent.setup();
+    render(
+      <GuardianshipPanel dependents={[]} onChanged={vi.fn()} onUnauthenticated={vi.fn()} />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Recusar guarda de Lia" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Você não tem permissão para esta ação.",
+    );
+  });
+
+  it("encerra a sessão quando a lista de pedidos responde 401", async () => {
+    apiFetch.mockReturnValue(respondWith({}, 401));
+    const onUnauthenticated = vi.fn();
+
+    render(
+      <GuardianshipPanel dependents={[]} onChanged={vi.fn()} onUnauthenticated={onUnauthenticated} />,
+    );
+
+    await waitFor(() => expect(onUnauthenticated).toHaveBeenCalledOnce());
+  });
+
   it("gera acesso próprio para dependente adulto sem conta", async () => {
     apiFetch.mockImplementation((path, options = {}) => {
       if (path === "/me/guardianships?status=pending") {
@@ -159,5 +193,13 @@ describe("GuardianshipPanel", () => {
       `${window.location.origin}/patient-claim#token=${"t".repeat(43)}`,
     );
     expect(apiFetch).toHaveBeenCalledWith("/me/dependents/12/claim-link", { method: "POST" });
+  });
+
+  it("pede a lista paginada ao servidor", async () => {
+    apiFetch.mockImplementation(() => Promise.resolve({ ok: true, status: 200, json: async () => [] }));
+
+    render(<GuardianshipPanel dependents={[]} onChanged={vi.fn()} onUnauthenticated={vi.fn()} />);
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/me/guardianships?status=pending&page=1&page_size=20"));
   });
 });

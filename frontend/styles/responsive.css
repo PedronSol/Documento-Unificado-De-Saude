@@ -1,0 +1,133 @@
+/* Ajustes transversais por viewport; deve vir depois das features que ajusta. */
+@media (max-width: 850px) {
+  .identity-account-copy {
+    display: none;
+  }
+
+}
+
+@media (max-width: 600px) {
+  .marker-section-header {
+    align-items: flex-start;
+  }
+
+  .marker-view-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .marker-view-switch button {
+    justify-content: center;
+  }
+
+  .patient-main {
+    width: min(calc(100% - (2 * var(--ds-layout-gutter))), var(--ds-layout-content));
+    padding-top: 1.25rem;
+  }
+
+  .patient-module [data-slot="card-header"] {
+    padding: 1.15rem 1rem 0.75rem;
+  }
+
+  .patient-module [data-slot="card-content"] {
+    padding: 0 1rem 1rem;
+  }
+
+  .vaccine-entry {
+    min-height: 12rem;
+  }
+
+  .identity-bar {
+    min-height: 4rem;
+    grid-template-columns: auto 1fr auto;
+    padding-inline: var(--page-gutter);
+  }
+
+  .identity-brand strong {
+    display: none;
+  }
+
+  .identity-account-copy {
+    display: none;
+  }
+
+  .logout-action {
+    gap: 0.25rem;
+    font-size: 0.68rem;
+  }
+
+  .patient-identity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1.4rem;
+  }
+
+  .patient-facts {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+
+  .patient-facts div {
+    min-width: auto;
+  }
+
+  .clinical-section>header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .credential-person {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .credential-person h1 {
+    font-size: 2.35rem;
+  }
+
+  .credential-lines {
+    flex-wrap: wrap;
+    font-size: 0.5rem;
+  }
+
+}
+
+@media (min-width: 75rem) and (hover: hover) and (pointer: fine) {
+  .authenticated-shell.has-context-dock {
+    padding-bottom: 0;
+  }
+
+  .context-switcher {
+    top: 1rem;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    z-index: var(--ds-z-sticky);
+    width: max-content;
+    margin: 0;
+    justify-self: center;
+    gap: 0.25rem;
+    border-radius: var(--ds-radius-pill);
+    background: var(--ui-surface-muted);
+    padding: 0.23rem;
+    box-shadow: none;
+    transform: translateX(-50%);
+    backdrop-filter: none;
+  }
+
+  .context-switcher a {
+    min-height: 2rem;
+    flex: 0 0 auto;
+    gap: var(--ds-space-2);
+    border-radius: var(--ds-radius-pill);
+    padding: 0.35rem 0.8rem;
+    font-size: 0.72rem;
+  }
+
+  .context-switcher a[aria-current="page"] {
+    background: var(--ds-color-surface);
+    box-shadow: 0 1px 3px rgb(22 50 78 / 12%);
+  }
+}

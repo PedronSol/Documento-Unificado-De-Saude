@@ -417,7 +417,7 @@ export function AdminGroups({ onUnauthenticated }) {
             </article>
           ))}
         </div>
-        <LoadMore resource={groups} label="Carregar mais grupos" />
+        <LoadMore resource={groups} itemLabel="grupos" />
       </section>
     </div>
   );

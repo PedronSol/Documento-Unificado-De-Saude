@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillPaged } from "./e2e-support/paged";
 
 
 async function waitForHydration(page) {
@@ -35,7 +36,7 @@ test.describe("Cadastro de paciente", () => {
     let submittedPayload;
     await page.route("**/auth/patient-registration", async (route) => {
       submittedPayload = route.request().postDataJSON();
-      await route.fulfill({
+      await fulfillPaged(route, {
         status: 201,
         contentType: "application/json",
         body: JSON.stringify({
@@ -49,7 +50,7 @@ test.describe("Cadastro de paciente", () => {
       });
     });
     await page.route("**/me", (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
@@ -72,7 +73,7 @@ test.describe("Cadastro de paciente", () => {
       }),
     );
     await page.route("**/me/**", (route) =>
-      route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
+      fulfillPaged(route, { status: 200, contentType: "application/json", body: "[]" }),
     );
 
     await page.goto("/register");

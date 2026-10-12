@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 import mysql.connector
@@ -8,40 +8,53 @@ from auth.dependencies import get_current_patient, require_adult
 from database import cursor_scope, get_connection, transaction
 from markers.service import create_marker, remove_active_marker, update_active_marker
 from models import MarkerCreateUpdate, MarkerResponse
+from pagination import Page, PageRequest, fetch_page, page_request, search_clause
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/me/markers")
 
 
-@router.get("", response_model=list[MarkerResponse])
+@router.get("", response_model=Page[MarkerResponse])
 def get_markers(
+    page: PageRequest = Depends(page_request),
     marker_status: Literal["active", "removed"] = Query(
         default="active",
         alias="status",
     ),
+    marker_type: Optional[
+        Literal["medication", "diagnosis", "condition", "allergy"]
+    ] = Query(default=None, alias="type"),
     patient: dict = Depends(get_current_patient),
     connection: Any = Depends(get_connection),
 ):
     order_by = (
-        "marker_type, name"
+        "marker_type, name, marker_id"
         if marker_status == "active"
-        else "removed_at DESC"
+        else "removed_at DESC, marker_id DESC"
     )
+    search, search_params = search_clause(page.query, ["name", "description"])
+    type_filter = " AND marker_type = %s" if marker_type else ""
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            cursor.execute(
-                f"""
-                SELECT marker_id, marker_type AS type, name, description,
-                       dosage, frequency, status, created_at, updated_at,
-                       removed_at
-                FROM health_markers
-                WHERE patient_id = %s AND status = %s
-                ORDER BY {order_by}
-                """,
-                (patient["patient_id"], marker_status),
+            return fetch_page(
+                cursor,
+                columns="""marker_id, marker_type AS type, name, description,
+                           dosage, frequency, status, created_at, updated_at,
+                           removed_at""",
+                source=(
+                    "FROM health_markers WHERE patient_id = %s AND status = %s"
+                    f"{type_filter}{search}"
+                ),
+                params=(
+                    patient["patient_id"],
+                    marker_status,
+                    *((marker_type,) if marker_type else ()),
+                    *search_params,
+                ),
+                order_by=order_by,
+                request=page,
             )
-            return cursor.fetchall()
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar marcadores", error)
 

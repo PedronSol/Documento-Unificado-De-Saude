@@ -30,7 +30,7 @@ def request_link(doctor, cpf: str):
 def medical_patient_ids(doctor) -> set[int]:
     response = doctor.get("/medical/patients")
     assert response.status_code == 200, response.text
-    return {patient["patient_id"] for patient in response.json()}
+    return {patient["patient_id"] for patient in response.json()["items"]}
 
 
 def test_doctor_requests_link_and_gains_access_only_after_acceptance(
@@ -53,7 +53,7 @@ def test_doctor_requests_link_and_gains_access_only_after_acceptance(
     assert before_access.status_code == 403
     assert patient_id not in medical_patient_ids(doctor)
     pending_item = next(
-        item for item in pending.json() if item["link_id"] == link_id
+        item for item in pending.json()["items"] if item["link_id"] == link_id
     )
     assert set(pending_item) == {
         "link_id",
@@ -62,13 +62,13 @@ def test_doctor_requests_link_and_gains_access_only_after_acceptance(
         "expires_at",
     }
     assert cpf not in pending.text
-    assert inbox.json() == [
+    assert inbox.json()["items"] == [
         {
             "link_id": link_id,
             "doctor_display_name": "Dr. Marcos Nunes",
             "crm_number": "100002",
             "crm_state": "RN",
-            "expires_at": inbox.json()[0]["expires_at"],
+            "expires_at": inbox.json()["items"][0]["expires_at"],
         }
     ]
 
@@ -86,8 +86,8 @@ def test_doctor_requests_link_and_gains_access_only_after_acceptance(
     assert marker.status_code == 201, marker.text
     assert patient_id not in medical_patient_ids(other_doctor)
     assert other_doctor.get(f"/medical/patients/{patient_id}").status_code == 403
-    assert [item["link_id"] for item in direct_doctors.json()] == [link_id]
-    assert patient.get("/me/care-requests").json() == []
+    assert [item["link_id"] for item in direct_doctors.json()["items"]] == [link_id]
+    assert patient.get("/me/care-requests").json()["items"] == []
     events = fetch_one(
         engine,
         """
@@ -236,7 +236,7 @@ def test_patient_or_doctor_ends_direct_link_immediately(make_client, engine):
     assert foreign_end.status_code == 404
     assert ended.status_code == 204
     assert after_end.status_code == 403
-    assert patient.get("/me/care-doctors").json() == []
+    assert patient.get("/me/care-doctors").json()["items"] == []
 
 
 def test_suspended_doctor_loses_direct_access(make_client, engine):

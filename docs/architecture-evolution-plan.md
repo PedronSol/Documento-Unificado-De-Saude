@@ -147,6 +147,7 @@ flowchart TD
     S13[Step 13: Organização do frontend]
     S14[Step 14: Consolidação operacional]
     S15[Step 15: Cadastro assistido e responsáveis]
+    S16[Step 16: Deploy da aplicação]
 
     S0 --> S1
     S0 --> S2
@@ -173,18 +174,20 @@ flowchart TD
     S8 --> S13
     S9 --> S13
     S10 --> S13
-    S12 --> S13
+    S11 --> S13
     S7 --> S14
     S8 --> S14
     S9 --> S14
     S10 --> S14
-    S12 --> S14
+    S11 --> S14
     S13 --> S14
     S7 --> S15
     S9 --> S15
     S10 --> S15
     S8 --> S15
     S15 --> S14
+    S14 --> S16
+    S16 -.->|ordem de execução| S12
 ```
 
 ### Leitura da árvore
@@ -202,11 +205,17 @@ flowchart TD
   então o médico verificado passa a acessar o prontuário.
 - Armazenamento de documentos depende da governança para entregar leitura ao
   médico vinculado sem abrir acesso administrativo.
-- OCR depende primeiro do armazenamento seguro de documentos.
+- OCR depende primeiro do armazenamento seguro de documentos. Por decisão de
+  2026-10-11, o Step 12 foi postergado e será o último a ser executado, depois
+  do deploy; a aresta tracejada indica ordem de execução, não dependência
+  técnica. Steps 13 e 14 deixam de aguardar o OCR, que entregará sua própria
+  interface, testes e ajustes operacionais quando for implementado.
 - A organização do frontend começa após identidade e contratos, mas suas telas
   são concluídas incrementalmente com cada feature.
 - O Step 14 consolida o que já foi testado em cada step; testes não são adiados
   para o final.
+- O deploy (Step 16) depende da consolidação operacional: health checks, CI
+  completa e documentação de ambiente precisam existir antes de publicar.
 
 ## Tracker geral
 
@@ -224,10 +233,11 @@ flowchart TD
 | 9 | Cadastro local de pacientes e Google opcional | 3, 4 | DONE | `00303f3` |
 | 10 | Governança administrativa e vínculos | 5, 7, 9 | DONE | [PR #10](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/10) |
 | 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | DONE | [PR #12](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/12) |
-| 12 | OCR e revisão | 11 | PLANNED | `docs/specs/021-health-document-ocr.md` |
-| 13 | Organização do frontend | 3, 4 e features atendidas | PLANNED | — |
-| 14 | Consolidação operacional | 7–13, 15 | PLANNED | — |
+| 12 | OCR e revisão | 11; executado após 16 | PLANNED (postergado) | `docs/specs/021-health-document-ocr.md` |
+| 13 | Organização do frontend | 3, 4, 7–11, 15 | DONE | [PR #13](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/13) |
+| 14 | Consolidação operacional | 7–11, 13, 15 | PLANNED | — |
 | 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | DONE | [PR #11](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/11) |
+| 16 | Deploy da aplicação | 14 | PLANNED | — |
 
 ## Step 0 — Baseline de specs e TDD
 
@@ -604,6 +614,11 @@ inseri-los no histórico.
 
 **Dependências:** Step 11.
 
+**Ordem de execução:** postergado em 2026-10-11; será o último step executado,
+depois do Step 16. Ao ser retomado, a spec `021` deve revisar o impacto no
+frontend organizado pelo Step 13, na CI do Step 14 e no ambiente publicado pelo
+Step 16 (por exemplo, dependências do engine OCR na imagem do backend).
+
 ### Tarefas
 
 - [ ] Escrever testes usando um OCR fake antes da integração real.
@@ -628,21 +643,26 @@ inseri-los no histórico.
 
 **Objetivo:** separar navegação e estado por papel e feature.
 
-**Dependências:** Steps 3 e 4; conclusão acompanha Steps 7 a 12.
+**Dependências:** Steps 3 e 4; conclusão acompanha Steps 7 a 11 e 15. A
+interface de revisão do OCR fica com o Step 12.
 
 ### Tarefas
 
-- [ ] Escrever testes de navegação e papel antes de reorganizar rotas.
-- [ ] Criar áreas `patient`, `medical`, `admin` e `share`.
-- [ ] Separar componentes por feature.
-- [ ] Manter `apiFetch` como cliente HTTP central.
-- [ ] Criar hooks somente quando houver lógica reutilizada.
-- [ ] Padronizar tratamento de `401`, `403`, `409` e `422`.
-- [ ] Redirecionar o login conforme papel.
-- [ ] Remover mocks conforme cada integração real entrar.
-- [ ] Substituir padrões visuais legados nos fluxos tocados por cada entrega,
+- [x] Escrever testes de navegação e papel antes de reorganizar rotas.
+- [x] Criar áreas `patient`, `medical`, `admin` e `share`.
+- [x] Separar componentes por feature.
+- [x] Manter `apiFetch` como cliente HTTP central.
+- [x] Criar hooks somente quando houver lógica reutilizada.
+- [x] Padronizar tratamento de `401`, `403`, `409` e `422`.
+- [x] Redirecionar o login conforme papel.
+- [x] Remover mocks conforme cada integração real entrar.
+- [x] Substituir padrões visuais legados nos fluxos tocados por cada entrega,
       incluindo modais e formulários.
-- [ ] Não introduzir Redux enquanto estado local e hooks forem suficientes.
+- [x] Não introduzir Redux enquanto estado local e hooks forem suficientes;
+      Zustand entrou somente para a sessão compartilhada entre rotas (spec `037`).
+- [x] Listar dependentes e identificar o contexto de menor com tom alaranjado
+      tokenizado e texto explícito.
+- [x] Modularizar o CSS em `frontend/styles/` preservando a cascata.
 
 ### Critérios de conclusão
 
@@ -654,7 +674,8 @@ inseri-los no histórico.
 
 **Objetivo:** consolidar integrações, saúde da aplicação e pipeline final.
 
-**Dependências:** Steps 7 a 13 e 15.
+**Dependências:** Steps 7 a 11, 13 e 15. O OCR (Step 12) traz seus próprios
+ajustes operacionais quando for executado.
 
 ### Tarefas
 
@@ -708,6 +729,44 @@ alterar os grupos geridos por admin.
   desvincula o responsável quando pedir.
 - Grupos geridos por admin continuam fora do alcance do médico.
 
+## Step 16 — Deploy da aplicação
+
+**Objetivo:** publicar frontend, backend, banco e armazenamento de documentos em
+um ambiente acessível por HTTPS, de forma reproduzível, segura e sem dados de
+demonstração.
+
+**Dependências:** Step 14.
+
+### Tarefas
+
+- [ ] Escrever e aprovar a spec `docs/specs/050-application-deployment.md`,
+      incluindo a escolha da plataforma de hospedagem e seus custos.
+- [ ] Definir ambientes (homologação e/ou produção) e quais branches publicam
+      em cada um.
+- [ ] Preparar imagens de produção: frontend com `next build`/`next start`,
+      backend sem reload e processos sem root.
+- [ ] Fornecer configuração e segredos somente por variáveis de ambiente ou
+      cofre da plataforma; nada sensível versionado.
+- [ ] Garantir `APP_ENV=production`: seeds, reset e dados demonstrativos
+      bloqueados.
+- [ ] Exigir HTTPS, `COOKIE_SECURE=true`, CORS e `PUBLIC_APP_URL` restritos ao
+      domínio publicado; câmera do Step 11 depende de contexto seguro.
+- [ ] Executar migrations forward-only como etapa do deploy, antes da nova
+      versão do backend receber tráfego.
+- [ ] Provisionar MySQL persistente e armazenamento privado de documentos fora
+      de diretório público, ambos com backup.
+- [ ] Liberar tráfego somente após `/health/ready` do Step 14.
+- [ ] Automatizar o deploy a partir da CI verde e documentar o rollback.
+- [ ] Executar smoke test pós-deploy (login, dashboard e download de documento).
+
+### Critérios de conclusão
+
+- Aplicação acessível por HTTPS no ambiente definido.
+- Deploy reproduzível pelo pipeline, sem passos manuais não documentados.
+- Nenhum segredo ou dado clínico real no repositório, logs ou imagens.
+- Banco e documentos persistem entre deploys e possuem backup testado.
+- Rollback documentado e exercitado ao menos uma vez.
+
 ## Definition of Ready
 
 Uma tarefa só pode entrar em implementação quando:
@@ -758,6 +817,7 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | Arquivos | Local em desenvolvimento; contrato compatível com S3 | APROVADA |
 | OCR | Worker com jobs no MySQL, sem Redis inicialmente | APROVADA |
 | Arquitetura | Monólito modular | APROVADA |
+| Plataforma de deploy | Definir na spec `050` considerando custo, HTTPS, MySQL gerenciado e volume privado | PENDENTE |
 | Impacto no frontend | Revisão obrigatória após o backend; fluxo tocado segue o padrão visual vigente | APROVADA |
 
 ## Registro de evolução
@@ -816,3 +876,14 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-11 | 11 | IN PROGRESS → DONE | `e1a8d86` | Validação final: pytest (243 passed com MySQL 8 real), Vitest (104), Playwright (33, incluindo digitalização em 320 px e 1280 px) e build; spec 020 marcada como implementada. |
 | 2026-10-11 | 11 (complemento) | SPEC WRITING → SPEC REVIEW | `docs/specs/008-persistent-session.md` | Sessão com 24 h de inatividade e teto de 7 dias, redirecionamento de `/` com sessão válida e login lembrado pedindo somente a senha; entra no PR #12 após aprovação. |
 | 2026-10-11 | 11 (complemento) | SPEC APPROVED → IMPLEMENTED | [PR #12](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/12) | Sessão com 24 h de inatividade e teto de 7 dias, redirecionamento de `/` e login lembrado implementados em três ciclos RED/GREEN; migration `0014`. |
+| 2026-10-11 | 12, 13, 14, 16 | REPLANEJAMENTO | `docs/architecture-evolution-plan.md` | Step 12 (OCR) postergado para o fim da fila; Steps 13 e 14 deixam de depender dele. Criado o Step 16 (deploy), dependente do Step 14. Próxima entrega: Step 13. |
+| 2026-10-11 | 13 | PLANNED → SPEC REVIEW | `docs/specs/037-frontend-organization.md` | Rotas por área, shell autenticado com identidade única, divisão por feature, tabela única de erros e remoção de legado propostas; implementação aguarda revisão. |
+| 2026-10-11 | 13 | SPEC REVIEW → SPEC APPROVED | `docs/specs/037-frontend-organization.md` | Redirect para área padrão, prontuário por URL, dependentes como sub-rota com lista e tom alaranjado para menor, abas sem sub-rota, CSS modular e Zustand para sessão aprovados; próximo passo é o RED de `resolveDefaultArea`. |
+| 2026-10-11 | 13 | SPEC APPROVED → DONE | `a801598`, `3fe4464`, `a85d143`, `6a9f5e1` | Áreas por URL com redirect por papel, store Zustand em memória, lista de dependentes com tom de menor, tabela única de erros, dashboards divididos por feature com prontuário em `/medical/patients/[patientId]`, CSS modular pixel-idêntico e legado removido; 239 unitários, 41 E2E e build aprovados. PR pendente. |
+| 2026-10-11 | 11 (complemento) | PLANNED → SPEC REVIEW | `docs/specs/022-medical-document-upload.md` | Médico autorizado passa a enviar documentos ao paciente e remover somente os que enviou; autoria persistida pela migration `0015`. Implementação aguarda revisão. |
+| 2026-10-11 | 11 (complemento) | SPEC REVIEW → SPEC APPROVED | `docs/specs/022-medical-document-upload.md` | Paciente pode remover documento médico com confirmação reforçada; `403` explicativo ao médico; envio a menor e provisório permitido. Próximo passo: RED da migration `0015`. |
+| 2026-10-11 | 11 (complemento) | SPEC APPROVED → IMPLEMENTED | `1f4dc10` e commit de interface (branch `feat/medical-document-upload`) | Médico autorizado envia documentos e remove só os próprios; migration `0015` registra autor e papel; paciente remove documento médico somente após confirmação marcada. 275 testes backend (MySQL real), 248 unitários, 45 E2E e build aprovados. |
+| 2026-10-11 | 13 (complemento) | PLANNED → SPEC REVIEW | `docs/specs/038-list-pagination.md` | Todas as listagens paginadas no servidor com 10/20/50/100 itens (padrão 20), filtros na requisição e `Carregar mais`; implementação aguarda revisão. |
+| 2026-10-11 | 13 (complemento) | SPEC REVIEW → SPEC APPROVED | `docs/specs/038-list-pagination.md` | Rolagem infinita com busca e filtros no servidor, total na resposta, 10/20/50/100 itens; prontuário e dependentes sem paginação; resumo público em abas. |
+| 2026-10-11 | 13 (complemento) | SPEC APPROVED → IMPLEMENTED | `ec81e1e`, `071bb57`, `05b8a63`, `98f9662` e fechamento (branch `feat/medical-document-upload`) | Todas as listagens paginadas e pesquisáveis no servidor (10/20/50/100, total, filtros), rolagem infinita acessível, resumo público em abas; prontuário e dependentes mantidos sem paginação. 287 unitários, 47 E2E, build e backend com MySQL real aprovados. |
+| 2026-10-11 | 13 e 11 (complementos) | PR ABERTO | [PR #13](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/13) | Specs `037`, `022` e `038` entregues contra `develop`. |

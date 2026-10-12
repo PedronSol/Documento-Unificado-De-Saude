@@ -4,6 +4,7 @@ from fastapi import HTTPException
 import mysql.connector
 import pytest
 
+from pagination import PageRequest
 from medical.router import (
     add_medical_marker,
     delete_medical_marker,
@@ -109,14 +110,19 @@ def marker_row(**overrides):
 
 
 def test_medical_list_returns_only_sql_authorized_patient_allowlist():
-    connection = MedicalConnection(fetchall_result=[patient_row()])
+    connection = MedicalConnection(
+        fetchone_result={"total": 1},
+        fetchall_result=[patient_row()],
+    )
 
-    result = list_medical_patients(
-        query=None,
+    page = list_medical_patients(
+        page=PageRequest(page=1, page_size=20, query=None),
         doctor={"doctor_id": 3, "user_id": 8},
         connection=connection,
     )
+    result = page["items"]
 
+    assert page["total"] == 1
     assert result == [
         {
             "patient_id": 10,
@@ -128,25 +134,28 @@ def test_medical_list_returns_only_sql_authorized_patient_allowlist():
         }
     ]
     assert result[0]["age"] >= 40
-    statement, parameters = connection.executed[0]
+    statement, parameters = connection.executed[1]
     assert "EXISTS" in statement
     assert "cg.status = 'active'" in statement
     assert "dcg.status = 'active'" in statement
     assert "pcg.status = 'active'" in statement
-    assert "LIMIT 50" in statement
+    assert statement.endswith("LIMIT %s OFFSET %s")
     assert "dpl.status = 'active'" in statement
-    assert parameters == (3, 3)
+    assert parameters == (3, 3, 20, 0)
     assert "cpf" not in result[0]
 
 
 def test_medical_search_normalizes_formatted_cpf_without_returning_it():
-    connection = MedicalConnection(fetchall_result=[patient_row()])
+    connection = MedicalConnection(
+        fetchone_result={"total": 1},
+        fetchall_result=[patient_row()],
+    )
 
     result = list_medical_patients(
-        query=" 000.111.222-22 ",
+        page=PageRequest(page=1, page_size=20, query="000.111.222-22"),
         doctor={"doctor_id": 3, "user_id": 8},
         connection=connection,
-    )
+    )["items"]
 
     statement, parameters = connection.executed[0]
     assert "u.cpf = %s" in statement
@@ -158,7 +167,7 @@ def test_medical_search_normalizes_formatted_cpf_without_returning_it():
 def test_medical_search_rejects_ambiguous_short_input(query):
     with pytest.raises(HTTPException) as error:
         list_medical_patients(
-            query=query,
+            page=PageRequest(page=1, page_size=20, query=query),
             doctor={"doctor_id": 3, "user_id": 8},
             connection=MedicalConnection(),
         )

@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from audit.service import record_administrative_event
+from pagination import PageRequest, fetch_page, search_clause
 
 
 def _not_found() -> HTTPException:
@@ -33,47 +34,50 @@ def _care_team(cursor: Any, group_id: int) -> list[dict]:
     return cursor.fetchall()
 
 
-def list_patient_invitations(cursor: Any, *, patient_id: int) -> list[dict]:
-    cursor.execute(
-        """
-        SELECT ci.care_invitation_id AS invitation_id, ci.care_group_id,
-               cg.name AS care_group_name, ci.expires_at
-        FROM care_group_patient_invitations ci
+def list_patient_invitations(cursor: Any, *, patient_id: int, request: PageRequest) -> dict:
+    search, search_params = search_clause(request.query, ["cg.name"])
+    page = fetch_page(
+        cursor,
+        columns="""ci.care_invitation_id AS invitation_id, ci.care_group_id,
+                   cg.name AS care_group_name, ci.expires_at""",
+        source=f"""FROM care_group_patient_invitations ci
         JOIN care_groups cg ON cg.care_group_id = ci.care_group_id
         WHERE ci.patient_id = %s
           AND ci.status = 'pending'
           AND ci.expires_at > UTC_TIMESTAMP(6)
-          AND cg.status = 'active'
-        ORDER BY ci.created_at, ci.care_invitation_id
-        """,
-        (patient_id,),
+          AND cg.status = 'active'{search}""",
+        params=(patient_id, *search_params),
+        order_by="ci.created_at, ci.care_invitation_id",
+        request=request,
     )
-    invitations = cursor.fetchall()
-    return [
+    # The care team is resolved only for the invitations on this page.
+    page["items"] = [
         {**invitation, "doctors": _care_team(cursor, invitation["care_group_id"])}
-        for invitation in invitations
+        for invitation in page["items"]
     ]
+    return page
 
 
-def list_patient_care_groups(cursor: Any, *, patient_id: int) -> list[dict]:
-    cursor.execute(
-        """
-        SELECT cg.care_group_id, cg.name, pcg.starts_at
-        FROM patient_care_groups pcg
+def list_patient_care_groups(cursor: Any, *, patient_id: int, request: PageRequest) -> dict:
+    search, search_params = search_clause(request.query, ["cg.name"])
+    page = fetch_page(
+        cursor,
+        columns="cg.care_group_id, cg.name, pcg.starts_at",
+        source=f"""FROM patient_care_groups pcg
         JOIN care_groups cg ON cg.care_group_id = pcg.care_group_id
         WHERE pcg.patient_id = %s
           AND pcg.status = 'active'
           AND (pcg.ends_at IS NULL OR pcg.ends_at > UTC_TIMESTAMP(6))
-          AND cg.status = 'active'
-        ORDER BY cg.name, cg.care_group_id
-        """,
-        (patient_id,),
+          AND cg.status = 'active'{search}""",
+        params=(patient_id, *search_params),
+        order_by="cg.name, cg.care_group_id",
+        request=request,
     )
-    groups = cursor.fetchall()
-    return [
+    page["items"] = [
         {**group, "doctors": _care_team(cursor, group["care_group_id"])}
-        for group in groups
+        for group in page["items"]
     ]
+    return page
 
 
 def decide_invitation(

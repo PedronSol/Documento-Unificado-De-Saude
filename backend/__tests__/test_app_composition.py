@@ -43,6 +43,8 @@ EXPECTED_API_ROUTES = {
     ("GET", "/medical/patients/{patient_id}"),
     ("GET", "/medical/patients/{patient_id}/documents"),
     ("GET", "/medical/patients/{patient_id}/documents/{document_id}/file"),
+    ("POST", "/medical/patients/{patient_id}/documents"),
+    ("DELETE", "/medical/patients/{patient_id}/documents/{document_id}"),
     ("POST", "/medical/patients/{patient_id}/markers"),
     ("PUT", "/medical/patients/{patient_id}/markers/{marker_id}"),
     ("DELETE", "/medical/patients/{patient_id}/markers/{marker_id}"),

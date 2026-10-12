@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PatientLinkPanel } from "@/components/medical/patient-link-panel";
 import { apiFetch } from "@/lib/api";
+import { installPagedApiMock } from "./utils/paged-api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -48,6 +50,7 @@ function renderPanel(props = {}) {
 describe("PatientLinkPanel", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    installPagedApiMock(apiFetch);
   });
 
   it("solicita acesso pelo CPF e informa que depende do aceite", async () => {
@@ -75,6 +78,7 @@ describe("PatientLinkPanel", () => {
     [409, { detail: "Responsável indisponível." }, "O responsável informado não pode ser vinculado. Verifique o CPF."],
     [409, { detail: "CPF indisponível para vínculo." }, "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível."],
     [422, { detail: [] }, "Revise os dados informados."],
+    [403, { detail: "Role." }, "Você não tem permissão para esta ação."],
   ])("explica a resposta %s", async (status, body, message) => {
     mockLinks({ create: [body, status] });
     const user = userEvent.setup();
@@ -332,5 +336,14 @@ describe("PatientLinkPanel", () => {
     expect(
       await screen.findByText("Nenhuma solicitação aguardando o paciente."),
     ).toBeInTheDocument();
+  });
+
+  it("pede as solicitações pendentes paginadas", async () => {
+    mockLinks();
+    renderPanel();
+
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith(
+      "/medical/patient-links?status=pending&page=1&page_size=20",
+    ));
   });
 });

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { fulfillPaged } from "./e2e-support/paged";
 
 const MOCK_USER = {
   user_id: 1,
@@ -114,7 +115,7 @@ test.describe('Página de Login', () => {
 
   test('exibe mensagem de erro com credenciais inválidas', async ({ page }) => {
     await page.route('**/login', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 401,
         contentType: 'application/json',
         body: JSON.stringify({ detail: 'E-mail ou senha incorretos.' }),
@@ -134,14 +135,14 @@ test.describe('Página de Login', () => {
     let authenticated = false;
     await page.route('**/login', (route) => {
       authenticated = true;
-      return route.fulfill({
+      return fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_LOGIN_RESPONSE),
       });
     });
     await page.route('**/me', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: authenticated ? 200 : 401,
         contentType: 'application/json',
         body: JSON.stringify(
@@ -149,7 +150,7 @@ test.describe('Página de Login', () => {
         ),
       })
     );
-    await page.route('**/auth/remembered', (route) => route.fulfill({ status: 204 }));
+    await page.route('**/auth/remembered', (route) => fulfillPaged(route, { status: 204 }));
 
     await page.goto('/');
     await waitForHydration(page);
@@ -162,7 +163,7 @@ test.describe('Página de Login', () => {
 
   test('reabre o app em / com sessão válida e vai direto ao início', async ({ page }) => {
     await page.route('**/me', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_PROFILE_RESPONSE),
@@ -180,7 +181,7 @@ test.describe('Página de Login', () => {
       let authenticated = false;
       let rememberedBody = '';
       await page.route('**/me', (route) =>
-        route.fulfill({
+        fulfillPaged(route, {
           status: authenticated ? 200 : 401,
           contentType: 'application/json',
           body: JSON.stringify(
@@ -189,7 +190,7 @@ test.describe('Página de Login', () => {
         })
       );
       await page.route('**/auth/remembered', (route) =>
-        route.fulfill({
+        fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ first_name: 'Carlos', masked_email: 'c•••@email.com' }),
@@ -198,7 +199,7 @@ test.describe('Página de Login', () => {
       await page.route('**/login/remembered', (route) => {
         authenticated = true;
         rememberedBody = route.request().postData() ?? '';
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify(MOCK_LOGIN_RESPONSE),
@@ -227,7 +228,7 @@ test.describe('Página de Login', () => {
   test('usar outra conta esquece o aparelho e volta ao login completo', async ({ page }) => {
     let forgotten = false;
     await page.route('**/me', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 401,
         contentType: 'application/json',
         body: JSON.stringify({ detail: 'Autenticação necessária.' }),
@@ -236,9 +237,9 @@ test.describe('Página de Login', () => {
     await page.route('**/auth/remembered', (route) => {
       if (route.request().method() === 'DELETE') {
         forgotten = true;
-        return route.fulfill({ status: 204 });
+        return fulfillPaged(route, { status: 204 });
       }
-      return route.fulfill({
+      return fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ first_name: 'Carlos', masked_email: 'c•••@email.com' }),
@@ -263,29 +264,43 @@ test.describe('Página Home', () => {
     let activeShare = null;
 
     await page.route('**/me', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_PROFILE_RESPONSE),
       })
     );
-    await page.route('**/me/vaccines', (route) =>
-      route.fulfill({
+    await page.route(/\/me\/vaccines(\?.*)?$/, (route) =>
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_VACCINES),
       })
     );
-    await page.route('**/me/alerts', (route) =>
-      route.fulfill({
+    await page.route(/\/me\/alerts(\?.*)?$/, (route) =>
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_ALERTS),
       })
     );
-    await page.route('**/me/documents', (route) => {
+    let documents = [...MOCK_DOCUMENTS];
+    await page.route(/\/me\/documents(\?.*)?$/, (route) => {
       if (route.request().method() === 'POST') {
-        return route.fulfill({
+        const created = {
+          document_id: 42,
+          title: 'Receita digitalizada',
+          type: 'prescription',
+          original_filename: 'documento-digitalizado.jpg',
+          media_type: 'image/jpeg',
+          size_bytes: 4096,
+          status: 'uploaded',
+          created_at: '2026-10-11T12:00:00',
+          uploaded_by_doctor: null,
+        };
+        // The list reloads from the server after an upload (spec 038).
+        documents = [created, ...documents];
+        return fulfillPaged(route, {
           status: 201,
           contentType: 'application/json',
           body: JSON.stringify({
@@ -300,21 +315,21 @@ test.describe('Página Home', () => {
           }),
         });
       }
-      return route.fulfill({
+      return fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_DOCUMENTS),
+        body: JSON.stringify(documents),
       });
     });
-    await page.route(/\/me\/(care-(invitations|groups|requests|doctors)|guardianships\?status=pending|guardians)$/, (route) =>
-      route.fulfill({
+    await page.route(/\/me\/(care-(invitations|groups|requests|doctors)|guardianships|guardians)(\?.*)?$/, (route) =>
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([]),
       })
     );
     await page.route('**/medical/patient-links**', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([]),
@@ -329,7 +344,7 @@ test.describe('Página Home', () => {
         const body = url.searchParams.get('status') === 'removed'
           ? removedMarkers
           : activeMarkers;
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify(body),
@@ -347,7 +362,7 @@ test.describe('Página Home', () => {
           removed_at: null,
         };
         activeMarkers = [...activeMarkers, created];
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 201,
           contentType: 'application/json',
           body: JSON.stringify(created),
@@ -365,7 +380,7 @@ test.describe('Página Home', () => {
         activeMarkers = activeMarkers.map((marker) =>
           marker.marker_id === markerId ? updated : marker
         );
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify(updated),
@@ -384,7 +399,7 @@ test.describe('Página Home', () => {
           },
           ...removedMarkers,
         ];
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ message: 'Marcador removido com sucesso!' }),
@@ -398,7 +413,7 @@ test.describe('Página Home', () => {
       const url = new URL(request.url());
 
       if (request.method() === 'GET' && url.pathname === '/me/shares/active') {
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify(activeShare),
@@ -412,7 +427,7 @@ test.describe('Página Home', () => {
           created_at: '2099-10-09T12:00:00',
           expires_at: '2099-10-09T14:00:00',
         };
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 201,
           contentType: 'application/json',
           body: JSON.stringify(activeShare),
@@ -421,7 +436,7 @@ test.describe('Página Home', () => {
 
       if (request.method() === 'DELETE' && url.pathname === '/me/shares/42') {
         activeShare = null;
-        return route.fulfill({ status: 204 });
+        return fulfillPaged(route, { status: 204 });
       }
 
       return route.abort();
@@ -522,11 +537,11 @@ test.describe('Página Home', () => {
     await expect(page.getByRole('button', { name: 'Gerar acesso temporário' })).toBeVisible();
   });
 
-  test('abre resumo público sem login, remove o fragmento e adapta o grid', async ({ page }) => {
+  test('abre resumo público sem login, remove o fragmento e organiza em abas', async ({ page }) => {
     const token = 'v'.repeat(43);
     await page.route('**/public/shares/summary', async (route) => {
       expect(await route.request().headerValue('x-share-token')).toBe(token);
-      return route.fulfill({
+      return fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -553,21 +568,26 @@ test.describe('Página Home', () => {
     await expect(page.getByRole('heading', { name: 'Resumo de Carlos' })).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
-    const mobileCards = await page.locator('.public-share-card').all();
-    const firstMobile = await mobileCards[0].boundingBox();
-    const secondMobile = await mobileCards[1].boundingBox();
-    expect(secondMobile?.y).toBeGreaterThan(firstMobile?.y ?? 0);
+    const tablist = page.getByRole('tablist', { name: 'Categorias clínicas' });
+    await expect(tablist.getByRole('tab', { name: 'Alergias (1)' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel')).toContainText('Dipirona');
+    const tab = tablist.getByRole('tab', { name: 'Medicações ativas (1)' });
+    expect((await tab.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    await tab.click();
+    await expect(page.getByRole('tabpanel')).toContainText('Losartana');
+    await tablist.getByRole('tab', { name: 'Condições (0)' }).click();
+    await expect(page.getByRole('tabpanel')).toContainText('Nenhuma condição registrada.');
 
     await page.setViewportSize({ width: 1440, height: 900 });
-    const firstDesktop = await mobileCards[0].boundingBox();
-    const secondDesktop = await mobileCards[1].boundingBox();
-    expect(firstDesktop?.y).toBeCloseTo(secondDesktop?.y ?? 0, 0);
+    await tablist.getByRole('tab', { name: 'Diagnósticos (1)' }).click();
+    await expect(page.getByRole('tabpanel')).toContainText('Hipertensão');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
   });
 
   test('move o seletor de contexto para um dock em mobile e mantém o header no desktop', async ({ page }) => {
     await page.unroute('**/me');
     await page.route('**/me', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -579,8 +599,8 @@ test.describe('Página Home', () => {
         }),
       })
     );
-    await page.route('**/medical/patients', (route) =>
-      route.fulfill({
+    await page.route(/\/medical\/patients(\?.*)?$/, (route) =>
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([]),
@@ -606,13 +626,17 @@ test.describe('Página Home', () => {
     expect(parseFloat(mobileStyle.shellPadding)).toBeGreaterThan(0);
     expect(await contextNav.evaluate((element) => element.closest('.identity-bar'))).toBeNull();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
-    await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toBeVisible();
-    await contextNav.getByRole('button', { name: 'Área profissional' }).click();
+    await expect(contextNav.getByRole('link', { name: 'Minha saúde' })).toBeVisible();
+    expect((await contextNav.getByRole('link', { name: 'Minha saúde' }).boundingBox())?.height)
+      .toBeGreaterThanOrEqual(44);
+    await contextNav.getByRole('link', { name: 'Área profissional' }).click();
+    await expect(page).toHaveURL('/medical');
     await expect(page.getByRole('heading', { name: 'Pacientes em acompanhamento' })).toBeVisible();
-    await expect(contextNav.getByRole('button', { name: 'Área profissional' })).toHaveAttribute('aria-pressed', 'true');
-    await contextNav.getByRole('button', { name: 'Minha saúde' }).focus();
+    await expect(contextNav.getByRole('link', { name: 'Área profissional' })).toHaveAttribute('aria-current', 'page');
+    await contextNav.getByRole('link', { name: 'Minha saúde' }).focus();
     await page.keyboard.press('Enter');
-    await expect(contextNav.getByRole('button', { name: 'Minha saúde' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL('/patient');
+    await expect(contextNav.getByRole('link', { name: 'Minha saúde' })).toHaveAttribute('aria-current', 'page');
 
     await page.setViewportSize({ width: 475, height: 900 });
     await expect.poll(() => contextNav.evaluate((element) => getComputedStyle(element).position)).toBe('fixed');
@@ -739,10 +763,10 @@ test.describe('Página Home', () => {
 
     await removeTrigger.click();
     await page.getByRole('button', { name: 'Remover do resumo' }).click();
-    await expect(page.getByText('Metformina XR', { exact: true })).toBeHidden();
+    await expect(page.locator('.marker-card', { hasText: 'Metformina XR' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Remover Losartana' }).click();
     await page.getByRole('button', { name: 'Remover do resumo' }).click();
-    await expect(page.getByText('Losartana')).toBeHidden();
+    await expect(page.locator('.marker-card', { hasText: 'Losartana' })).toHaveCount(0);
 
     const emptyState = page.locator('.marker-empty');
     const emptyStateStyles = await emptyState.evaluate((element) => ({
@@ -761,9 +785,9 @@ test.describe('Página Home', () => {
 
   test('mantém o dashboard amplo e os cards alinhados em desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.unroute('**/me/vaccines');
-    await page.route('**/me/vaccines', (route) =>
-      route.fulfill({
+    await page.unroute(/\/me\/vaccines(\?.*)?$/);
+    await page.route(/\/me\/vaccines(\?.*)?$/, (route) =>
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
@@ -835,7 +859,7 @@ test.describe('Página Home', () => {
 
     await page.unroute('**/me');
     await page.route('**/me', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -854,7 +878,7 @@ test.describe('Página Home', () => {
       const url = new URL(request.url());
 
       if (url.pathname === '/medical/patients') {
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify([medicalPatient]),
@@ -863,13 +887,13 @@ test.describe('Página Home', () => {
 
       if (url.pathname === '/medical/patients/10') {
         if (denyMedicalRecord) {
-          return route.fulfill({
+          return fulfillPaged(route, {
             status: 403,
             contentType: 'application/json',
             body: JSON.stringify({ detail: 'Paciente não autorizado.' }),
           });
         }
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
@@ -884,7 +908,7 @@ test.describe('Página Home', () => {
       }
 
       if (url.pathname === '/medical/patients/10/documents') {
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify([]),
@@ -904,7 +928,7 @@ test.describe('Página Home', () => {
           removed_at: null,
         };
         medicalActiveMarkers = [...medicalActiveMarkers, created];
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 201,
           contentType: 'application/json',
           body: JSON.stringify(created),
@@ -926,7 +950,7 @@ test.describe('Página Home', () => {
             removed_at: '2026-10-08T18:00:00',
           },
         ];
-        return route.fulfill({
+        return fulfillPaged(route, {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ message: 'Marcador removido com sucesso!' }),
@@ -948,14 +972,16 @@ test.describe('Página Home', () => {
     ).toBeLessThanOrEqual(320);
 
     const searchRequest = page.waitForRequest((request) =>
-      request.url().includes('/medical/patients?query=Carlos')
+      request.url().includes('/medical/patients?') && request.url().includes('query=Carlos')
     );
     await page.getByLabel('Buscar paciente').fill('Carlos');
     await searchRequest;
 
-    await page.getByRole('button', {
+    await page.getByRole('link', {
       name: 'Abrir prontuário de Carlos Silva',
     }).click();
+    await expect(page).toHaveURL(/\/medical\/patients\/\d+$/);
+    const recordUrl = page.url();
     await expect(
       page.getByRole('heading', { name: 'Carlos Eduardo Silva' }),
     ).toBeVisible();
@@ -988,19 +1014,32 @@ test.describe('Página Home', () => {
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(pageWidth).toBeLessThanOrEqual(320);
 
-    await page.getByRole('button', { name: 'Voltar para pacientes' }).click();
+    await page.getByRole('link', { name: 'Voltar para pacientes' }).click();
+    await expect(page).toHaveURL('/medical');
+    await page.goBack();
+    await expect(page).toHaveURL(recordUrl);
+    await expect(
+      page.getByRole('heading', { name: 'Carlos Eduardo Silva' }),
+    ).toBeVisible();
+
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Carlos Eduardo Silva' }),
+    ).toBeVisible();
+
     denyMedicalRecord = true;
-    await page.getByRole('button', {
-      name: 'Abrir prontuário de Carlos Silva',
-    }).click();
+    await page.goto(recordUrl);
     await expect(page.getByText('Acesso ao prontuário negado.')).toBeVisible();
     await expect(page.getByText('Losartana')).toHaveCount(0);
+    await expect(
+      page.getByRole('link', { name: 'Voltar para pacientes' }),
+    ).toHaveAttribute('href', '/medical');
   });
 
   test('redireciona para login se não há sessão', async ({ page }) => {
     await page.unroute('**/me');
     await page.route('**/me', (route) =>
-      route.fulfill({
+      fulfillPaged(route, {
         status: 401,
         contentType: 'application/json',
         body: JSON.stringify({ detail: 'Autenticação necessária.' }),

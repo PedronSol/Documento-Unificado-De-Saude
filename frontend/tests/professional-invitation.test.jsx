@@ -5,7 +5,8 @@ import { ProfessionalInvitation } from "@/components/auth/professional-invitatio
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 

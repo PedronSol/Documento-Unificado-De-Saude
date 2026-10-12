@@ -93,10 +93,10 @@ def test_minor_with_new_guardian_is_claimed_and_managed_by_guardian(make_client,
     assert wrong_dependent.status_code == 403
     assert claimed.status_code == 201, claimed.text
     assert [item["patient_id"] for item in me.json()["dependents"]] == [child_id]
-    assert own_markers.json() == []
-    assert [item["name"] for item in child_markers.json()] == ["Amendoim"]
+    assert own_markers.json()["items"] == []
+    assert [item["name"] for item in child_markers.json()["items"]] == ["Amendoim"]
     assert request.status_code == 202, request.text
-    assert len(child_requests.json()) == 1
+    assert len(child_requests.json()["items"]) == 1
     assert accepted.status_code == 204
     assert other_doctor.get(f"/medical/patients/{child_id}").status_code == 200
     guardian_user = fetch_one(
@@ -127,7 +127,7 @@ def test_existing_guardian_accepts_guardianship_in_own_login(make_client, engine
     created = doctor.post("/medical/patient-links", json=minor_payload(child_cpf, guardian_cpf))
     child_id = created.json()["patient_id"]
     pending = guardian.get("/me/guardianships", params={"status": "pending"})
-    guardianship_id = pending.json()[0]["guardianship_id"]
+    guardianship_id = pending.json()["items"][0]["guardianship_id"]
     header_before = guardian.get("/me/markers", params={"status": "active"}, headers=acting(child_id))
     wrong = guardian.post(
         f"/me/guardianships/{guardianship_id}/accept",
@@ -141,7 +141,7 @@ def test_existing_guardian_accepts_guardianship_in_own_login(make_client, engine
 
     assert created.status_code == 201, created.text
     assert created.json()["claim"] is None
-    assert pending.json()[0]["dependent_full_name"] == "Lia Prado Ribeiro"
+    assert pending.json()["items"][0]["dependent_full_name"] == "Lia Prado Ribeiro"
     assert header_before.status_code == 403
     assert wrong.status_code == 403
     assert accepted.status_code == 204
@@ -156,7 +156,7 @@ def test_guardian_rejects_guardianship(make_client, engine):
         "/medical/patient-links",
         json=minor_payload(make_cpf(), cpf_of(engine, guardian_user)),
     )
-    guardianship_id = guardian.get("/me/guardianships").json()[0]["guardianship_id"]
+    guardianship_id = guardian.get("/me/guardianships").json()["items"][0]["guardianship_id"]
 
     rejected = guardian.post(f"/me/guardianships/{guardianship_id}/reject")
     header = guardian.get(
@@ -181,7 +181,7 @@ def test_acting_header_is_denied_to_third_parties_and_ignored_on_account_routes(
         json=minor_payload(make_cpf(), cpf_of(engine, guardian_user)),
     )
     child_id = created.json()["patient_id"]
-    guardianship_id = guardian.get("/me/guardianships").json()[0]["guardianship_id"]
+    guardianship_id = guardian.get("/me/guardianships").json()["items"][0]["guardianship_id"]
     guardian.post(
         f"/me/guardianships/{guardianship_id}/accept",
         json={"dependent_birth_date": CHILD_BIRTH},
@@ -261,7 +261,7 @@ def test_last_guardian_cannot_renounce_while_doctors_have_access(make_client, en
         json=minor_payload(make_cpf(), cpf_of(engine, guardian_user)),
     )
     child_id = created.json()["patient_id"]
-    guardianship_id = guardian.get("/me/guardianships").json()[0]["guardianship_id"]
+    guardianship_id = guardian.get("/me/guardianships").json()["items"][0]["guardianship_id"]
     guardian.post(
         f"/me/guardianships/{guardianship_id}/accept",
         json={"dependent_birth_date": CHILD_BIRTH},

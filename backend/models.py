@@ -166,6 +166,14 @@ class AlertResponse(BaseModel):
     severity: Literal["low", "medium", "high"]
 
 
+class DocumentDoctorUploader(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: str
+    crm_number: str
+    crm_state: str
+
+
 class DocumentSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -183,6 +191,11 @@ class DocumentSummary(BaseModel):
         "failed",
     ]
     created_at: datetime
+    uploaded_by_doctor: Optional[DocumentDoctorUploader]
+
+
+class MedicalDocumentSummary(DocumentSummary):
+    can_remove: bool
 
 
 class UserIdentity(BaseModel):
@@ -554,6 +567,8 @@ class DoctorInvitationSummary(BaseModel):
 class DoctorInvitationPage(BaseModel):
     items: List[DoctorInvitationSummary]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -575,6 +590,8 @@ class AdminDoctor(BaseModel):
 class AdminDoctorPage(BaseModel):
     items: List[AdminDoctor]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -641,6 +658,8 @@ class AdminCareGroup(BaseModel):
 class AdminCareGroupPage(BaseModel):
     items: List[AdminCareGroup]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -675,6 +694,8 @@ class DirectoryUser(BaseModel):
 class DirectoryPage(BaseModel):
     items: List[DirectoryUser]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 
@@ -723,6 +744,8 @@ class AdministrativeAuditEvent(BaseModel):
 class AdministrativeAuditPage(BaseModel):
     items: List[AdministrativeAuditEvent]
     page: int
+    page_size: int
+    total: int
     has_next: bool
 
 

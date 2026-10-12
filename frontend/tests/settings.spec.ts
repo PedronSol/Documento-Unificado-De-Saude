@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fulfillPaged } from "./e2e-support/paged";
 
 test('edita os dados próprios em configurações no mobile', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
@@ -8,7 +9,7 @@ test('edita os dados próprios em configurações no mobile', async ({ page }) =
     const url = new URL(request.url());
 
     if (url.pathname === '/me' && request.method() === 'GET') {
-      await route.fulfill({
+      await fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -33,7 +34,7 @@ test('edita os dados próprios em configurações no mobile', async ({ page }) =
     }
 
     if (url.pathname === '/me/profile' && request.method() === 'PATCH') {
-      await route.fulfill({
+      await fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -58,7 +59,7 @@ test('edita os dados próprios em configurações no mobile', async ({ page }) =
     }
 
     if (url.pathname === '/me/shares/active' && request.method() === 'GET') {
-      await route.fulfill({
+      await fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(null),
@@ -67,7 +68,7 @@ test('edita os dados próprios em configurações no mobile', async ({ page }) =
     }
 
     if (url.pathname.startsWith('/me/')) {
-      await route.fulfill({
+      await fulfillPaged(route, {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([]),

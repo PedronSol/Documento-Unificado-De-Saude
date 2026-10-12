@@ -1,5 +1,11 @@
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 
+import { InfiniteListFooter } from "@/components/ui/infinite-list-footer";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+
+
+const SIZE_CONTROL_THRESHOLD = 10;
+
 
 export function AdminListState({ resource, loadingLabel, emptyLabel, retryLabel }) {
   if (resource.status === "loading" && resource.items.length === 0) {
@@ -19,22 +25,26 @@ export function AdminListState({ resource, loadingLabel, emptyLabel, retryLabel 
   if (resource.status === "ready" && resource.items.length === 0) {
     return <p className="admin-state">{emptyLabel}</p>;
   }
+  // Admin endpoints without search expose only the page size (spec 038, 17b).
+  if (resource.status === "ready" && resource.total > SIZE_CONTROL_THRESHOLD) {
+    return (
+      <ListToolbar
+        searchLabel={null}
+        query=""
+        onQueryChange={() => {}}
+        pageSize={resource.pageSize}
+        onPageSizeChange={resource.setPageSize}
+        total={resource.total}
+      />
+    );
+  }
   return null;
 }
 
 
-export function LoadMore({ resource, label }) {
-  if (!resource.hasNext) {
+export function LoadMore({ resource, itemLabel = "itens" }) {
+  if (resource.status !== "ready" || resource.items.length === 0) {
     return null;
   }
-  return (
-    <button
-      type="button"
-      className="admin-load-more"
-      disabled={resource.status === "loading"}
-      onClick={resource.loadMore}
-    >
-      {resource.status === "loading" ? "Carregando…" : label}
-    </button>
-  );
+  return <InfiniteListFooter resource={resource} itemLabel={itemLabel} />;
 }

@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import UserPlus from "lucide-react/dist/esm/icons/user-plus";
 
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { ClinicalSelect } from "@/components/ui/clinical-select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { apiFetch } from "@/lib/api";
+import { PaginatedList } from "@/components/ui/paginated-list";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
+import { apiFetch, readApiError } from "@/lib/api";
 
 
 const MINOR_DETAIL = "Paciente menor exige responsável.";
@@ -38,11 +40,13 @@ function conflictMessage(detail) {
   return "Já existe solicitação ou vínculo com esse paciente, ou o CPF não está disponível.";
 }
 
+// Conflicts keep domain copy that never confirms whether a CPF exists.
 async function requestErrorMessage(response) {
-  if (response.status === 422) {
-    return "Revise os dados informados.";
-  }
-  return GENERIC_ERROR;
+  const { message } = await readApiError(response, GENERIC_ERROR, {
+    404: GENERIC_ERROR,
+    422: "Revise os dados informados.",
+  });
+  return message;
 }
 
 
@@ -94,29 +98,11 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
-  const [pending, setPending] = useState({ status: "loading", items: [] });
   const [cancelling, setCancelling] = useState(null);
-
-  const loadPending = useCallback(async () => {
-    try {
-      const response = await apiFetch("/medical/patient-links?status=pending");
-      if (response.status === 401) {
-        onUnauthenticated();
-        return;
-      }
-      if (!response.ok) {
-        throw new Error();
-      }
-      const data = await response.json();
-      setPending({ status: "ready", items: Array.isArray(data) ? data : [] });
-    } catch {
-      setPending({ status: "error", items: [] });
-    }
-  }, [onUnauthenticated]);
-
-  useEffect(() => {
-    loadPending();
-  }, [loadPending]);
+  const pending = usePaginatedList("/medical/patient-links?status=pending", {
+    fallback: "Não foi possível carregar as solicitações.",
+    onUnauthenticated,
+  });
 
   async function submit(event) {
     event.preventDefault();
@@ -176,7 +162,7 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
       setFeedback(guardianWasSent
         ? "Solicitação enviada. O responsável decide depois que a guarda for confirmada pelo paciente."
         : "Solicitação enviada. O acesso começa após o aceite do paciente.");
-      await loadPending();
+      pending.resource.reload();
     } catch {
       setError(GENERIC_ERROR);
     } finally {
@@ -201,7 +187,7 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
       }
       setCancelling(null);
       setFeedback("Solicitação cancelada.");
-      await loadPending();
+      pending.resource.reload();
     } catch {
       setError(GENERIC_ERROR);
     } finally {
@@ -314,37 +300,37 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
 
       <div className="patient-link-pending">
         <h3>Aguardando o paciente</h3>
-        {pending.status === "loading" ? (
-          <p className="medical-inline-empty" role="status">Carregando solicitações…</p>
-        ) : null}
-        {pending.status === "error" ? (
-          <p className="medical-inline-empty">Não foi possível carregar as solicitações.</p>
-        ) : null}
-        {pending.status === "ready" && pending.items.length === 0 ? (
-          <p className="medical-inline-empty">Nenhuma solicitação aguardando o paciente.</p>
-        ) : null}
-        {pending.items.map((link) => (
-          <article className="patient-link-item" key={link.link_id}>
-            <div>
-              <h4>{link.patient_display_name}</h4>
-              <p>
-                <span>{link.masked_cpf}</span>
-                <span>Válida até {formatDate(link.expires_at)}</span>
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={isSaving}
-              aria-label={`Cancelar solicitação para ${link.patient_display_name}`}
-              onClick={() => {
-                setError("");
-                setCancelling(link);
-              }}
-            >
-              Cancelar
-            </button>
-          </article>
-        ))}
+        <PaginatedList
+          list={pending}
+          searchLabel="Buscar solicitações"
+          itemLabel="solicitações"
+          loadingText="Carregando solicitações…"
+          emptyText="Nenhuma solicitação aguardando o paciente."
+          emptyClassName="medical-inline-empty"
+          retryLabel="Recarregar solicitações"
+          renderItems={(items) => items.map((link) => (
+              <article className="patient-link-item" key={link.link_id}>
+                <div>
+                  <h4>{link.patient_display_name}</h4>
+                  <p>
+                    <span>{link.masked_cpf}</span>
+                    <span>Válida até {formatDate(link.expires_at)}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  aria-label={`Cancelar solicitação para ${link.patient_display_name}`}
+                  onClick={() => {
+                    setError("");
+                    setCancelling(link);
+                  }}
+                >
+                  Cancelar
+                </button>
+              </article>
+          ))}
+        />
       </div>
 
       <ConfirmDialog

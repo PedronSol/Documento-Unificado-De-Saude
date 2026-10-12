@@ -29,6 +29,13 @@ class FakeCursor:
         self.database.executed.append((sql, parameters))
         self.rowcount = 0
 
+        if sql.startswith("SELECT COUNT(*) AS total "):
+            # Paginated listings count with the same FROM/WHERE as the page.
+            self.execute("SELECT * " + sql[len("SELECT COUNT(*) AS total "):], parameters)
+            self.database.executed.pop()
+            self.result = {"total": len(self.result)}
+            return
+
         if sql.startswith("SELECT * FROM users WHERE email"):
             user = next(
                 (
@@ -133,7 +140,7 @@ class FakeCursor:
                 for alert in self.database.alerts
                 if alert["patient_id"] == parameters[0]
             ]
-        elif "FROM documents WHERE patient_id" in sql:
+        elif "FROM documents d" in sql and "WHERE d.patient_id" in sql:
             self.result = [
                 {
                     "document_id": document["id_documento"],
@@ -144,6 +151,11 @@ class FakeCursor:
                     "size_bytes": document["size_bytes"],
                     "created_at": document["created_at"],
                     "status": document["status_documento"],
+                    "uploaded_by_user_id": 1,
+                    "uploader_role": "patient",
+                    "uploader_name": None,
+                    "uploader_crm_number": None,
+                    "uploader_crm_state": None,
                 }
                 for document in self.database.documents
                 if document["patient_id"] == parameters[0]
@@ -444,7 +456,7 @@ async def test_patient_resources_are_loaded_from_separate_endpoints(
     alerts = await client.get("/me/alerts")
     documents = await client.get("/me/documents")
 
-    assert vaccines.json() == [
+    assert vaccines.json()["items"] == [
         {
             "vaccine_id": 1,
             "name": "Hepatite B",
@@ -453,7 +465,7 @@ async def test_patient_resources_are_loaded_from_separate_endpoints(
             "status": "applied",
         }
     ]
-    assert alerts.json() == [
+    assert alerts.json()["items"] == [
         {
             "alert_id": 1,
             "type": "allergy",
@@ -462,7 +474,7 @@ async def test_patient_resources_are_loaded_from_separate_endpoints(
             "severity": "high",
         }
     ]
-    assert documents.json() == [
+    assert documents.json()["items"] == [
         {
             "document_id": 1,
             "title": "Hemograma",
@@ -472,6 +484,7 @@ async def test_patient_resources_are_loaded_from_separate_endpoints(
             "size_bytes": 1024,
             "created_at": "2025-03-01T12:00:00",
             "status": "uploaded",
+            "uploaded_by_doctor": None,
         }
     ]
 
@@ -506,7 +519,7 @@ async def test_vaccine_crud_preserves_routes_messages_and_ownership(
     other_patient_response = await client.delete("/me/vaccines/2")
 
     assert list_response.status_code == 200
-    assert [vaccine["vaccine_id"] for vaccine in list_response.json()] == [1]
+    assert [vaccine["vaccine_id"] for vaccine in list_response.json()["items"]] == [1]
     assert create_response.status_code == 201
     assert create_response.json() == {"message": "Vacina registrada com sucesso!"}
     assert update_response.status_code == 200

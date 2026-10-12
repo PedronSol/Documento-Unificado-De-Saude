@@ -1,8 +1,19 @@
 import logging
 import re
-from typing import Any
+from typing import Annotated, Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from typing import Literal
 import mysql.connector
 
@@ -16,14 +27,21 @@ from care.provisional import correct_provisional_profile, reissue_claim
 from auth.dependencies import get_current_doctor
 from auth.dependencies import calculate_age
 from database import cursor_scope, get_connection, transaction
+from documents.operations import (
+    list_active_documents,
+    load_active_document,
+    remove_document,
+    sent_by_doctor,
+    upload_document,
+)
 from documents.router import (
     _download_response,
-    _load_owned_document,
     _public_snapshot,
     _read_integral_file,
     get_document_storage,
 )
 from markers.service import create_marker, remove_active_marker, update_active_marker
+from pagination import Page, PageRequest, fetch_page, like_pattern, page_request
 from models import (
     ClaimLinkIssued,
     DoctorPendingLink,
@@ -32,7 +50,7 @@ from models import (
     MedicalPatientSummary,
     MedicalPatientProfile,
     MedicalRecordResponse,
-    DocumentSummary,
+    MedicalDocumentSummary,
     PatientLinkRequest,
     PatientLinkRequested,
     ProvisionalPatientCreated,
@@ -73,41 +91,85 @@ AUTHORIZED_PATIENT_CLAUSE = """
 """
 
 
-def _document_mutation_forbidden() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Profissionais não podem alterar documentos do paciente.",
-    )
-
-
-@router.post("/patients/{patient_id}/documents", include_in_schema=False)
-def forbid_medical_document_upload(
+@router.post(
+    "/patients/{patient_id}/documents",
+    response_model=MedicalDocumentSummary,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_medical_document(
     patient_id: int,
+    request: Request,
+    title: Annotated[str, Form()],
+    type: Annotated[Literal["exam", "prescription", "report", "other"], Form()],
+    file: Annotated[UploadFile, File()],
     doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+    storage: Any = Depends(get_document_storage),
 ):
-    del patient_id, doctor
-    raise _document_mutation_forbidden()
+    # Authorize before reading the file so no upload is staged for a stranger.
+    get_authorized_medical_patient(
+        patient_id=patient_id,
+        doctor=doctor,
+        connection=connection,
+    )
+    return await upload_document(
+        request,
+        title=title,
+        document_type=type,
+        file=file,
+        patient_id=patient_id,
+        actor_user_id=doctor["user_id"],
+        uploader_role="doctor",
+        connection=connection,
+        storage=storage,
+    )
 
 
 @router.delete(
     "/patients/{patient_id}/documents/{document_id}",
-    include_in_schema=False,
+    status_code=status.HTTP_204_NO_CONTENT,
 )
-def forbid_medical_document_removal(
+def delete_medical_document(
     patient_id: int,
     document_id: int,
     doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+    storage: Any = Depends(get_document_storage),
 ):
-    del patient_id, document_id, doctor
-    raise _document_mutation_forbidden()
+    get_authorized_medical_patient(
+        patient_id=patient_id,
+        doctor=doctor,
+        connection=connection,
+    )
+
+    def only_own_uploads(document: dict) -> None:
+        if not sent_by_doctor(document, doctor["user_id"]):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você só pode remover documentos enviados por você.",
+            )
+
+    return remove_document(
+        connection,
+        storage,
+        patient_id=patient_id,
+        document_id=document_id,
+        actor_user_id=doctor["user_id"],
+        authorize=only_own_uploads,
+    )
 
 
 @router.get(
     "/patients/{patient_id}/documents",
-    response_model=list[DocumentSummary],
+    response_model=Page[MedicalDocumentSummary],
 )
 def list_medical_documents(
     patient_id: int,
+    page: PageRequest = Depends(page_request),
+    document_type: Optional[Literal["exam", "prescription", "report", "other"]] = Query(
+        default=None,
+        alias="type",
+    ),
     doctor: dict = Depends(get_current_doctor),
     connection: Any = Depends(get_connection),
 ):
@@ -119,21 +181,13 @@ def list_medical_documents(
                 connection=connection,
             )
             with cursor_scope(connection, dictionary=True) as cursor:
-                cursor.execute(
-                    """
-                    SELECT id_documento AS document_id,
-                           titulo_documento AS title,
-                           tipo_documento AS type, original_filename,
-                           media_type, size_bytes,
-                           status_documento AS status, created_at
-                    FROM documents
-                    WHERE patient_id = %s
-                      AND status_documento <> 'removed'
-                    ORDER BY created_at DESC, id_documento DESC
-                    """,
-                    (patient_id,),
+                documents = list_active_documents(
+                    cursor,
+                    patient_id=patient_id,
+                    request=page,
+                    document_type=document_type,
+                    viewer_doctor_user_id=doctor["user_id"],
                 )
-                documents = cursor.fetchall()
                 record_clinical_event(
                     cursor,
                     actor_user_id=doctor["user_id"],
@@ -165,7 +219,7 @@ def download_medical_document(
                 connection=connection,
             )
             with cursor_scope(connection, dictionary=True) as cursor:
-                document = _load_owned_document(
+                document = load_active_document(
                     cursor,
                     document_id=document_id,
                     patient_id=patient_id,
@@ -196,32 +250,31 @@ def download_medical_document(
         ) from error
 
 
-@router.get("/patients", response_model=list[MedicalPatientSummary])
+@router.get("/patients", response_model=Page[MedicalPatientSummary])
 def list_medical_patients(
-    query: str | None = Query(default=None, max_length=100),
+    page: PageRequest = Depends(page_request),
     doctor: dict = Depends(get_current_doctor),
     connection: Any = Depends(get_connection),
 ):
-    search_clause, search_parameters = _build_search(query)
+    search_clause, search_parameters = _build_search(page.query)
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            cursor.execute(
-                f"""
-                SELECT p.patient_id, p.nome_paciente AS preferred_name,
-                       p.nome_completo AS full_name, p.avatar AS avatar_url,
-                       p.status_saude AS health_status,
-                       p.tipo_sanguineo AS blood_type,
-                       p.data_nascimento AS birth_date
-                FROM patients p
+            return fetch_page(
+                cursor,
+                columns="""p.patient_id, p.nome_paciente AS preferred_name,
+                           p.nome_completo AS full_name, p.avatar AS avatar_url,
+                           p.status_saude AS health_status,
+                           p.tipo_sanguineo AS blood_type,
+                           p.data_nascimento AS birth_date""",
+                source=f"""FROM patients p
                 JOIN users u ON u.user_id = p.user_id
                 WHERE {AUTHORIZED_PATIENT_CLAUSE}
-                {search_clause}
-                ORDER BY p.nome_completo, p.patient_id
-                LIMIT 50
-                """,
-                (doctor["doctor_id"], doctor["doctor_id"], *search_parameters),
+                {search_clause}""",
+                params=(doctor["doctor_id"], doctor["doctor_id"], *search_parameters),
+                order_by="p.nome_completo, p.patient_id",
+                request=page,
+                mapper=_patient_summary,
             )
-            return [_patient_summary(row) for row in cursor.fetchall()]
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar pacientes médicos", error)
 
@@ -468,15 +521,20 @@ def create_patient_link(
         _raise_database_unavailable("Falha ao solicitar vínculo direto", error)
 
 
-@router.get("/patient-links", response_model=list[DoctorPendingLink])
+@router.get("/patient-links", response_model=Page[DoctorPendingLink])
 def get_patient_links(
+    page: PageRequest = Depends(page_request),
     link_status: Literal["pending"] = Query(default="pending", alias="status"),
     doctor: dict = Depends(get_current_doctor),
     connection: Any = Depends(get_connection),
 ):
     try:
         with cursor_scope(connection, dictionary=True) as cursor:
-            return list_doctor_pending_links(cursor, doctor_id=doctor["doctor_id"])
+            return list_doctor_pending_links(
+                cursor,
+                doctor_id=doctor["doctor_id"],
+                request=page,
+            )
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao listar vínculos diretos", error)
 
@@ -568,7 +626,7 @@ def _build_search(query: str | None) -> tuple[str, tuple[str, ...]]:
 
     if len(normalized) < 2:
         _raise_invalid_search()
-    pattern = f"%{normalized}%"
+    pattern = like_pattern(normalized)
     return (
         "AND (p.nome_completo LIKE %s OR p.nome_paciente LIKE %s)",
         (pattern, pattern),

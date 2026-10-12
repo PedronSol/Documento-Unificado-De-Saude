@@ -1,0 +1,45 @@
+/* Estados de carregamento e erro do shell. */
+.home-state {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  color: #62766e;
+  font-size: 0.84rem;
+}
+
+.home-state p {
+  margin: 0;
+}
+
+.home-state .document-pulse {
+  border-color: #b7c9bc;
+  border-top-color: var(--green);
+}
+
+.home-state button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #b7c9bc;
+  border-radius: 0.35rem;
+  background: #fff;
+  padding: 0.55rem 0.8rem;
+  color: var(--green-dark);
+  font-size: 0.75rem;
+}
+
+.home-loading {
+  min-height: 12rem;
+  padding: 5rem 1rem;
+  color: #62766e;
+  text-align: center;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}

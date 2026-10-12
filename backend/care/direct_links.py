@@ -6,6 +6,7 @@ from auth.dependencies import calculate_age
 from audit.service import record_clinical_event
 from care.provisional import create_guardianship, create_provisional_patient
 from models import GuardianData, ProvisionalPatientData
+from pagination import PageRequest, fetch_page, search_clause
 
 
 LINK_REQUEST_DURATION_DAYS = 7
@@ -156,23 +157,22 @@ def _has_active_guardian(cursor: Any, patient_id: int) -> bool:
     return cursor.fetchone() is not None
 
 
-def list_doctor_pending_links(cursor: Any, *, doctor_id: int) -> list[dict]:
-    cursor.execute(
-        f"""
-        SELECT dpl.link_id, u.display_name AS patient_display_name,
-               {MASKED_CPF} AS masked_cpf, dpl.expires_at
-        FROM doctor_patient_links dpl
+def list_doctor_pending_links(cursor: Any, *, doctor_id: int, request: PageRequest) -> dict:
+    search, search_params = search_clause(request.query, ["u.display_name"])
+    return fetch_page(
+        cursor,
+        columns=f"""dpl.link_id, u.display_name AS patient_display_name,
+                    {MASKED_CPF} AS masked_cpf, dpl.expires_at""",
+        source=f"""FROM doctor_patient_links dpl
         JOIN patients p ON p.patient_id = dpl.patient_id
         JOIN users u ON u.user_id = p.user_id
         WHERE dpl.doctor_id = %s
           AND dpl.status = 'pending'
-          AND dpl.expires_at > UTC_TIMESTAMP(6)
-        ORDER BY dpl.created_at DESC, dpl.link_id DESC
-        LIMIT 50
-        """,
-        (doctor_id,),
+          AND dpl.expires_at > UTC_TIMESTAMP(6){search}""",
+        params=(doctor_id, *search_params),
+        order_by="dpl.created_at DESC, dpl.link_id DESC",
+        request=request,
     )
-    return cursor.fetchall()
 
 
 def end_doctor_link(cursor: Any, *, doctor: dict, link_id: int) -> None:
@@ -209,39 +209,39 @@ def end_doctor_link(cursor: Any, *, doctor: dict, link_id: int) -> None:
     )
 
 
-def list_patient_care_requests(cursor: Any, *, patient_id: int) -> list[dict]:
-    cursor.execute(
-        """
-        SELECT dpl.link_id, u.display_name AS doctor_display_name,
-               d.crm_number, d.crm_state, dpl.expires_at
-        FROM doctor_patient_links dpl
+def list_patient_care_requests(cursor: Any, *, patient_id: int, request: PageRequest) -> dict:
+    search, search_params = search_clause(request.query, ["u.display_name"])
+    return fetch_page(
+        cursor,
+        columns="""dpl.link_id, u.display_name AS doctor_display_name,
+                   d.crm_number, d.crm_state, dpl.expires_at""",
+        source=f"""FROM doctor_patient_links dpl
         JOIN doctors d ON d.doctor_id = dpl.doctor_id
         JOIN users u ON u.user_id = d.user_id
         WHERE dpl.patient_id = %s
           AND dpl.status = 'pending'
-          AND dpl.expires_at > UTC_TIMESTAMP(6)
-        ORDER BY dpl.created_at, dpl.link_id
-        """,
-        (patient_id,),
+          AND dpl.expires_at > UTC_TIMESTAMP(6){search}""",
+        params=(patient_id, *search_params),
+        order_by="dpl.created_at, dpl.link_id",
+        request=request,
     )
-    return cursor.fetchall()
 
 
-def list_patient_care_doctors(cursor: Any, *, patient_id: int) -> list[dict]:
-    cursor.execute(
-        """
-        SELECT dpl.link_id, u.display_name AS doctor_display_name,
-               d.crm_number, d.crm_state,
-               COALESCE(dpl.decided_at, dpl.created_at) AS since
-        FROM doctor_patient_links dpl
+def list_patient_care_doctors(cursor: Any, *, patient_id: int, request: PageRequest) -> dict:
+    search, search_params = search_clause(request.query, ["u.display_name"])
+    return fetch_page(
+        cursor,
+        columns="""dpl.link_id, u.display_name AS doctor_display_name,
+                   d.crm_number, d.crm_state,
+                   COALESCE(dpl.decided_at, dpl.created_at) AS since""",
+        source=f"""FROM doctor_patient_links dpl
         JOIN doctors d ON d.doctor_id = dpl.doctor_id
         JOIN users u ON u.user_id = d.user_id
-        WHERE dpl.patient_id = %s AND dpl.status = 'active'
-        ORDER BY u.display_name, dpl.link_id
-        """,
-        (patient_id,),
+        WHERE dpl.patient_id = %s AND dpl.status = 'active'{search}""",
+        params=(patient_id, *search_params),
+        order_by="u.display_name, dpl.link_id",
+        request=request,
     )
-    return cursor.fetchall()
 
 
 def decide_care_request(

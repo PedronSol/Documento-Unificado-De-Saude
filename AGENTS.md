@@ -38,8 +38,9 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
 - A fonte de verdade visual é `docs/design-system.md`; os tokens executáveis
   ficam em `frontend/styles/design-tokens.css` e usam o prefixo `--ds-*`.
 - O estilo é institucional clínico: claro, calmo e preciso. Use canvas
-  cinza-azulado, superfícies brancas, azul para ação/foco e verde apenas para
-  sucesso ou estado clínico positivo. Fluxos clínicos usam Instrument Sans;
+  cinza-azulado, superfícies brancas, azul para ação/foco, verde apenas para
+  sucesso ou estado clínico positivo e laranja (`--ds-color-minor*`) apenas para
+  identificar o contexto de dependente menor de idade, sempre com texto. Fluxos clínicos usam Instrument Sans;
   não crie uma linguagem editorial própria por área.
 - Implemente mobile-first a partir de 320 px. O CSS-base atende telas pequenas
   e expansões usam preferencialmente `min-width`; nenhuma tela pode depender de
@@ -49,6 +50,12 @@ Use npm como gerenciador de pacotes do frontend e mantenha somente `package-lock
   ClinicalSelect, cabeçalho de seção, busca, item de lista, estado vazio ou
   diálogo. Campos de seleção usam `ClinicalSelect`, não `<select>` nativo, salvo
   justificativa explícita de acessibilidade na spec.
+- Componentes de domínio ficam por feature (`components/<feature>/`), páginas em
+  `app/` apenas compõem, e estilos entram no arquivo da feature em
+  `frontend/styles/`; `app/globals.css` é só o índice ordenado de `@import`.
+- Estado compartilhado entre rotas fica em `frontend/stores/` (Zustand, somente
+  memória, sem `persist`). Dados clínicos de API não entram em store global; use
+  `useApiResource` e `readApiError` para leitura e mensagens de erro.
 - Cores, tipografia, espaços, raios, sombras, movimento, larguras e camadas do
   código tocado devem consumir tokens semânticos. Não adicione hex, shadow,
   radius ou breakpoint isolado sem necessidade concreta e atualização conjunta

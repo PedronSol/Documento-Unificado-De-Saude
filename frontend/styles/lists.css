@@ -1,0 +1,187 @@
+/* Listas paginadas (busca, filtros, tamanho e rolagem infinita) e abas do resumo público — spec 038. */
+.paginated-list {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-3);
+}
+
+.list-toolbar {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-3);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-color-surface-muted);
+  padding: var(--ds-space-3);
+}
+
+.list-toolbar-search,
+.list-toolbar-field {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-1);
+}
+
+.list-toolbar label {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.list-toolbar-search > div {
+  display: flex;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  gap: var(--ds-space-2);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface);
+  padding-inline: var(--ds-space-3);
+  color: var(--ds-color-text-subtle);
+}
+
+.list-toolbar-search > div:focus-within {
+  border-color: var(--ds-color-focus);
+  box-shadow: var(--ds-shadow-focus);
+}
+
+.list-toolbar-search input {
+  min-width: 0;
+  min-height: var(--ds-control-min-height);
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+}
+
+.list-toolbar-search button {
+  display: grid;
+  width: var(--ds-control-min-height);
+  height: var(--ds-control-min-height);
+  flex: 0 0 auto;
+  place-items: center;
+  margin-right: calc(var(--ds-space-3) * -1);
+  border: 0;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-color-text-muted);
+}
+
+.list-toolbar-total {
+  margin: 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.infinite-list-footer {
+  display: grid;
+  justify-items: center;
+  gap: var(--ds-space-2);
+}
+
+.infinite-list-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.infinite-list-progress {
+  margin: 0;
+  color: var(--ds-color-text-subtle);
+  font-size: var(--ds-font-size-xs);
+}
+
+.infinite-list-more,
+.list-empty-filtered button {
+  min-height: var(--ds-control-min-height);
+  border: 1px solid var(--ds-color-primary-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-primary-soft);
+  padding-inline: var(--ds-space-5);
+  color: var(--ds-color-primary);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  transition: background var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.infinite-list-more:hover,
+.list-empty-filtered button:hover {
+  background: var(--ds-color-primary-border);
+}
+
+.infinite-list-more:disabled {
+  cursor: progress;
+}
+
+.infinite-list-error {
+  width: 100%;
+}
+
+.list-empty-filtered {
+  display: grid;
+  justify-items: start;
+  gap: var(--ds-space-2);
+}
+
+.list-empty-filtered p {
+  margin: 0;
+  color: var(--ds-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.public-share-tabs {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-3);
+}
+
+/* Tabs wrap at every width so no category is hidden behind a scroll. */
+.public-share-tablist {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: var(--ds-space-1);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-color-surface-muted);
+  padding: var(--ds-space-1);
+}
+
+.public-share-tab {
+  min-height: var(--ds-control-min-height);
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  padding-inline: var(--ds-space-3);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  white-space: nowrap;
+}
+
+.public-share-tab[data-state="active"] {
+  background: var(--ds-color-surface);
+  color: var(--ds-color-primary);
+  box-shadow: var(--ds-shadow-card);
+}
+
+@media (min-width: 48rem) {
+  .list-toolbar {
+    grid-template-columns: minmax(0, 2fr) repeat(auto-fit, minmax(10rem, 1fr));
+    align-items: end;
+  }
+
+  .public-share-tab {
+    flex: 0 0 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .infinite-list-more,
+  .list-empty-filtered button {
+    transition: none;
+  }
+}

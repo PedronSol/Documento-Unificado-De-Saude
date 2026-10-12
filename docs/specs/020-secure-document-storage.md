@@ -154,7 +154,9 @@ médico ou o vínculo, não recebe metadados nem conteúdo do documento.
     paciente e grava `medical_documents.viewed` antes de responder. Falha de
     auditoria retorna `503` sem metadados.
 25. Médico não envia nem remove documentos nesta entrega. Esses métodos
-    retornam `403` mesmo quando o vínculo é ativo.
+    retornam `403` mesmo quando o vínculo é ativo. **Substituída pela spec
+    `022-medical-document-upload.md`**: o médico autorizado envia documentos e
+    remove somente os que enviou.
 26. Admin recebe `403` em todas as rotas `/me/documents` e `/medical/...`, mesmo
     se uma inconsistência externa tiver acumulado outra role na conta, e não
     existe rota `/admin` de documentos. Diretório administrativo e auditoria

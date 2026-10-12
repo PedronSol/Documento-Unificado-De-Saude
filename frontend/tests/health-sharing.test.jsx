@@ -6,7 +6,8 @@ import { HealthSharing } from "@/components/patient/health-sharing";
 import { apiFetch } from "@/lib/api";
 
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal()),
   apiFetch: vi.fn(),
 }));
 
@@ -117,6 +118,38 @@ describe("HealthSharing", () => {
       await screen.findByRole("alert"),
     ).toHaveTextContent("Não foi possível gerar o acesso temporário.");
     expect(screen.queryByLabelText("QR-Code do compartilhamento")).not.toBeInTheDocument();
+  });
+
+  it("não exibe mensagem técnica quando a consulta recebe corpo inválido", async () => {
+    apiFetch.mockReturnValueOnce(Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError("Unexpected end of JSON input")),
+    }));
+
+    render(<HealthSharing isAdult onUnauthenticated={vi.fn()} />);
+
+    expect(await screen.findByText("Não foi possível consultar o acesso temporário."))
+      .toBeInTheDocument();
+    expect(screen.queryByText(/Unexpected end of JSON/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [() => respondWith({ detail: "Role sem acesso." }, 403),
+      "Você não tem permissão para esta ação."],
+    [() => Promise.reject(new TypeError("Failed to fetch")),
+      "Não foi possível gerar o acesso temporário."],
+  ])("padroniza falhas ao gerar acesso (%#)", async (failure, message) => {
+    apiFetch.mockReturnValueOnce(respondWith(null)).mockImplementationOnce(failure);
+    const user = userEvent.setup();
+
+    render(<HealthSharing isAdult onUnauthenticated={vi.fn()} />);
+    await user.click(
+      await screen.findByRole("button", { name: "Gerar acesso temporário" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
   });
 
   it("não oferece compartilhamento para paciente menor", () => {

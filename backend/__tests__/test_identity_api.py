@@ -13,6 +13,7 @@ from main import create_app
 from models import VaccineCreateUpdate
 from patients.router import get_me
 from security import hash_password, hash_session_token
+from pagination import PageRequest
 from vaccines.router import get_vaccines
 
 
@@ -31,6 +32,13 @@ class FakeCursor:
         parameters = parameters or ()
         self.database.executed.append((sql, parameters))
         self.rowcount = 0
+
+        if sql.startswith("SELECT COUNT(*) AS total "):
+            # Paginated listings count with the same FROM/WHERE as the page.
+            self.execute("SELECT * " + sql[len("SELECT COUNT(*) AS total "):], parameters)
+            self.database.executed.pop()
+            self.result = {"total": len(self.result)}
+            return
 
         if sql.startswith("SELECT * FROM users WHERE email"):
             self.result = deepcopy(
@@ -537,11 +545,14 @@ def test_me_retorna_somente_identidade_e_perfil_normalizado(identity_database):
 
 def test_listagem_de_vacinas_usa_contrato_em_ingles(identity_database):
     result = get_vaccines(
+        page=PageRequest(page=1, page_size=20, query=None),
+        vaccine_status=None,
         patient=identity_database.patients[10],
         connection=identity_database.connect(),
     )
 
-    assert result == [
+    assert result["total"] == 1
+    assert result["items"] == [
         {
             "vaccine_id": 1,
             "name": "BCG",

@@ -19,6 +19,7 @@ from database_config import DatabaseSettings, create_database_engine
 from migration_service import upgrade_database
 from markers.router import add_marker, delete_marker
 from main import create_app
+from pagination import PageRequest
 from medical.router import (
     add_medical_marker,
     get_medical_record,
@@ -138,7 +139,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 "SELECT COUNT(*) FROM patients"
             ).scalar_one()
 
-        assert revision == "0014"
+        assert revision == "0015"
         assert patient_count > 0
         assert user_counts["total"] == 7
         assert user_counts["unique_cpfs"] == 7
@@ -386,7 +387,7 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 """
             ).scalars().all()
 
-        assert revision == "0014"
+        assert revision == "0015"
         assert user["display_name"] == "Ana da Silva"
         assert user["email"] == "ana@example.com"
         assert user["password_hash"] == "hash-legado"
@@ -743,7 +744,7 @@ def test_medical_groups_enforce_access_and_resolve_doctor_crm_in_mysql():
         app_connection = create_connection(settings)
         try:
             listed = list_medical_patients(
-                query=None,
+                page=PageRequest(page=1, page_size=20, query=None),
                 doctor=dict(doctor),
                 connection=app_connection,
             )
@@ -783,7 +784,7 @@ def test_medical_groups_enforce_access_and_resolve_doctor_crm_in_mysql():
                 (created["marker_id"],),
             ).mappings().one()
 
-        assert [patient["full_name"] for patient in listed] == [
+        assert [patient["full_name"] for patient in listed["items"]] == [
             "Carlos Eduardo Silva"
         ]
         assert record["markers"]["active"][0]["name"] == (
@@ -1002,6 +1003,190 @@ def downgrade():
 
         assert revision == "0001"
         assert later_table_count == 0
+    finally:
+        database_engine.dispose()
+        with admin_engine.begin() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
+        admin_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="Requer MySQL real com RUN_DB_INTEGRATION=1",
+)
+def test_migration_0015_preenche_autor_dos_documentos_pelo_evento_de_upload():
+    database_name = f"dus_uploader_test_{uuid4().hex[:12]}"
+    settings = DatabaseSettings(
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3307")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "root"),
+        database=database_name,
+    )
+    admin_engine = create_database_engine(settings, include_database=False)
+    with admin_engine.begin() as connection:
+        connection.exec_driver_sql(
+            f"CREATE DATABASE `{database_name}` "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+    database_engine = create_database_engine(settings)
+    try:
+        upgrade_to(database_engine, "0014")
+        seed_database(
+            database_engine,
+            PROJECT_ROOT / "db" / "seeds" / "development.sql",
+            app_env="development",
+        )
+        with database_engine.begin() as connection:
+            patient = connection.exec_driver_sql(
+                "SELECT patient_id, user_id FROM patients ORDER BY patient_id LIMIT 1"
+            ).mappings().one()
+            connection.exec_driver_sql(
+                """
+                INSERT INTO documents (
+                    patient_id, titulo_documento, tipo_documento, original_filename,
+                    storage_key, media_type, size_bytes, sha256,
+                    status_documento, created_at
+                ) VALUES (%s, 'Hemograma', 'exam', 'hemograma.pdf', %s,
+                          'application/pdf', 10, %s, 'uploaded', UTC_TIMESTAMP(6))
+                """,
+                (patient["patient_id"], f"{uuid4().hex}.pdf", "a" * 64),
+            )
+            document_id = connection.exec_driver_sql(
+                "SELECT LAST_INSERT_ID()"
+            ).scalar_one()
+            connection.exec_driver_sql(
+                """
+                INSERT INTO clinical_audit_events (
+                    actor_user_id, patient_id, action, resource_type,
+                    resource_id, occurred_at
+                ) VALUES (%s, %s, 'document.uploaded', 'document', %s,
+                          UTC_TIMESTAMP(6))
+                """,
+                (patient["user_id"], patient["patient_id"], document_id),
+            )
+
+        upgrade_to(database_engine, "0015")
+
+        with database_engine.connect() as connection:
+            uploader = connection.exec_driver_sql(
+                """
+                SELECT uploaded_by_user_id, uploader_role
+                FROM documents WHERE id_documento = %s
+                """,
+                (document_id,),
+            ).mappings().one()
+        assert uploader["uploaded_by_user_id"] == patient["user_id"]
+        assert uploader["uploader_role"] == "patient"
+
+        with pytest.raises(SQLAlchemyError):
+            with database_engine.begin() as connection:
+                connection.exec_driver_sql(
+                    """
+                    INSERT INTO documents (
+                        patient_id, titulo_documento, tipo_documento,
+                        original_filename, storage_key, media_type, size_bytes,
+                        sha256, status_documento, created_at
+                    ) VALUES (%s, 'Sem autor', 'exam', 'x.pdf', %s,
+                              'application/pdf', 10, %s, 'uploaded',
+                              UTC_TIMESTAMP(6))
+                    """,
+                    (patient["patient_id"], f"{uuid4().hex}.pdf", "b" * 64),
+                )
+    finally:
+        database_engine.dispose()
+        with admin_engine.begin() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
+        admin_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="Requer MySQL real com RUN_DB_INTEGRATION=1",
+)
+def test_paginacao_percorre_vacinas_sem_repetir_e_busca_curingas_literais():
+    from vaccines.router import get_vaccines
+
+    database_name = f"dus_pagination_test_{uuid4().hex[:12]}"
+    settings = DatabaseSettings(
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3307")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "root"),
+        database=database_name,
+    )
+    admin_engine = create_database_engine(settings, include_database=False)
+    with admin_engine.begin() as connection:
+        connection.exec_driver_sql(
+            f"CREATE DATABASE `{database_name}` "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+    database_engine = create_database_engine(settings)
+    try:
+        upgrade_database(database_engine, PROJECT_ROOT / "db" / "alembic.ini")
+        seed_database(
+            database_engine,
+            PROJECT_ROOT / "db" / "seeds" / "development.sql",
+            app_env="development",
+        )
+        with database_engine.begin() as connection:
+            patient_id = connection.exec_driver_sql(
+                "SELECT patient_id FROM patients ORDER BY patient_id LIMIT 1"
+            ).scalar_one()
+            connection.exec_driver_sql(
+                "DELETE FROM vaccines WHERE patient_id = %s", (patient_id,)
+            )
+            for index in range(43):
+                connection.exec_driver_sql(
+                    """
+                    INSERT INTO vaccines (patient_id, nome_vacina, dose, status_vacina)
+                    VALUES (%s, %s, 'Dose única', 'pending')
+                    """,
+                    (patient_id, f"Vacina {index:02d}"),
+                )
+            for name in ("Cobertura 50% reforço", "Cobertura 50 reforço"):
+                connection.exec_driver_sql(
+                    """
+                    INSERT INTO vaccines (patient_id, nome_vacina, dose, status_vacina)
+                    VALUES (%s, %s, 'Dose única', 'applied')
+                    """,
+                    (patient_id, name),
+                )
+
+        app_connection = create_connection(settings)
+        try:
+            pages = [
+                get_vaccines(
+                    page=PageRequest(page=number, page_size=20, query=None),
+                    vaccine_status=None,
+                    patient={"patient_id": patient_id},
+                    connection=app_connection,
+                )
+                for number in (1, 2, 3)
+            ]
+            literal = get_vaccines(
+                page=PageRequest(page=1, page_size=10, query="50%"),
+                vaccine_status=None,
+                patient={"patient_id": patient_id},
+                connection=app_connection,
+            )
+            filtered = get_vaccines(
+                page=PageRequest(page=1, page_size=50, query="cobertura"),
+                vaccine_status="applied",
+                patient={"patient_id": patient_id},
+                connection=app_connection,
+            )
+        finally:
+            app_connection.close()
+
+        ids = [item["vaccine_id"] for page in pages for item in page["items"]]
+        assert [len(page["items"]) for page in pages] == [20, 20, 5]
+        assert len(ids) == len(set(ids)) == 45
+        assert [page["has_next"] for page in pages] == [True, True, False]
+        assert {page["total"] for page in pages} == {45}
+        assert [item["name"] for item in literal["items"]] == ["Cobertura 50% reforço"]
+        assert literal["total"] == 1
+        assert filtered["total"] == 2
     finally:
         database_engine.dispose()
         with admin_engine.begin() as connection:

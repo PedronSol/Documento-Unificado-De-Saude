@@ -12,6 +12,7 @@ from markers.router import (
     get_markers,
     update_marker,
 )
+from pagination import PageRequest
 from models import MarkerCreateUpdate, normalize_marker_name
 
 
@@ -57,7 +58,9 @@ class MarkerCursor:
             "INSERT INTO clinical_audit_events"
         ):
             raise mysql.connector.Error("audit unavailable")
-        if sql.startswith("SELECT marker_id") and "marker_id = %s" in sql:
+        if sql.startswith("SELECT COUNT(*) AS total"):
+            self._result = {"total": len(self.connection.fetchall_result)}
+        elif sql.startswith("SELECT marker_id") and "marker_id = %s" in sql:
             self._result = (
                 self.connection.fetchone_results.pop(0)
                 if self.connection.fetchone_results
@@ -130,14 +133,18 @@ def test_lists_only_requested_status_for_current_patient():
     connection = MarkerConnection(fetchall_result=[marker_row()])
 
     result = get_markers(
+        page=PageRequest(page=1, page_size=20, query=None),
         marker_status="active",
+        marker_type=None,
         patient={"patient_id": 10, "user_id": 1},
         connection=connection,
     )
 
-    assert result == [marker_row()]
+    assert result["items"] == [marker_row()]
+    assert result["total"] == 1
     assert connection.executed[0][1] == (10, "active")
-    assert "ORDER BY marker_type, name" in connection.executed[0][0]
+    assert connection.executed[1][1] == (10, "active", 20, 0)
+    assert "ORDER BY marker_type, name, marker_id" in connection.executed[1][0]
 
 
 def test_creates_marker_and_audit_in_one_transaction():

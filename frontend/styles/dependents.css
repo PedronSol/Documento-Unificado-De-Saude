@@ -1,0 +1,215 @@
+/* Dependentes e tom de menor. */
+/* Dependentes — lista, faixa de contexto e tom de menor, mobile-first */
+.dependents-section {
+  display: grid;
+  gap: var(--ds-space-5);
+}
+
+.dependents-heading {
+  display: grid;
+  gap: var(--ds-space-1);
+}
+
+.dependents-heading h1,
+.dependents-heading p {
+  margin: 0;
+}
+
+.dependents-heading h1 {
+  color: var(--ds-color-text);
+  font-family: var(--ds-font-interface);
+  font-size: var(--ds-font-size-xl);
+  line-height: var(--ds-line-tight);
+}
+
+.dependents-heading p {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-body);
+}
+
+.dependents-heading .dependents-kicker {
+  color: var(--ds-color-text-subtle);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+}
+
+.dependents-list {
+  display: grid;
+  max-width: var(--ds-layout-content);
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dependent-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ds-space-3) var(--ds-space-4);
+  align-items: start;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-color-surface);
+  padding: var(--ds-space-4);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.dependent-card[data-patient-tone="minor"] {
+  border-color: var(--ds-color-minor-border);
+  box-shadow: inset 0 var(--ds-space-1) 0 var(--ds-color-minor), var(--ds-shadow-card);
+}
+
+.dependent-avatar {
+  width: var(--ds-control-min-height);
+  height: var(--ds-control-min-height);
+}
+
+.dependent-card[data-patient-tone="minor"] .dependent-avatar {
+  border-color: var(--ds-color-minor-border);
+  background: var(--ds-color-minor-soft);
+  color: var(--ds-color-minor);
+}
+
+.dependent-card-copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-1);
+  justify-items: start;
+}
+
+.dependent-card-copy h2,
+.dependent-card-copy p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dependent-card-copy h2 {
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-lg);
+  line-height: var(--ds-line-tight);
+}
+
+.dependent-card-name {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+}
+
+.dependent-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-1) var(--ds-space-3);
+  color: var(--ds-color-text-subtle);
+  font-size: var(--ds-font-size-xs);
+}
+
+.dependent-card-link,
+.dependent-context-back {
+  display: inline-flex;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border-radius: var(--ds-radius-control);
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: none;
+}
+
+.dependent-card-link {
+  grid-column: 1 / -1;
+  background: var(--ds-color-primary);
+  padding: 0 var(--ds-space-4);
+  color: var(--ds-color-on-primary);
+  font-size: var(--ds-font-size-sm);
+  transition: background var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.dependent-card-link:hover {
+  background: var(--ds-color-primary-hover);
+}
+
+.care-card-link {
+  display: inline-flex;
+  min-height: var(--ds-control-min-height);
+  align-items: center;
+  color: var(--ds-color-primary);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.minor-badge {
+  border: 1px solid var(--ds-color-minor-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-minor-soft);
+  padding: var(--ds-space-1) var(--ds-space-2);
+  color: var(--ds-color-minor);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-bold);
+  line-height: var(--ds-line-tight);
+}
+
+.dependent-context-banner {
+  display: flex;
+  width: min(calc(100% - (2 * var(--ds-layout-gutter))), var(--ds-layout-content));
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2) var(--ds-space-4);
+  margin: var(--ds-space-4) auto 0;
+  border: 1px solid var(--ds-color-primary-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-color-primary-soft);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  color: var(--ds-color-text);
+}
+
+.dependent-context-copy {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.dependent-context-copy p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--ds-font-size-sm);
+}
+
+.dependent-context-age {
+  color: var(--ds-color-text-muted);
+}
+
+.dependent-context-back {
+  padding: 0 var(--ds-space-2);
+  color: var(--ds-color-primary);
+  font-size: var(--ds-font-size-sm);
+}
+
+[data-patient-tone="minor"] .dependent-context-banner {
+  border-color: var(--ds-color-minor-border);
+  background: var(--ds-color-minor-soft);
+}
+
+[data-patient-tone="minor"] .dependent-context-banner strong {
+  color: var(--ds-color-minor);
+}
+
+[data-patient-tone="minor"] .patient-identity {
+  border-color: var(--ds-color-minor-border);
+  box-shadow: inset 0 var(--ds-space-1) 0 var(--ds-color-minor), var(--ds-shadow-card);
+}
+
+.dependent-area .patient-main {
+  padding-top: var(--ds-space-4);
+}
+
+@media (min-width: 48rem) {
+  .dependents-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Fim dependentes */

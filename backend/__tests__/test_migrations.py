@@ -1209,3 +1209,66 @@ def test_migration_0014_adiciona_teto_de_sessao_e_login_lembrado():
     ) in operations.indexes
     with pytest.raises(NotImplementedError, match="forward-only"):
         migration.downgrade()
+
+
+def test_migration_0015_registra_quem_enviou_cada_documento():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0015_document_uploader.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("document_uploader", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.statements = []
+            self.foreign_keys = []
+            self.checks = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def execute(self, statement):
+            self.statements.append(str(statement))
+
+        def create_foreign_key(self, name, source, referent, local, remote, **options):
+            self.foreign_keys.append((name, source, referent, local, remote, options))
+
+        def create_check_constraint(self, name, table, condition):
+            self.checks.append((name, table, str(condition)))
+
+    operations = OperationsDouble()
+    migration.op = operations
+    migration.upgrade()
+
+    assert migration.revision == "0015"
+    assert migration.down_revision == "0014"
+    added = {column.name: column for table, column in operations.added_columns if table == "documents"}
+    assert set(added) == {"uploaded_by_user_id", "uploader_role"}
+    assert added["uploaded_by_user_id"].nullable
+    assert not added["uploader_role"].nullable
+    assert list(added["uploader_role"].type.enums) == ["patient", "doctor"]
+    assert "patient" in str(added["uploader_role"].server_default.arg)
+    assert any(
+        "document.uploaded" in sql and "actor_user_id" in sql
+        for sql in operations.statements
+    )
+    assert operations.foreign_keys == [(
+        "fk_documents_uploaded_by",
+        "documents",
+        "users",
+        ["uploaded_by_user_id"],
+        ["user_id"],
+        {"ondelete": "RESTRICT"},
+    )]
+    assert any(
+        name == "ck_documents_active_uploader"
+        and "status_documento = 'removed'" in condition
+        and "uploaded_by_user_id IS NOT NULL" in condition
+        for name, table, condition in operations.checks
+    )
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()

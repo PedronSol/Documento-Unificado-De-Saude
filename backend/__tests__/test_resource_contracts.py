@@ -4,6 +4,7 @@ from fastapi import HTTPException
 import pytest
 
 from alerts.router import get_alerts
+from pagination import PageRequest
 from documents.router import get_documents
 from models import (
     AlertResponse,
@@ -21,12 +22,16 @@ class ResourceCursor:
         self.result = result
         self.rowcount = 0
         self.fetchone_result = None
+        self.last_sql = ""
 
     def execute(self, statement, parameters=None):
         sql = " ".join(statement.split())
         parameters = parameters or ()
         self.connection.executed.append((sql, parameters))
-        if sql.startswith("SELECT id_vacina AS vaccine_id"):
+        self.last_sql = sql
+        if sql.startswith("SELECT COUNT(*) AS total"):
+            self.fetchone_result = {"total": len(self.result)}
+        elif sql.startswith("SELECT id_vacina AS vaccine_id"):
             vaccine_id, patient_id = parameters
             if (vaccine_id, patient_id) in self.connection.owned:
                 self.fetchone_result = {
@@ -110,11 +115,16 @@ def test_alerts_use_session_patient_and_normalized_contract():
         ]
     )
 
-    result = get_alerts(patient={"patient_id": 10}, connection=connection)
+    result = get_alerts(
+        page=PageRequest(page=1, page_size=20, query=None),
+        severity=None,
+        patient={"patient_id": 10},
+        connection=connection,
+    )
 
-    assert [AlertResponse.model_validate(item) for item in result]
+    assert [AlertResponse.model_validate(item) for item in result["items"]]
     assert connection.executed[0][1] == (10,)
-    assert "AS alert_id" in connection.executed[0][0]
+    assert "AS alert_id" in connection.executed[1][0]
 
 
 def test_documents_use_session_patient_and_normalized_contract():
@@ -129,16 +139,26 @@ def test_documents_use_session_patient_and_normalized_contract():
                 "size_bytes": 1024,
                 "created_at": datetime(2026, 3, 1, 12, 0),
                 "status": "uploaded",
+                "uploaded_by_user_id": 1,
+                "uploader_role": "patient",
+                "uploader_name": None,
+                "uploader_crm_number": None,
+                "uploader_crm_state": None,
             }
         ]
     )
 
-    result = get_documents(patient={"patient_id": 10}, connection=connection)
+    result = get_documents(
+        page=PageRequest(page=1, page_size=20, query=None),
+        document_type=None,
+        patient={"patient_id": 10},
+        connection=connection,
+    )
 
-    assert [DocumentSummary.model_validate(item) for item in result]
+    assert [DocumentSummary.model_validate(item) for item in result["items"]]
     assert connection.executed[0][1] == (10,)
-    assert "AS document_id" in connection.executed[0][0]
-    assert "status_documento <> 'removed'" in connection.executed[0][0]
+    assert "AS document_id" in connection.executed[1][0]
+    assert "status_documento <> 'removed'" in connection.executed[1][0]
 
 
 @pytest.mark.parametrize("vaccine_id", [22, 999])

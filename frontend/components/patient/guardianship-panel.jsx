@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 
 import { ClaimLinkCard } from "@/components/medical/claim-link-card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { apiFetch } from "@/lib/api";
+import { PaginatedList } from "@/components/ui/paginated-list";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
+import { apiFetch, readApiError } from "@/lib/api";
+import { DEPENDENTS_PATH, dependentPath } from "@/lib/areas";
 
 
 const RELATIONSHIP_LABEL = {
@@ -13,33 +17,22 @@ const RELATIONSHIP_LABEL = {
   legal_guardian: "Responsável legal",
 };
 const GENERIC_ERROR = "Não foi possível concluir a ação. Tente novamente.";
+const TRANSFER_ERROR = "Não foi possível gerar o acesso. Tente novamente.";
 
 
 export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) {
-  const [pending, setPending] = useState([]);
   const [birthDates, setBirthDates] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [renouncing, setRenouncing] = useState(null);
   const [transfers, setTransfers] = useState({});
 
-  const loadPending = useCallback(async () => {
-    try {
-      const response = await apiFetch("/me/guardianships?status=pending");
-      if (response.status === 401) {
-        onUnauthenticated();
-        return;
-      }
-      const body = response.ok ? await response.json() : [];
-      setPending(Array.isArray(body) ? body : []);
-    } catch {
-      setPending([]);
-    }
-  }, [onUnauthenticated]);
-
-  useEffect(() => {
-    loadPending();
-  }, [loadPending]);
+  const pendingList = usePaginatedList("/me/guardianships?status=pending", {
+    fallback: GENERIC_ERROR,
+    onUnauthenticated,
+  });
+  const pendingVisible = pendingList.resource.status === "ready"
+    && (pendingList.resource.total > 0 || pendingList.isFiltered);
 
   async function mutate(path, options, errors = {}) {
     setIsSaving(true);
@@ -51,10 +44,10 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
         return false;
       }
       if (!response.ok) {
-        setError(errors[response.status] || GENERIC_ERROR);
+        setError((await readApiError(response, GENERIC_ERROR, errors)).message);
         return false;
       }
-      await loadPending();
+      pendingList.resource.reload();
       onChanged();
       return true;
     } catch {
@@ -95,7 +88,7 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
         return;
       }
       if (!response.ok) {
-        setError("Não foi possível gerar o acesso. Tente novamente.");
+        setError((await readApiError(response, TRANSFER_ERROR)).message);
         return;
       }
       const claim = await response.json();
@@ -120,7 +113,7 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
     }
   }
 
-  if (pending.length === 0 && dependents.length === 0) {
+  if (!pendingVisible && dependents.length === 0) {
     return null;
   }
 
@@ -136,71 +129,86 @@ export function GuardianshipPanel({ dependents, onChanged, onUnauthenticated }) 
 
       {error && !renouncing ? <p className="form-error" role="alert">{error}</p> : null}
 
-      {pending.length > 0 ? (
+      {pendingVisible ? (
         <div className="care-group-list">
           <h3>Pedidos de guarda</h3>
-          {pending.map((guardianship) => {
-            const name = guardianship.dependent_preferred_name;
-            const fieldId = `guardianship-birth-${guardianship.guardianship_id}`;
-            return (
-              <article className="care-card care-card-pending" key={guardianship.guardianship_id}>
-                <div className="care-card-copy">
-                  <p>{RELATIONSHIP_LABEL[guardianship.relationship]}</p>
-                  <h4>{guardianship.dependent_full_name}</h4>
-                  {guardianship.requested_by ? (
-                    <p>Solicitado por {guardianship.requested_by}</p>
-                  ) : null}
-                  <div className="patient-link-field">
-                    <label htmlFor={fieldId}>Data de nascimento de {name}</label>
-                    <input
-                      id={fieldId}
-                      type="date"
-                      value={birthDates[guardianship.guardianship_id] || ""}
-                      onChange={(event) => setBirthDates((current) => ({
-                        ...current,
-                        [guardianship.guardianship_id]: event.target.value,
-                      }))}
-                    />
-                  </div>
+          <PaginatedList
+            list={pendingList}
+            searchLabel="Buscar pedidos"
+            itemLabel="pedidos"
+            loadingText="Carregando pedidos…"
+            emptyText=""
+            retryLabel="Recarregar pedidos"
+            renderItems={(items) => items.map((guardianship) => {
+          const name = guardianship.dependent_preferred_name;
+          const fieldId = `guardianship-birth-${guardianship.guardianship_id}`;
+          return (
+            <article className="care-card care-card-pending" key={guardianship.guardianship_id}>
+              <div className="care-card-copy">
+                <p>{RELATIONSHIP_LABEL[guardianship.relationship]}</p>
+                <h4>{guardianship.dependent_full_name}</h4>
+                {guardianship.requested_by ? (
+                  <p>Solicitado por {guardianship.requested_by}</p>
+                ) : null}
+                <div className="patient-link-field">
+                  <label htmlFor={fieldId}>Data de nascimento de {name}</label>
+                  <input
+                    id={fieldId}
+                    type="date"
+                    value={birthDates[guardianship.guardianship_id] || ""}
+                    onChange={(event) => setBirthDates((current) => ({
+                      ...current,
+                      [guardianship.guardianship_id]: event.target.value,
+                    }))}
+                  />
                 </div>
-                <div className="care-card-actions">
-                  <button
-                    type="button"
-                    className="care-accept"
-                    disabled={isSaving}
-                    aria-label={`Aceitar guarda de ${name}`}
-                    onClick={() => accept(guardianship)}
-                  >
-                    Aceitar
-                  </button>
-                  <button
-                    type="button"
-                    className="care-reject"
-                    disabled={isSaving}
-                    aria-label={`Recusar guarda de ${name}`}
-                    onClick={() => mutate(
-                      `/me/guardianships/${guardianship.guardianship_id}/reject`,
-                      { method: "POST" },
-                    )}
-                  >
-                    Recusar
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+              </div>
+              <div className="care-card-actions">
+                <button
+                  type="button"
+                  className="care-accept"
+                  disabled={isSaving}
+                  aria-label={`Aceitar guarda de ${name}`}
+                  onClick={() => accept(guardianship)}
+                >
+                  Aceitar
+                </button>
+                <button
+                  type="button"
+                  className="care-reject"
+                  disabled={isSaving}
+                  aria-label={`Recusar guarda de ${name}`}
+                  onClick={() => mutate(
+                    `/me/guardianships/${guardianship.guardianship_id}/reject`,
+                    { method: "POST" },
+                  )}
+                >
+                  Recusar
+                </button>
+              </div>
+            </article>
+          );
+            })}
+          />
         </div>
       ) : null}
 
       {dependents.length > 0 ? (
         <div className="care-group-list">
-          <h3>Meus dependentes</h3>
+          <h3>
+            <Link href={DEPENDENTS_PATH}>Meus dependentes</Link>
+          </h3>
           {dependents.map((dependent) => (
             <article className="care-card" key={dependent.patient_id}>
               <div className="care-card-copy">
                 <p>{dependent.age} anos</p>
                 <h4>{dependent.full_name}</h4>
-                <p>Use o seletor de contexto para acessar a saúde de {dependent.preferred_name}.</p>
+                <Link
+                  className="care-card-link"
+                  href={dependentPath(dependent.patient_id)}
+                >
+                  Ver saúde de {dependent.preferred_name}
+                </Link>
                 {transfers[dependent.patient_id] ? (
                   <ClaimLinkCard
                     token={transfers[dependent.patient_id].token}
