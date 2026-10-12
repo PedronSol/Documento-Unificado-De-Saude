@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED
+IMPLEMENTED — [PR #13](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/13)
 
 ## Dependências
 

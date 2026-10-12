@@ -234,7 +234,7 @@ flowchart TD
 | 10 | Governança administrativa e vínculos | 5, 7, 9 | DONE | [PR #10](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/10) |
 | 11 | Armazenamento e digitalização de documentos | 5, 7, 10 | DONE | [PR #12](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/12) |
 | 12 | OCR e revisão | 11; executado após 16 | PLANNED (postergado) | `docs/specs/021-health-document-ocr.md` |
-| 13 | Organização do frontend | 3, 4, 7–11, 15 | DONE | `a801598`, `3fe4464`, `a85d143`, `6a9f5e1` e limpeza final (branch `feat/frontend-organization`) |
+| 13 | Organização do frontend | 3, 4, 7–11, 15 | DONE | [PR #13](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/13) |
 | 14 | Consolidação operacional | 7–11, 13, 15 | PLANNED | — |
 | 15 | Cadastro assistido de pacientes e responsáveis legais | 7, 8, 9, 10 | DONE | [PR #11](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/11) |
 | 16 | Deploy da aplicação | 14 | PLANNED | — |
@@ -886,3 +886,4 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-11 | 13 (complemento) | PLANNED → SPEC REVIEW | `docs/specs/038-list-pagination.md` | Todas as listagens paginadas no servidor com 10/20/50/100 itens (padrão 20), filtros na requisição e `Carregar mais`; implementação aguarda revisão. |
 | 2026-10-11 | 13 (complemento) | SPEC REVIEW → SPEC APPROVED | `docs/specs/038-list-pagination.md` | Rolagem infinita com busca e filtros no servidor, total na resposta, 10/20/50/100 itens; prontuário e dependentes sem paginação; resumo público em abas. |
 | 2026-10-11 | 13 (complemento) | SPEC APPROVED → IMPLEMENTED | `ec81e1e`, `071bb57`, `05b8a63`, `98f9662` e fechamento (branch `feat/medical-document-upload`) | Todas as listagens paginadas e pesquisáveis no servidor (10/20/50/100, total, filtros), rolagem infinita acessível, resumo público em abas; prontuário e dependentes mantidos sem paginação. 287 unitários, 47 E2E, build e backend com MySQL real aprovados. |
+| 2026-10-11 | 13 e 11 (complementos) | PR ABERTO | [PR #13](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/13) | Specs `037`, `022` e `038` entregues contra `develop`. |
