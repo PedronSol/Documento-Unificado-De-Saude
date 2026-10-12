@@ -1,0 +1,21 @@
+# Imagem de produção do Railway. O contexto de build é a raiz do repositório.
+FROM node:20-slim
+
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV NEXT_TELEMETRY_DISABLED=1
+
+WORKDIR /app
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ .
+
+# Variáveis NEXT_PUBLIC_* são embutidas no bundle durante o build.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+RUN npm run build
+
+ENV NODE_ENV=production
+CMD ["sh", "-c", "npm run start -- -p ${PORT:-3000}"]

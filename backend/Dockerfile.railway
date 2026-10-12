@@ -1,0 +1,16 @@
+# Imagem de produção do Railway. O contexto de build é a raiz do repositório
+# para que as migrations em db/ façam parte da imagem.
+FROM python:3.11-slim
+
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+WORKDIR /app
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ .
+COPY db/ /db/
+
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
