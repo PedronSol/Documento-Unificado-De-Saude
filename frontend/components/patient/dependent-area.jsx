@@ -44,6 +44,7 @@ export function DependentArea() {
   const { patientId } = useParams();
   const identity = useSessionStore((state) => state.identity);
   const expireSession = useSessionStore((state) => state.expireSession);
+  const refreshIdentity = useSessionStore((state) => state.refreshIdentity);
   const dependent = findDependent(identity, patientId);
 
   if (!dependent) {
@@ -57,7 +58,9 @@ export function DependentArea() {
         <PatientDashboard
           // The guardian acts for the dependent; backend enforces it per request.
           profile={{ ...dependent, is_adult: true }}
+          context="dependent"
           onUnauthenticated={expireSession}
+          onProfileChanged={refreshIdentity}
         />
       </div>
     </ActingPatientScope>

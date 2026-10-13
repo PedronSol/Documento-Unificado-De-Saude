@@ -215,6 +215,21 @@ Estilo novo entra no arquivo da feature correspondente.
 - no móvel, botão ocupa toda a largura abaixo do input;
 - ajuda explica privacidade ou formato sem depender de placeholder.
 
+**Campo de cadastro/acesso**
+
+- use `RegistrationField`, `CpfField` e `PasswordField` de
+  `components/auth/registration-fields.jsx`;
+- obrigatório marcado com `*` decorativo (`aria-hidden`) após o rótulo, mais
+  a nota "Campos marcados com * são obrigatórios." no início do formulário;
+- senha com botão de visualização de 44 px, rótulo fixo e `aria-pressed`;
+- erro de campo abaixo do controle, ligado por `aria-describedby`.
+
+**Explicação (i)**
+
+- botão de 44 px com rótulo "Sobre …" que abre o `Tooltip` por hover, foco,
+  clique ou toque;
+- o tooltip só explica; ações ficam fora dele, ao lado do valor.
+
 **Select dropdown**
 
 - use `ClinicalSelect` em vez de `<select>` nativo;

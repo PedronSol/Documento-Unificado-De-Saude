@@ -10,6 +10,14 @@ if (!HTMLElement.prototype.hasPointerCapture) {
   HTMLElement.prototype.releasePointerCapture = () => {};
 }
 
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 if (!HTMLElement.prototype.scrollIntoView) {
   HTMLElement.prototype.scrollIntoView = () => {};
 }

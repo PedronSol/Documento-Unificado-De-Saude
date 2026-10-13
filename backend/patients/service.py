@@ -12,6 +12,7 @@ def serialize_patient_profile(patient: dict) -> dict:
         "avatar_url": patient.get("avatar"),
         "health_status": patient["status_saude"],
         "blood_type": patient["tipo_sanguineo"],
+        "blood_type_source": patient["tipo_sanguineo_origem"],
         "is_adult": age >= 18,
         "age": age,
     }

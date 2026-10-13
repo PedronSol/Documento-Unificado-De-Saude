@@ -34,6 +34,7 @@ def list_dependents(cursor: Any, *, guardian_patient_id: int) -> list[dict]:
                p.nome_paciente AS preferred_name,
                p.nome_completo AS full_name, p.avatar AS avatar_url,
                p.status_saude AS health_status, p.tipo_sanguineo AS blood_type,
+               p.tipo_sanguineo_origem AS blood_type_source,
                p.data_nascimento AS birth_date
         FROM patient_guardianships g
         JOIN patients p ON p.patient_id = g.dependent_patient_id

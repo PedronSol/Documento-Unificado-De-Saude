@@ -3,13 +3,20 @@
 import { AlertsSection } from "@/components/alerts/alerts-section";
 import { DocumentsSection } from "@/components/documents/documents-section";
 import { HealthMarkers } from "@/components/markers/health-markers";
+import { BloodTypeFact } from "@/components/patient/blood-type-fact";
 import { CareInvitations } from "@/components/patient/care-invitations";
 import { HealthSharing } from "@/components/patient/health-sharing";
 import { VaccinationHistory } from "@/components/vaccines/vaccination-history";
 
 
 // Composes the patient's feature sections; each one loads its own resource.
-export default function PatientDashboard({ profile, onUnauthenticated, guardianshipPanel = null }) {
+export default function PatientDashboard({
+  profile,
+  onUnauthenticated,
+  onProfileChanged,
+  context = "own",
+  guardianshipPanel = null,
+}) {
   return (
     <main className="patient-main">
       <section className="patient-identity" aria-labelledby="patient-name">
@@ -23,10 +30,12 @@ export default function PatientDashboard({ profile, onUnauthenticated, guardians
             <dt>Idade</dt>
             <dd>{profile.age} anos</dd>
           </div>
-          <div>
-            <dt>Tipo sanguíneo</dt>
-            <dd>{profile.blood_type || "Não informado"}</dd>
-          </div>
+          <BloodTypeFact
+            profile={profile}
+            context={context}
+            onSaved={onProfileChanged}
+            onUnauthenticated={onUnauthenticated}
+          />
         </dl>
       </section>
 

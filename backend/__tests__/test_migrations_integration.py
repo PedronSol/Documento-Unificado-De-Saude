@@ -139,7 +139,7 @@ def test_aplica_alembic_e_seed_em_mysql_real():
                 "SELECT COUNT(*) FROM patients"
             ).scalar_one()
 
-        assert revision == "0015"
+        assert revision == "0016"
         assert patient_count > 0
         assert user_counts["total"] == 7
         assert user_counts["unique_cpfs"] == 7
@@ -387,7 +387,7 @@ def test_migra_identidade_e_relacoes_legadas_para_ids_internos():
                 """
             ).scalars().all()
 
-        assert revision == "0015"
+        assert revision == "0016"
         assert user["display_name"] == "Ana da Silva"
         assert user["email"] == "ana@example.com"
         assert user["password_hash"] == "hash-legado"
@@ -1032,12 +1032,25 @@ def test_migration_0015_preenche_autor_dos_documentos_pelo_evento_de_upload():
     database_engine = create_database_engine(settings)
     try:
         upgrade_to(database_engine, "0014")
-        seed_database(
-            database_engine,
-            PROJECT_ROOT / "db" / "seeds" / "development.sql",
-            app_env="development",
-        )
+        # The development seed follows the head schema, so the pre-0015 state
+        # is built with explicit inserts.
         with database_engine.begin() as connection:
+            connection.exec_driver_sql(
+                """
+                INSERT INTO users (cpf, display_name, email, active)
+                VALUES ('52998224725', 'Paciente', 'paciente@example.com', TRUE)
+                """
+            )
+            connection.exec_driver_sql(
+                """
+                INSERT INTO patients (
+                    user_id, nome_paciente, nome_completo, status_saude,
+                    data_nascimento
+                )
+                SELECT user_id, display_name, display_name, 'pending', '1990-01-01'
+                FROM users
+                """
+            )
             patient = connection.exec_driver_sql(
                 "SELECT patient_id, user_id FROM patients ORDER BY patient_id LIMIT 1"
             ).mappings().one()
@@ -1093,6 +1106,75 @@ def test_migration_0015_preenche_autor_dos_documentos_pelo_evento_de_upload():
                     """,
                     (patient["patient_id"], f"{uuid4().hex}.pdf", "b" * 64),
                 )
+    finally:
+        database_engine.dispose()
+        with admin_engine.begin() as connection:
+            connection.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
+        admin_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_DB_INTEGRATION") != "1",
+    reason="Requer MySQL real com RUN_DB_INTEGRATION=1",
+)
+def test_migration_0016_registra_origem_do_tipo_sanguineo_existente():
+    database_name = f"dus_blood_type_test_{uuid4().hex[:12]}"
+    settings = DatabaseSettings(
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3307")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "root"),
+        database=database_name,
+    )
+    admin_engine = create_database_engine(settings, include_database=False)
+    with admin_engine.begin() as connection:
+        connection.exec_driver_sql(
+            f"CREATE DATABASE `{database_name}` "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+    database_engine = create_database_engine(settings)
+    try:
+        upgrade_to(database_engine, "0015")
+        with database_engine.begin() as connection:
+            connection.exec_driver_sql(
+                """
+                INSERT INTO users (cpf, display_name, email, active)
+                VALUES ('52998224725', 'Com Tipo', 'sangue@example.com', TRUE),
+                       ('11144477735', 'Sem Tipo', 'semsangue@example.com', TRUE)
+                """
+            )
+            connection.exec_driver_sql(
+                """
+                INSERT INTO patients (
+                    user_id, nome_paciente, nome_completo, status_saude,
+                    tipo_sanguineo, data_nascimento
+                )
+                SELECT user_id, display_name, display_name, 'pending',
+                       IF(email = 'sangue@example.com', 'AB-', NULL),
+                       '1990-01-01'
+                FROM users
+                """
+            )
+
+        upgrade_to(database_engine, "0016")
+
+        with database_engine.connect() as connection:
+            rows = dict(connection.exec_driver_sql(
+                "SELECT nome_paciente, tipo_sanguineo_origem FROM patients"
+            ).all())
+        assert rows == {"Com Tipo": "doctor", "Sem Tipo": None}
+
+        for blood_type, source in (("'O+'", "NULL"), ("NULL", "'patient'")):
+            with pytest.raises(SQLAlchemyError):
+                with database_engine.begin() as connection:
+                    connection.exec_driver_sql(
+                        f"""
+                        UPDATE patients
+                        SET tipo_sanguineo = {blood_type},
+                            tipo_sanguineo_origem = {source}
+                        WHERE nome_paciente = 'Sem Tipo'
+                        """
+                    )
     finally:
         database_engine.dispose()
         with admin_engine.begin() as connection:

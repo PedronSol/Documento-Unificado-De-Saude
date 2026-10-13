@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
-import { RegistrationField } from "@/components/auth/patient-registration";
+import {
+  CpfField,
+  PasswordField,
+  RegistrationField,
+  RequiredFieldsNote,
+  usePasswordConfirmation,
+} from "@/components/auth/registration-fields";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 import { readFragment } from "@/lib/fragment-token";
@@ -12,7 +18,7 @@ import { readFragment } from "@/lib/fragment-token";
 const ERROR_MESSAGES = {
   403: "Link inválido, expirado ou dados que não conferem. Após 5 tentativas o link é bloqueado.",
   409: "Esse e-mail ou conta Google já está em uso.",
-  422: "Revise os dados informados. A senha precisa ter ao menos 12 caracteres.",
+  422: "Revise os dados informados. A senha precisa ter ao menos 8 caracteres.",
 };
 const GENERIC_ERROR = "Não foi possível assumir a conta agora. Tente novamente.";
 
@@ -35,6 +41,7 @@ export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const passwordConfirmation = usePasswordConfirmation();
 
   useEffect(() => {
     if (tokenRef.current === undefined) {
@@ -94,16 +101,12 @@ export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
 
   return (
     <div className="registration-flow">
+      <RequiredFieldsNote />
       <div className="access-form">
-        <RegistrationField
+        <CpfField
           id="claim-cpf"
-          label="CPF"
           value={identity.cpf}
-          onChange={updateIdentity("cpf")}
-          inputMode="numeric"
-          maxLength={14}
-          autoComplete="off"
-          placeholder="000.000.000-00"
+          onValueChange={(cpf) => setIdentity((current) => ({ ...current, cpf }))}
           disabled={isLoading}
         />
         <RegistrationField
@@ -150,7 +153,9 @@ export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
           className="access-form registration-form"
           onSubmit={(event) => {
             event.preventDefault();
-            submitClaim("/auth/patient-claim/local", credentials);
+            if (passwordConfirmation.confirms(credentials.password)) {
+              submitClaim("/auth/patient-claim/local", credentials);
+            }
           }}
         >
           <RegistrationField
@@ -166,18 +171,22 @@ export function PatientClaim({ googleClientId, onCompleted = redirectHome }) {
             placeholder="nome@exemplo.com"
             disabled={isLoading}
           />
-          <RegistrationField
+          <PasswordField
             id="claim-password"
             label="Senha"
-            type="password"
-            autoComplete="new-password"
             value={credentials.password}
-            onChange={(event) => setCredentials((current) => ({
-              ...current,
-              password: event.target.value,
-            }))}
-            minLength={12}
-            maxLength={128}
+            onChange={(event) => {
+              passwordConfirmation.clearMismatch();
+              setCredentials((current) => ({
+                ...current,
+                password: event.target.value,
+              }));
+            }}
+            disabled={isLoading}
+          />
+          <PasswordField
+            id="claim-password-confirmation"
+            {...passwordConfirmation.fieldProps}
             disabled={isLoading}
           />
           {error ? <p className="form-error" role="alert">{error}</p> : null}

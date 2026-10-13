@@ -41,8 +41,11 @@ from documents.router import (
     get_document_storage,
 )
 from markers.service import create_marker, remove_active_marker, update_active_marker
+from patients.blood_type import update_blood_type
 from pagination import Page, PageRequest, fetch_page, like_pattern, page_request
 from models import (
+    BloodTypeResponse,
+    BloodTypeUpdate,
     ClaimLinkIssued,
     DoctorPendingLink,
     MarkerCreateUpdate,
@@ -294,6 +297,7 @@ def get_authorized_medical_patient(
                        p.avatar AS avatar_url,
                        p.status_saude AS health_status,
                        p.tipo_sanguineo AS blood_type,
+                       p.tipo_sanguineo_origem AS blood_type_source,
                        p.data_nascimento AS birth_date,
                        u.claimed_at AS account_claimed_at,
                        u.provisioned_by_doctor_id
@@ -426,6 +430,35 @@ def add_medical_marker(
         _raise_marker_integrity_error(error)
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao registrar marcador médico", error)
+
+
+@router.put(
+    "/patients/{patient_id}/blood-type",
+    response_model=BloodTypeResponse,
+)
+def update_medical_blood_type(
+    patient_id: int,
+    update: BloodTypeUpdate,
+    doctor: dict = Depends(get_current_doctor),
+    connection: Any = Depends(get_connection),
+):
+    try:
+        with transaction(connection):
+            get_authorized_medical_patient(
+                patient_id=patient_id,
+                doctor=doctor,
+                connection=connection,
+            )
+            with cursor_scope(connection, dictionary=True) as cursor:
+                return update_blood_type(
+                    cursor,
+                    patient_id=patient_id,
+                    blood_type=update.blood_type,
+                    source="doctor",
+                    actor_user_id=doctor["user_id"],
+                )
+    except mysql.connector.Error as error:
+        _raise_database_unavailable("Falha ao registrar tipo sanguíneo", error)
 
 
 @router.put(
@@ -638,6 +671,7 @@ def _medical_profile(patient: dict, doctor: dict) -> dict:
     return {
         **_patient_summary(patient),
         "blood_type": patient["blood_type"],
+        "blood_type_source": patient["blood_type_source"],
         "account_status": "provisional" if provisional else "active",
         "manages_provisional": (
             provisional

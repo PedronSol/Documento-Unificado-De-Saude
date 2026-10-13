@@ -35,7 +35,14 @@ def create_provisional(doctor, cpf: str | None = None):
     return cpf, response.json()
 
 
-def claim_local(client, token: str, cpf: str, birth_date: str = ADULT_BIRTH_DATE, email=None):
+def claim_local(
+    client,
+    token: str,
+    cpf: str,
+    birth_date: str = ADULT_BIRTH_DATE,
+    email=None,
+    password: str = "senha-paciente-segura",
+):
     return client.post(
         "/auth/patient-claim/local",
         json={
@@ -43,9 +50,21 @@ def claim_local(client, token: str, cpf: str, birth_date: str = ADULT_BIRTH_DATE
             "cpf": cpf,
             "birth_date": birth_date,
             "email": email or f"joana.{uuid4().hex[:8]}@example.com",
-            "password": "senha-paciente-segura",
+            "password": password,
         },
     )
+
+
+def test_claim_accepts_eight_character_password(make_client, engine):
+    doctor = login(make_client, "marcos.nunes@email.com")
+    cpf, created = create_provisional(doctor)
+    token = created["claim"]["token"]
+
+    too_short = claim_local(make_client(), token, cpf, password="x" * 7)
+    claimed = claim_local(make_client(), token, cpf, password="senha123")
+
+    assert too_short.status_code == 422
+    assert claimed.status_code == 201, claimed.text
 
 
 def test_doctor_creates_provisional_adult_with_immediate_access(make_client, engine):

@@ -57,31 +57,31 @@ WHERE email = 'admin@email.com';
 
 INSERT IGNORE INTO patients (
     user_id, nome_paciente, nome_completo, avatar, status_saude,
-    tipo_sanguineo, valor_qr, data_nascimento
+    tipo_sanguineo, tipo_sanguineo_origem, valor_qr, data_nascimento
 )
 SELECT
     user_id, 'Carlos Silva', 'Carlos Eduardo Silva', NULL, 'updated',
-    'A+', 'QR-CARLOS-DEMO', '1985-04-12'
+    'A+', 'doctor', 'QR-CARLOS-DEMO', '1985-04-12'
 FROM users WHERE email = 'carlos.silva@email.com'
 UNION ALL
 SELECT
     user_id, 'Mariana Souza', 'Mariana Costa Souza', NULL, 'pending',
-    'O-', 'QR-MARIANA-DEMO', '2021-07-11'
+    'O-', 'doctor', 'QR-MARIANA-DEMO', '2021-07-11'
 FROM users WHERE email = 'mariana.souza@email.com'
 UNION ALL
 SELECT
     user_id, 'Helena Costa', 'Dra. Helena Costa', NULL, 'updated',
-    'A-', 'QR-HELENA-DEMO', '1988-03-18'
+    'A-', 'doctor', 'QR-HELENA-DEMO', '1988-03-18'
 FROM users WHERE email = 'helena.costa@email.com'
 UNION ALL
 SELECT
     user_id, 'Paula Reis', 'Dra. Paula Reis', NULL, 'updated',
-    'B+', 'QR-PAULA-DEMO', '1990-06-24'
+    'B+', 'doctor', 'QR-PAULA-DEMO', '1990-06-24'
 FROM users WHERE email = 'paula.reis@email.com'
 UNION ALL
 SELECT
     user_id, 'Conta Inativa', 'Conta Inativa', NULL, 'pending',
-    'O+', NULL, '1992-01-01'
+    'O+', 'doctor', NULL, '1992-01-01'
 FROM users WHERE email = 'inativo@email.com';
 
 INSERT IGNORE INTO doctors (

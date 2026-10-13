@@ -128,3 +128,84 @@
 .compact-action:hover {
   background: #e1eaff;
 }
+
+/* Tipo sanguíneo (spec 042): (i) explicativo, ação e diálogo compartilhado. */
+.blood-type-fact dt {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+}
+
+.blood-type-fact dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-1) var(--ds-space-2);
+}
+
+.blood-type-info {
+  display: inline-grid;
+  width: var(--ds-control-min-height);
+  height: var(--ds-control-min-height);
+  /* Keeps the 44 px target without enlarging the label row. */
+  margin: calc((var(--ds-control-min-height) - 1rem) / -2);
+  place-items: center;
+  border: 0;
+  border-radius: var(--ds-radius-round);
+  background: transparent;
+  color: var(--ds-color-primary);
+  cursor: help;
+}
+
+.blood-type-info:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: -8px;
+}
+
+.blood-type-tooltip {
+  max-width: min(18rem, calc(100vw - 2 * var(--ds-layout-gutter)));
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-color-text);
+  color: var(--ds-color-surface);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  box-shadow: var(--ds-shadow-raised);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-body);
+  text-align: left;
+  z-index: var(--ds-z-dropdown);
+}
+
+.blood-type-action {
+  min-height: var(--ds-control-min-height);
+  border: 0;
+  background: transparent;
+  color: var(--ds-color-primary);
+  padding: 0 var(--ds-space-1);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.blood-type-action:hover {
+  color: var(--ds-color-primary-hover);
+}
+
+.blood-type-action:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+  border-radius: var(--ds-radius-sm);
+}
+
+.blood-type-source {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-2xs);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.blood-type-current {
+  margin: 0 0 var(--ds-space-3);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+}

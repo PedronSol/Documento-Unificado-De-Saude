@@ -46,6 +46,44 @@ describe("PatientClaim", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it("sinaliza campos obrigatórios da ativação", async () => {
+    render(<PatientClaim googleClientId="client-id" onCompleted={vi.fn()} />);
+
+    expect(
+      await screen.findByText("Campos marcados com * são obrigatórios."),
+    ).toBeInTheDocument();
+    const cpfGroup = screen.getByLabelText("CPF").closest(".field-group");
+    expect(cpfGroup.querySelector(".required-mark")).toHaveTextContent("*");
+  });
+
+  it("aplica máscara ao CPF da ativação", async () => {
+    const user = userEvent.setup();
+    render(<PatientClaim googleClientId="client-id" onCompleted={vi.fn()} />);
+
+    const cpf = await screen.findByLabelText("CPF");
+    await user.type(cpf, "52998224725");
+
+    expect(cpf).toHaveValue("529.982.247-25");
+  });
+
+  it("bloqueia a ativação quando as senhas não coincidem", async () => {
+    const user = userEvent.setup();
+    render(<PatientClaim googleClientId="client-id" onCompleted={vi.fn()} />);
+
+    await fillIdentity(user);
+    await user.type(screen.getByLabelText("E-mail"), "joana@example.com");
+    await user.type(screen.getByLabelText("Senha"), "senha-paciente-segura");
+    await user.type(screen.getByLabelText("Confirme a senha"), "outra-senha-segura");
+    expect(
+      screen.getByRole("button", { name: "Mostrar senha" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    await user.click(screen.getByRole("button", { name: "Assumir minha conta" }));
+
+    expect(apiFetch).not.toHaveBeenCalled();
+    expect(screen.getByText("As senhas não coincidem.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirme a senha")).toHaveFocus();
+  });
+
   it("remove o token da URL e assume a conta com e-mail e senha", async () => {
     apiFetch.mockReturnValue(respondWith({ user: { roles: ["patient"] } }, 201));
     const onCompleted = vi.fn();
@@ -56,6 +94,7 @@ describe("PatientClaim", () => {
     expect(window.location.hash).toBe("");
     await user.type(screen.getByLabelText("E-mail"), "joana@example.com");
     await user.type(screen.getByLabelText("Senha"), "senha-paciente-segura");
+    await user.type(screen.getByLabelText("Confirme a senha"), "senha-paciente-segura");
     await user.click(screen.getByRole("button", { name: "Assumir minha conta" }));
 
     await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
@@ -100,7 +139,7 @@ describe("PatientClaim", () => {
   it.each([
     [403, "Link inválido, expirado ou dados que não conferem. Após 5 tentativas o link é bloqueado."],
     [409, "Esse e-mail ou conta Google já está em uso."],
-    [422, "Revise os dados informados. A senha precisa ter ao menos 12 caracteres."],
+    [422, "Revise os dados informados. A senha precisa ter ao menos 8 caracteres."],
   ])("explica a resposta %s sem detalhes internos", async (status, message) => {
     apiFetch.mockReturnValue(respondWith({ detail: "interno" }, status));
     const user = userEvent.setup();
@@ -109,6 +148,7 @@ describe("PatientClaim", () => {
     await fillIdentity(user);
     await user.type(screen.getByLabelText("E-mail"), "joana@example.com");
     await user.type(screen.getByLabelText("Senha"), "senha-paciente-segura");
+    await user.type(screen.getByLabelText("Confirme a senha"), "senha-paciente-segura");
     await user.click(screen.getByRole("button", { name: "Assumir minha conta" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
@@ -125,6 +165,7 @@ describe("PatientClaim", () => {
     await user.type(screen.getByLabelText("Data de nascimento do dependente"), "2016-05-02");
     await user.type(screen.getByLabelText("E-mail"), "joana@example.com");
     await user.type(screen.getByLabelText("Senha"), "senha-paciente-segura");
+    await user.type(screen.getByLabelText("Confirme a senha"), "senha-paciente-segura");
     await user.click(screen.getByRole("button", { name: "Assumir minha conta" }));
 
     await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
