@@ -428,7 +428,7 @@ Body: igual ao anterior
 | 8 | `test_blood_type.py`: regras de origem, 409, auditoria e rollback; falhou na coleta (modelo/rota inexistentes) | `BloodTypeUpdate`, `patients/blood_type.py`, `PUT /me/blood-type` | — | `22e6511` |
 | 9 | `test_blood_type_flows.py` (MySQL real): responsável, médico, 403, 409 e resumo público; falhou por `blood_type_source` ausente | Contratos próprio, dependente e médico; `PUT /medical/patients/{id}/blood-type` | Fixtures de caracterização atualizadas | `22e6511` |
 | 10 | `blood-type.test.jsx`: textos do (i), permissões, diálogo, erro e prontuário; falhou por componentes inexistentes | `BloodTypeFact`, `BloodTypeDialog`, `MedicalBloodType` | Stub de `ResizeObserver` no setup do Vitest | `8c8b7f7` |
-| 12 | Cadastro e ativação aceitam senha de 8 caracteres e rejeitam 7 (`test_patient_registration.py`, `test_provisional_patients.py`, testes de frontend); falharam com o mínimo de 12 | Mínimo 8 em `PatientRegistration`, `PatientClaimLocal`, `PasswordField`, placeholder e mensagem de 422 | — | Commit da revisão de senha |
+| 12 | Cadastro e ativação aceitam senha de 8 caracteres e rejeitam 7 (`test_patient_registration.py`, `test_provisional_patients.py`, testes de frontend); falharam com o mínimo de 12 | Mínimo 8 em `PatientRegistration`, `PatientClaimLocal`, `PasswordField`, placeholder e mensagem de 422 | — | `47c0529` |
 | 11 | `authenticated-areas.test.jsx`: salvar recarrega `/me`; contexto do dependente; falhou sem integração | Painel próprio, área do dependente e prontuário | — | `8c8b7f7` |
 
 ## Critérios de conclusão
