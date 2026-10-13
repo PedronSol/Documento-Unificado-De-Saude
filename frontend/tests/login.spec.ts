@@ -661,6 +661,60 @@ test.describe('Página Home', () => {
     await expect.poll(() => contextNav.evaluate((element) => element.getBoundingClientRect().bottom)).toBeLessThanOrEqual(72);
   });
 
+  test('explica e informa o tipo sanguíneo em 320 px e desktop', async ({ page }) => {
+    let profile = {
+      ...MOCK_PROFILE_RESPONSE.patient_profile,
+      blood_type: null,
+      blood_type_source: null,
+    };
+    let submitted;
+    await page.route('**/me', (route) =>
+      fulfillPaged(route, {
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...MOCK_PROFILE_RESPONSE, patient_profile: profile }),
+      })
+    );
+    await page.route('**/me/blood-type', (route) => {
+      submitted = route.request().postDataJSON();
+      profile = { ...profile, blood_type: 'O+', blood_type_source: 'patient' };
+      return fulfillPaged(route, {
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ blood_type: 'O+', blood_type_source: 'patient' }),
+      });
+    });
+
+    await page.setViewportSize({ width: 320, height: 780 });
+    await page.reload();
+    await waitForHydration(page);
+    const info = page.getByRole('button', { name: 'Sobre o tipo sanguíneo' });
+    const infoBox = await info.boundingBox();
+    expect(infoBox?.width).toBeGreaterThanOrEqual(44);
+    expect(infoBox?.height).toBeGreaterThanOrEqual(44);
+    await info.click();
+    const tooltip = page.locator('.blood-type-tooltip');
+    await expect(tooltip).toContainText('Você pode informar o seu tipo sanguíneo');
+    const tooltipBox = await tooltip.boundingBox();
+    expect(tooltipBox!.x).toBeGreaterThanOrEqual(0);
+    expect(tooltipBox!.x + tooltipBox!.width).toBeLessThanOrEqual(320);
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('button', { name: 'Informar tipo sanguíneo' }).click();
+    await page.getByLabel('Tipo sanguíneo', { exact: true }).click();
+    await page.getByRole('option', { name: 'O+' }).click();
+    await page.getByRole('button', { name: 'Salvar tipo sanguíneo' }).click();
+
+    await expect(page.getByRole('button', { name: 'Alterar' })).toBeVisible();
+    expect(submitted).toEqual({ blood_type: 'O+' });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await info.click();
+    await expect(tooltip).toContainText('Informado por você.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
+  });
+
   test('preserva avatar e resumo do perfil sem expor CPF', async ({ page }) => {
     const avatar = page.getByRole('img', { name: 'Avatar de Carlos Silva' });
     await expect(avatar).toBeVisible();
@@ -734,7 +788,7 @@ test.describe('Página Home', () => {
     expect(formBounds?.width).toBeLessThanOrEqual(390);
 
     await page.getByLabel('Nome do marcador').fill('Metformina');
-    await page.getByLabel('Tipo').click();
+    await page.getByLabel('Tipo', { exact: true }).click();
     await page.getByRole('option', { name: 'Medicação' }).click();
     await page.getByLabel('Dosagem').fill('500 mg');
     await page.getByLabel('Frequência').fill('2 vezes ao dia');
@@ -897,12 +951,30 @@ test.describe('Página Home', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            patient: { ...medicalPatient, blood_type: 'A+' },
+            patient: {
+              ...medicalPatient,
+              blood_type: 'A+',
+              blood_type_source: 'patient',
+            },
             vaccines: MOCK_VACCINES,
             markers: {
               active: medicalActiveMarkers,
               removed: medicalRemovedMarkers,
             },
+          }),
+        });
+      }
+
+      if (
+        url.pathname === '/medical/patients/10/blood-type' &&
+        request.method() === 'PUT'
+      ) {
+        return fulfillPaged(route, {
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...request.postDataJSON(),
+            blood_type_source: 'doctor',
           }),
         });
       }
@@ -988,11 +1060,19 @@ test.describe('Página Home', () => {
     await expect(page.getByText('COVID-19 (Pfizer)')).toBeVisible();
     await expect(page.getByText('Losartana')).toBeVisible();
 
+    await expect(page.getByText('autodeclarado')).toBeVisible();
+    await page.getByRole('button', { name: 'Corrigir' }).click();
+    await page.getByLabel('Tipo sanguíneo', { exact: true }).click();
+    await page.getByRole('option', { name: 'A-' }).click();
+    await page.getByRole('button', { name: 'Confirmar alteração' }).click();
+    await expect(page.getByText('registrado por profissional')).toBeVisible();
+    await expect(page.locator('.medical-vitals')).toContainText('A-');
+
     await page.getByRole('button', { name: 'Adicionar marcador' }).click();
     await page.waitForTimeout(300);
     await page.screenshot({ path: '/tmp/dus-dialog-320.png' });
     await page.getByLabel('Nome do marcador').fill('Insuficiência renal leve');
-    await page.getByLabel('Tipo').click();
+    await page.getByLabel('Tipo', { exact: true }).click();
     await page.getByRole('option', { name: 'Diagnóstico' }).click();
     await page.getByRole('button', { name: 'Adicionar marcador' }).click();
     await expect(page.getByText('Insuficiência renal leve')).toBeVisible();

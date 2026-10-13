@@ -38,7 +38,7 @@ Exemplo: `001-database-migrations.md`.
 | `038-list-pagination.md` | Paginação e busca de listagens no servidor | IMPLEMENTED |
 | `040-health-summary-sharing.md` | Compartilhamento temporário | IMPLEMENTED |
 | `041-same-origin-api-proxy.md` | Proxy de mesma origem para a API | IMPLEMENTED |
-| `042-usability-feedback-registration-summary.md` | Ajustes de usabilidade: cadastro, marcadores e tipo sanguíneo | SPEC APPROVED |
+| `042-usability-feedback-registration-summary.md` | Ajustes de usabilidade: cadastro, marcadores e tipo sanguíneo | IMPLEMENTED |
 
 ## Template
 

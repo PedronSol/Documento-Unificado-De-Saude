@@ -8,6 +8,7 @@ import Syringe from "lucide-react/dist/esm/icons/syringe";
 import { DigitalDocuments } from "@/components/documents/digital-documents";
 import { HealthMarkers } from "@/components/markers/health-markers";
 import { UserAvatar } from "@/components/identity/user-avatar";
+import { MedicalBloodType } from "@/components/medical/medical-blood-type";
 import { formatDate, HEALTH_STATUS } from "@/components/medical/medical-format";
 import { ProvisionalActions } from "@/components/medical/provisional-actions";
 import { useApiResource } from "@/hooks/use-api-resource";
@@ -51,10 +52,11 @@ function MedicalRecord({
           </div>
         </div>
         <dl className="medical-vitals">
-          <div>
-            <dt>Tipo sanguíneo</dt>
-            <dd>{patient.blood_type || "Não informado"}</dd>
-          </div>
+          <MedicalBloodType
+            patient={patient}
+            onPatientUpdated={onPatientUpdated}
+            onUnauthenticated={onUnauthenticated}
+          />
           <div>
             <dt>Situação</dt>
             <dd>{HEALTH_STATUS[patient.health_status]}</dd>

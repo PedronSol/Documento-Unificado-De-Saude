@@ -501,6 +501,42 @@ describe("área do paciente", () => {
     expect(requestedPaths()).toContain("/me/vaccines?page=1&page_size=20&query=hepa");
   });
 
+  it("informa o tipo sanguíneo pelo resumo e recarrega a identidade", async () => {
+    let profile = {
+      ...patientEnvelope.patient_profile,
+      blood_type: null,
+      blood_type_source: null,
+    };
+    apiFetch.mockImplementation((requestPath, options = {}) => {
+      if (requestPath === "/me/blood-type" && options.method === "PUT") {
+        profile = { ...profile, blood_type: "O+", blood_type_source: "patient" };
+        return respondWith({ blood_type: "O+", blood_type_source: "patient" });
+      }
+      const responses = {
+        "/me": { ...patientEnvelope, patient_profile: profile },
+        "/me/vaccines": [],
+        "/me/alerts": [],
+        "/me/documents": [],
+        "/me/markers?status=active": [],
+        "/me/shares/active": null,
+      };
+      return asResponse(requestPath, responses[stripPaging(requestPath)]);
+    });
+    const user = userEvent.setup();
+
+    renderArea(<PatientArea />);
+    await user.click(
+      await screen.findByRole("button", { name: "Informar tipo sanguíneo" }),
+    );
+    await user.click(screen.getByLabelText("Tipo sanguíneo"));
+    await user.click(screen.getByRole("option", { name: "O+" }));
+    await user.click(screen.getByRole("button", { name: "Salvar tipo sanguíneo" }));
+
+    expect(await screen.findByRole("button", { name: "Alterar" })).toBeInTheDocument();
+    expect(screen.getByText("O+", { selector: "dd" })).toBeInTheDocument();
+    expect(requestedPaths().filter((path) => path === "/me")).toHaveLength(2);
+  });
+
   it("carrega /me uma única vez para o shell e a área", async () => {
     mockPatientResources();
 
@@ -940,6 +976,26 @@ describe("dependentes", () => {
     const clinical = actingByPath.filter(([path]) => path !== "/me");
     expect(clinical.length).toBeGreaterThan(0);
     expect(clinical.every(([, acting]) => acting === 9)).toBe(true);
+  });
+
+  it("permite ao responsável informar o tipo sanguíneo do dependente", async () => {
+    mockGuardianResources();
+    const user = userEvent.setup();
+
+    renderArea(<DependentArea />, {
+      pathname: "/patient/dependents/9",
+      params: { patientId: "9" },
+    });
+    await user.click(
+      await screen.findByRole("button", { name: "Sobre o tipo sanguíneo" }),
+    );
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Você pode informar o tipo sanguíneo de Lia",
+    );
+    expect(
+      screen.getByRole("button", { name: "Informar tipo sanguíneo" }),
+    ).toBeInTheDocument();
   });
 
   it("não aplica o tom de menor ao dependente adulto", async () => {

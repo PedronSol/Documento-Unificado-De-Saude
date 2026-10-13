@@ -222,7 +222,8 @@ test.describe("Paciente provisório", () => {
     await page.getByLabel("CPF").fill("529.982.247-25");
     await page.getByLabel("Data de nascimento").fill("1979-08-15");
     await page.getByLabel("E-mail").fill("joana@example.com");
-    await page.getByLabel("Senha").fill("senha-paciente-segura");
+    await page.getByLabel("Senha", { exact: true }).fill("senha-paciente-segura");
+    await page.getByLabel("Confirme a senha").fill("senha-paciente-segura");
     await page.getByRole("button", { name: "Assumir minha conta" }).click();
     await expect.poll(() => submitted).toEqual({
       token,

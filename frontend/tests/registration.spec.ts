@@ -32,6 +32,53 @@ test.describe("Cadastro de paciente", () => {
     }
   });
 
+  test("sinaliza obrigatórios, mascara CPF e confere a senha antes do envio", async ({ page }) => {
+    let submissions = 0;
+    await page.route("**/auth/patient-registration", async (route) => {
+      submissions += 1;
+      await route.abort();
+    });
+
+    for (const viewport of [
+      { width: 320, height: 780 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/register");
+      await waitForHydration(page);
+
+      await expect(page.getByText("Campos marcados com * são obrigatórios.")).toBeVisible();
+      await expect(page.locator("form .required-mark")).toHaveCount(7);
+
+      const cpf = page.getByLabel("CPF");
+      await cpf.pressSequentially("52998224725999");
+      await expect(cpf).toHaveValue("529.982.247-25");
+
+      const password = page.getByLabel("Crie uma senha");
+      await password.fill("senha-local-segura");
+      const toggle = page.getByRole("button", { name: "Mostrar senha" });
+      const box = await toggle.boundingBox();
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+      await toggle.click();
+      await expect(password).toHaveAttribute("type", "text");
+      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+      await page.getByLabel("E-mail").fill("novo@example.com");
+      await page.getByLabel("Nome completo").fill("Novo Paciente");
+      await page.getByLabel("Como prefere ser chamado").fill("Novo");
+      await page.getByLabel("Data de nascimento").fill("1992-09-20");
+      await page.getByLabel("Confirme a senha").fill("outra-senha-qualquer");
+      await page.getByRole("button", { name: "Criar minha conta" }).click();
+
+      await expect(page.getByText("As senhas não coincidem.")).toBeVisible();
+      await expect(page.getByLabel("Confirme a senha")).toBeFocused();
+      const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+      expect(documentWidth).toBeLessThanOrEqual(viewport.width);
+    }
+    expect(submissions).toBe(0);
+  });
+
   test("envia somente os campos permitidos e inicia a sessão local", async ({ page }) => {
     let submittedPayload;
     await page.route("**/auth/patient-registration", async (route) => {
@@ -84,6 +131,7 @@ test.describe("Cadastro de paciente", () => {
     await page.getByLabel("CPF").fill("529.982.247-25");
     await page.getByLabel("Data de nascimento").fill("1992-09-20");
     await page.getByLabel("Crie uma senha").fill("senha-local-segura");
+    await page.getByLabel("Confirme a senha").fill("senha-local-segura");
     await page.getByRole("button", { name: "Criar minha conta" }).click();
 
     await expect(page).toHaveURL("/home");

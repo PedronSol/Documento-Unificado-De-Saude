@@ -2,7 +2,7 @@
 
 ## Status
 
-SPEC APPROVED
+IMPLEMENTED
 
 ## Dependências
 
@@ -331,14 +331,19 @@ Body: igual ao anterior
 
 ### Frontend
 
-- `RegistrationField`: prop `required` e marcador `*`.
-- Novo `PasswordField` em `components/auth/`, usado por cadastro local e
-  ativação de conta (senha e confirmação).
+- `components/auth/registration-fields.jsx` reúne os campos compartilhados de
+  cadastro/acesso: `RegistrationField` (prop `required` e marcador `*`),
+  `RequiredFieldsNote`, `CpfField`, `PasswordField` e o hook
+  `usePasswordConfirmation`, usados por cadastro local, onboarding Google e
+  ativação de conta.
 - `frontend/lib/cpf.js` com `formatCpf`.
 - `health-markers.jsx`: novo texto de introdução do paciente.
-- `patient-dashboard.jsx` e `medical-record.jsx`: (i) com `Tooltip` existente,
-  origem e diálogo de tipo sanguíneo compartilhado
-  (`components/patient/blood-type-dialog.jsx`) com `ClinicalSelect`.
+- `components/patient/blood-type-fact.jsx` (resumo próprio e do dependente) e
+  `components/medical/medical-blood-type.jsx` (prontuário): (i) com o
+  `Tooltip` existente, origem e diálogo compartilhado
+  `components/patient/blood-type-dialog.jsx` com `ClinicalSelect`. A ação de
+  informar/alterar fica ao lado do valor, não dentro do tooltip, para não pôr
+  controle interativo em conteúdo suplementar.
 
 ## Segurança e autorização
 
@@ -397,15 +402,26 @@ Body: igual ao anterior
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| 1 | `patient-registration.test.jsx`: rótulos com `*` e nota de obrigatoriedade; falhou por nota ausente | `RegistrationField` com marcador e `RequiredFieldsNote` | — | `d2a1cee` |
+| 2 | `patient-claim.test.jsx`: nota na ativação; falhou por nota ausente | Nota no `PatientClaim` | — | `d2a1cee` |
+| 3 | `cpf.test.js`: formatação progressiva; falhou por módulo inexistente | `formatCpf` | — | `d2a1cee` |
+| 4 | Máscara nos três formulários; falhou com valor sem máscara | `CpfField` | Campos movidos para `registration-fields.jsx` para evitar import circular | `d2a1cee` |
+| 5 | Visualização e confirmação de senha (cadastro e ativação); falhou por campo/botão ausentes | `PasswordField` e `usePasswordConfirmation` | — | `d2a1cee` |
+| 6 | `health-markers.test.jsx`: novo texto; falhou com texto antigo | Introdução do paciente atualizada | — | `d2a1cee` |
+| 7 | `test_migrations.py` e integração MySQL da `0016`; falhou por migration inexistente e depois por seed sem origem (`INSERT IGNORE` descartava pacientes) | Migration `0016`, backfill e constraint; seed com origem | Teste da `0015` deixou de depender do seed head | `22e6511` |
+| 8 | `test_blood_type.py`: regras de origem, 409, auditoria e rollback; falhou na coleta (modelo/rota inexistentes) | `BloodTypeUpdate`, `patients/blood_type.py`, `PUT /me/blood-type` | — | `22e6511` |
+| 9 | `test_blood_type_flows.py` (MySQL real): responsável, médico, 403, 409 e resumo público; falhou por `blood_type_source` ausente | Contratos próprio, dependente e médico; `PUT /medical/patients/{id}/blood-type` | Fixtures de caracterização atualizadas | `22e6511` |
+| 10 | `blood-type.test.jsx`: textos do (i), permissões, diálogo, erro e prontuário; falhou por componentes inexistentes | `BloodTypeFact`, `BloodTypeDialog`, `MedicalBloodType` | Stub de `ResizeObserver` no setup do Vitest | Commit de interface |
+| 11 | `authenticated-areas.test.jsx`: salvar recarrega `/me`; contexto do dependente; falhou sem integração | Painel próprio, área do dependente e prontuário | — | Commit de interface |
 
 ## Critérios de conclusão
 
-- [ ] Cenários implementados e testados.
+- [x] Cenários implementados e testados.
 - [x] Spec `035` atualizada: tipo sanguíneo deixa de ser somente leitura, com
       remissão a esta spec (revisão de 2026-10-12).
-- [ ] `docs/specs/README.md` e roadmap atualizados com status e referência.
-- [ ] Definition of Done do roadmap atendida.
+- [x] `docs/specs/README.md` e roadmap atualizados com status e referência.
+- [x] Definition of Done do roadmap atendida: 329 testes backend (MySQL real),
+      325 unitários, 49 E2E e build do frontend aprovados.
 
 ## Decisões e observações
 

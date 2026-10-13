@@ -26,6 +26,7 @@ function OwnPatientHome() {
       <PatientDashboard
         profile={identity.patient_profile}
         onUnauthenticated={expireSession}
+        onProfileChanged={refreshIdentity}
         guardianshipPanel={(
           <>
             <GuardianshipPanel

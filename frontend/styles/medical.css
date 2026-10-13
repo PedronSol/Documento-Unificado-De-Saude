@@ -1267,3 +1267,7 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.medical-vitals .blood-type-fact dd {
+  justify-content: flex-end;
+}
