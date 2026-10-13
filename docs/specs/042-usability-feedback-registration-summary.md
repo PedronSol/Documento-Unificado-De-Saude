@@ -443,6 +443,8 @@ Body: igual ao anterior
 
 ## Decisões e observações
 
+- Entrega: [PR #14](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/14)
+  contra `develop`.
 - Origem da avaliação: feedback de usabilidade das telas de cadastro, marcadores
   e resumo do paciente.
 - Esclarecimento de 2026-10-12, durante a implementação: o botão de
