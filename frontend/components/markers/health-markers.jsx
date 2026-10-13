@@ -259,7 +259,7 @@ export function HealthMarkers({
           <p className="section-intro">
             {variant === "medical"
               ? "Marcadores ativos e histórico preservado deste paciente."
-              : "Uma leitura objetiva do que está ativo no seu cuidado hoje."}
+              : "Informações que ajudam a representar seu estado de saúde atual."}
           </p>
         </div>
         {isAdult ? (

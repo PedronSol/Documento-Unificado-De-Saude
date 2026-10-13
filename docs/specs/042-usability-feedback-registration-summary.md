@@ -84,11 +84,13 @@ Uma rodada de avaliação de usabilidade apontou quatro problemas:
 3. A sinalização é feita uma única vez em `RegistrationField`, por uma prop
    `required` (padrão `true`, preservando o comportamento atual); não se cria
    outro componente de campo.
-4. O campo de senha possui um botão de alternância com ícone de olho, alvo
-   mínimo de 44 px e rótulo acessível "Mostrar senha"/"Ocultar senha"
-   (`aria-pressed`). Alternar não apaga o valor nem move o foco para fora do
-   botão. A senha volta a ficar oculta após um envio bem-sucedido ou ao trocar
-   de forma de cadastro.
+4. O campo de senha possui um botão de alternância com ícone de olho (olho
+   cortado quando visível), alvo mínimo de 44 px, rótulo acessível fixo que
+   nomeia o campo ("Mostrar senha"; "Mostrar confirmação de senha") e estado
+   em `aria-pressed`. Alternar não apaga o valor nem move o foco para fora do
+   botão. O estado de visualização é local ao campo e volta a oculto quando o
+   formulário é desmontado (troca de forma de cadastro ou saída da página após
+   o envio bem-sucedido).
 5. O cadastro local e a ativação de conta exibem um segundo campo obrigatório,
    "Confirme a senha", com `autoComplete="new-password"`, os mesmos limites de
    tamanho e o mesmo controle de visualização.
@@ -175,7 +177,7 @@ E cada input continua com o atributo `required`
 Dado que o visitante digitou uma senha
 Quando ativa "Mostrar senha"
 Então o campo passa a `type="text"` com o mesmo valor
-E o botão passa a "Ocultar senha" com `aria-pressed="true"`
+E o botão "Mostrar senha" fica com `aria-pressed="true"`
 
 ### Cenário: senhas diferentes
 
@@ -409,6 +411,10 @@ Body: igual ao anterior
 
 - Origem da avaliação: feedback de usabilidade das telas de cadastro, marcadores
   e resumo do paciente.
+- Esclarecimento de 2026-10-12, durante a implementação: o botão de
+  visualização mantém rótulo fixo e comunica o estado só por `aria-pressed`,
+  pois alterar rótulo e estado ao mesmo tempo gera leitura contraditória em
+  leitores de tela; com dois campos de senha, cada rótulo nomeia o seu campo.
 - Decisão de 2026-10-12: três autores de tipo sanguíneo são contemplados — o
   paciente adulto informa (autodeclarado), o responsável legal informa pelo
   dependente e o médico vinculado registra ou corrige. O registro médico

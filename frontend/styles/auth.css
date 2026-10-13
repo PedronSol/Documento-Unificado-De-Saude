@@ -424,6 +424,35 @@
   gap: var(--ds-space-4);
 }
 
+.field-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--ds-space-1);
+}
+
+.required-mark {
+  color: var(--ds-color-danger);
+  font-weight: 700;
+}
+
+.registration-password-toggle {
+  width: var(--ds-control-min-height);
+  height: var(--ds-control-min-height);
+  margin-right: calc(var(--ds-space-2) * -1);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--ds-color-danger);
+  font-size: var(--ds-font-size-sm);
+}
+
+.required-fields-note {
+  margin: 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+}
+
 .registration-field-control {
   min-height: var(--ds-control-min-height);
   height: auto;

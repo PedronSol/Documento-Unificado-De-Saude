@@ -27,12 +27,107 @@ async function fillLocalRegistration(user) {
   await user.type(screen.getByLabelText("CPF"), "529.982.247-25");
   await user.type(screen.getByLabelText("Data de nascimento"), "1992-09-20");
   await user.type(screen.getByLabelText("Crie uma senha"), "senha-local-segura");
+  await user.type(screen.getByLabelText("Confirme a senha"), "senha-local-segura");
 }
 
 
 describe("PatientRegistration", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+  });
+
+  it("sinaliza campos obrigatórios antes do envio", () => {
+    const { container } = render(
+      <PatientRegistration googleClientId="" onSuccess={vi.fn()} />,
+    );
+
+    expect(
+      screen.getByText("Campos marcados com * são obrigatórios."),
+    ).toBeInTheDocument();
+    const inputs = container.querySelectorAll("form input");
+    expect(inputs.length).toBeGreaterThan(0);
+    for (const input of inputs) {
+      expect(input).toBeRequired();
+      const mark = input.closest(".field-group").querySelector(".required-mark");
+      expect(mark).toHaveTextContent("*");
+      expect(mark).toHaveAttribute("aria-hidden", "true");
+    }
+    expect(screen.getByRole("textbox", { name: "E-mail" })).toBeInTheDocument();
+  });
+
+  it("aplica máscara e limite ao CPF do cadastro local", async () => {
+    const user = userEvent.setup();
+    render(<PatientRegistration googleClientId="" onSuccess={vi.fn()} />);
+
+    const cpf = screen.getByLabelText("CPF");
+    await user.type(cpf, "52998224725999");
+
+    expect(cpf).toHaveValue("529.982.247-25");
+    expect(cpf).toHaveAttribute("maxLength", "14");
+    expect(cpf).toHaveAttribute("inputMode", "numeric");
+  });
+
+  it("aplica máscara ao CPF do onboarding Google", async () => {
+    apiFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: "onboarding_required" }),
+    });
+    const user = userEvent.setup();
+    render(
+      <PatientRegistration googleClientId="client-id" onSuccess={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Conta Google" }));
+    await user.click(screen.getByRole("button", { name: "Continuar com Google" }));
+    const cpf = await screen.findByLabelText("CPF");
+    await user.type(cpf, "52998224725");
+
+    expect(cpf).toHaveValue("529.982.247-25");
+    expect(cpf).toHaveAttribute("maxLength", "14");
+    expect(cpf).toHaveAttribute("inputMode", "numeric");
+  });
+
+  it("permite visualizar a senha sem perder o valor", async () => {
+    const user = userEvent.setup();
+    render(<PatientRegistration googleClientId="" onSuccess={vi.fn()} />);
+
+    const password = screen.getByLabelText("Crie uma senha");
+    await user.type(password, "senha-local-segura");
+    const toggle = screen.getByRole("button", { name: "Mostrar senha" });
+    expect(password).toHaveAttribute("type", "password");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(toggle);
+
+    expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("senha-local-segura");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "Mostrar confirmação de senha" }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("bloqueia o envio quando as senhas não coincidem", async () => {
+    const user = userEvent.setup();
+    render(<PatientRegistration googleClientId="" onSuccess={vi.fn()} />);
+
+    await fillLocalRegistration(user);
+    const confirmation = screen.getByLabelText("Confirme a senha");
+    await user.clear(confirmation);
+    await user.type(confirmation, "senha-diferente-123");
+    await user.click(screen.getByRole("button", { name: "Criar minha conta" }));
+
+    expect(apiFetch).not.toHaveBeenCalled();
+    const message = screen.getByText("As senhas não coincidem.");
+    expect(confirmation).toHaveAttribute("aria-invalid", "true");
+    expect(confirmation).toHaveAttribute("aria-describedby", message.id);
+    expect(confirmation).toHaveFocus();
+
+    await user.type(confirmation, "x");
+
+    expect(screen.queryByText("As senhas não coincidem.")).not.toBeInTheDocument();
+    expect(confirmation).not.toHaveAttribute("aria-invalid");
   });
 
   it("cria conta local de paciente sem exigir Google", async () => {

@@ -4,6 +4,13 @@ import { useState } from "react";
 import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import {
+  CpfField,
+  PasswordField,
+  RegistrationField,
+  RequiredFieldsNote,
+  usePasswordConfirmation,
+} from "@/components/auth/registration-fields";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 
@@ -39,43 +46,6 @@ async function responseDetail(response, fallback) {
 }
 
 
-export function RegistrationField({
-  id,
-  label,
-  type = "text",
-  autoComplete,
-  value,
-  onChange,
-  placeholder,
-  disabled,
-  minLength,
-  maxLength,
-  inputMode,
-}) {
-  return (
-    <div className="field-group">
-      <label htmlFor={id}>{label}</label>
-      <div className="field-control registration-field-control">
-        <input
-          id={id}
-          name={id}
-          type={type}
-          autoComplete={autoComplete}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          disabled={disabled}
-          minLength={minLength}
-          maxLength={maxLength}
-          inputMode={inputMode}
-          required
-        />
-      </div>
-    </div>
-  );
-}
-
-
 export function PatientRegistration({
   googleClientId,
   onSuccess = redirectToHome,
@@ -86,6 +56,7 @@ export function PatientRegistration({
   const [googleCredential, setGoogleCredential] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const passwordConfirmation = usePasswordConfirmation();
 
   function chooseMethod(nextMethod) {
     setMethod(nextMethod);
@@ -93,22 +64,27 @@ export function PatientRegistration({
     setGoogleCredential(null);
   }
 
+  function setLocalValue(field, value) {
+    setLocalForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function setGoogleValue(field, value) {
+    setGoogleForm((current) => ({ ...current, [field]: value }));
+  }
+
   function updateLocal(field) {
-    return (event) => {
-      const value = event.target.value;
-      setLocalForm((current) => ({ ...current, [field]: value }));
-    };
+    return (event) => setLocalValue(field, event.target.value);
   }
 
   function updateGoogle(field) {
-    return (event) => {
-      const value = event.target.value;
-      setGoogleForm((current) => ({ ...current, [field]: value }));
-    };
+    return (event) => setGoogleValue(field, event.target.value);
   }
 
   async function submitLocal(event) {
     event.preventDefault();
+    if (!passwordConfirmation.confirms(localForm.password)) {
+      return;
+    }
     setIsLoading(true);
     setError("");
 
@@ -219,6 +195,7 @@ export function PatientRegistration({
 
       {method === "local" ? (
         <form className="access-form registration-form" onSubmit={submitLocal}>
+          <RequiredFieldsNote />
           <RegistrationField
             id="registration-email"
             label="E-mail"
@@ -250,14 +227,10 @@ export function PatientRegistration({
             maxLength={20}
           />
           <div className="registration-row">
-            <RegistrationField
+            <CpfField
               id="registration-cpf"
-              label="CPF"
-              inputMode="numeric"
-              autoComplete="off"
               value={localForm.cpf}
-              onChange={updateLocal("cpf")}
-              placeholder="000.000.000-00"
+              onValueChange={(value) => setLocalValue("cpf", value)}
               disabled={isLoading}
             />
             <RegistrationField
@@ -270,17 +243,21 @@ export function PatientRegistration({
               disabled={isLoading}
             />
           </div>
-          <RegistrationField
+          <PasswordField
             id="registration-password"
             label="Crie uma senha"
-            type="password"
-            autoComplete="new-password"
             value={localForm.password}
-            onChange={updateLocal("password")}
+            onChange={(event) => {
+              passwordConfirmation.clearMismatch();
+              setLocalValue("password", event.target.value);
+            }}
             placeholder="Mínimo de 12 caracteres"
             disabled={isLoading}
-            minLength={12}
-            maxLength={128}
+          />
+          <PasswordField
+            id="registration-password-confirmation"
+            {...passwordConfirmation.fieldProps}
+            disabled={isLoading}
           />
           {error ? <p className="form-error" role="alert">{error}</p> : null}
           <Button className="registration-submit" size="lg" disabled={isLoading}>
@@ -296,12 +273,11 @@ export function PatientRegistration({
                 Identidade confirmada. Complete apenas os dados necessários ao
                 seu perfil de paciente.
               </p>
-              <RegistrationField
+              <RequiredFieldsNote />
+              <CpfField
                 id="google-registration-cpf"
-                label="CPF"
                 value={googleForm.cpf}
-                onChange={updateGoogle("cpf")}
-                placeholder="000.000.000-00"
+                onValueChange={(value) => setGoogleValue("cpf", value)}
                 disabled={isLoading}
               />
               <RegistrationField
