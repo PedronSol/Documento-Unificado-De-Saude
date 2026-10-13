@@ -113,6 +113,9 @@ Uma rodada de avaliação de usabilidade apontou quatro problemas:
    placeholder "Mínimo de 8 caracteres" e a mensagem de 422 da ativação "A
    senha precisa ter ao menos 8 caracteres.". As demais regras da spec `006`
    (não alterar, hash, ausência em logs) permanecem.
+8b. O painel "Adicionar paciente" do médico (`PatientLinkPanel`) aplica a
+   mesma máscara ao "CPF do paciente" e ao "CPF do responsável". O corpo de
+   `POST /medical/patient-links` continua levando o valor mascarado.
 
 ### Marcadores de saúde
 
@@ -232,6 +235,12 @@ Então o campo exibe "529.982.247-25"
 Dado o formulário de onboarding Google ou de ativação de conta
 Quando o visitante digita um CPF
 Então a mesma máscara e o limite de 14 caracteres são aplicados
+
+### Cenário: CPF no vínculo direto do médico
+
+Dado o painel "Adicionar paciente" do médico
+Quando o médico digita "11122233396" no CPF do paciente ou no CPF do responsável
+Então o campo exibe "111.222.333-96"
 
 ### Cenário: nova introdução dos marcadores
 
@@ -435,6 +444,7 @@ Body: igual ao anterior
 | 12 | Cadastro e ativação aceitam senha de 8 caracteres e rejeitam 7 (`test_patient_registration.py`, `test_provisional_patients.py`, testes de frontend); falharam com o mínimo de 12 | Mínimo 8 em `PatientRegistration`, `PatientClaimLocal`, `PasswordField`, placeholder e mensagem de 422 | — | `47c0529` |
 | 13 | Paciente e responsável alteram valor de origem `doctor` (`test_blood_type.py`, `test_blood_type_flows.py`, `blood-type.test.jsx`); falharam com `409` e ação oculta | Precedência médica removida no backend; ação e textos do (i) e do diálogo médico ajustados | — | `1b07ecf` |
 | 11 | `authenticated-areas.test.jsx`: salvar recarrega `/me`; contexto do dependente; falhou sem integração | Painel próprio, área do dependente e prontuário | — | `8c8b7f7` |
+| 14 | `patient-link-panel.test.jsx`: CPF do paciente e do responsável formatados no vínculo direto; falhou com `11122233396` sem máscara | `formatCpf` no `PatientLinkPanel` (regra 8b) | — | pendente de commit |
 
 ## Critérios de conclusão
 
@@ -474,3 +484,6 @@ Body: igual ao anterior
   política de senha da spec `006`.
 - A máscara de CPF não muda o contrato porque `_normalize_cpf` já remove a
   pontuação no backend.
+- Revisão de 2026-10-12 pedida pelo produto: a máscara de CPF também se
+  aplica ao vínculo direto do médico (regra 8b), que exibia o CPF sem
+  pontuação apesar do placeholder `000.000.000-00`.
