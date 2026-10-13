@@ -12,6 +12,8 @@ export function ContextSwitcher({ contexts, activeKey }) {
           href={href}
           data-tone={tone}
           aria-current={key === activeKey ? "page" : undefined}
+          // Inactive items show only the icon; the name stays accessible.
+          aria-label={label}
         >
           <ContextIcon aria-hidden="true" size={17} />
           <span className="context-switcher-label">{label}</span>

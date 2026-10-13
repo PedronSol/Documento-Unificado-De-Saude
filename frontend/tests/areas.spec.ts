@@ -103,4 +103,36 @@ test.describe("Áreas por papel", () => {
 
     expect(requested.filter((path) => path === "/me")).toHaveLength(1);
   });
+
+  test("exibe o nome somente do contexto ativo e revela os demais no hover e no foco", async ({ page }) => {
+    await mockIdentity(page, {
+      ...patientIdentity,
+      user: { ...patientIdentity.user, roles: ["patient", "doctor"] },
+    });
+
+    for (const viewport of [{ width: 320, height: 720 }, { width: 1440, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/patient");
+      const contextNav = page.getByRole("navigation", { name: "Contexto de acesso" });
+      const active = contextNav.getByRole("link", { name: "Minha saúde" });
+      const inactive = contextNav.getByRole("link", { name: "Área profissional" });
+      await expect(active).toHaveAttribute("aria-current", "page");
+      await expect(active.getByText("Minha saúde")).toBeVisible();
+      await expect(inactive.getByText("Área profissional")).not.toBeVisible();
+      const box = await inactive.boundingBox();
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      expect(box?.height).toBeGreaterThanOrEqual(viewport.width < 1200 ? 44 : 32);
+
+      await inactive.hover();
+      await expect(inactive.getByText("Área profissional")).toBeVisible();
+      await page.mouse.move(0, 0);
+      await expect(inactive.getByText("Área profissional")).not.toBeVisible();
+      await inactive.focus();
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab");
+      await expect(inactive.getByText("Área profissional")).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth))
+        .toBeLessThanOrEqual(viewport.width);
+    }
+  });
 });
