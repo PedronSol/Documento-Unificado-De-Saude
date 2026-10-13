@@ -60,7 +60,7 @@ export function AuthenticatedShell({ children, onUnauthenticated = redirectToLog
     return <ShellState status={status} error={error} onRetry={loadIdentity} />;
   }
 
-  const contexts = listContexts(identity);
+  const contexts = listContexts(identity, pathname);
   const activeKey = contextKeyForPath(pathname);
   const activeLabel = contexts.find(({ key }) => key === activeKey)?.label;
   const ownPatientContext = activeKey === "patient" && identity.patient_profile;

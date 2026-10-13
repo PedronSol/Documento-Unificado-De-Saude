@@ -7,13 +7,14 @@ import UserRound from "lucide-react/dist/esm/icons/user-round";
 
 
 export const HOME_PATH = "/home";
+export const PATIENT_PATH = "/patient";
 export const DEPENDENTS_PATH = "/patient/dependents";
 
 // Adding an area means adding a row here; the shell reads this table.
 export const AREAS = [
   {
     key: "patient",
-    path: "/patient",
+    path: PATIENT_PATH,
     label: "Minha saúde",
     icon: HeartPulse,
     isAvailable: (identity) => (
@@ -67,7 +68,8 @@ export function dependentTone(dependent) {
 }
 
 
-export function listContexts(identity) {
+export function listContexts(identity, pathname = null) {
+  const onDependentsList = pathname === DEPENDENTS_PATH;
   const areas = AREAS
     .filter((area) => area.isAvailable(identity))
     .map((area) => ({
@@ -76,6 +78,10 @@ export function listContexts(identity) {
       label: area.label,
       icon: area.icon,
       tone: "default",
+      // On the list, the patient context names where the user is (spec 037, 9g).
+      ...(onDependentsList && area.key === "patient"
+        ? { href: DEPENDENTS_PATH, label: "Meus dependentes" }
+        : {}),
     }));
   const dependents = listDependents(identity).map((dependent) => ({
     key: `${DEPENDENT_KEY_PREFIX}${dependent.patient_id}`,

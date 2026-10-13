@@ -939,6 +939,15 @@ describe("dependentes", () => {
       .toHaveAttribute("href", "/patient/dependents/9");
     expect(within(items[1]).queryByText("Menor de idade")).not.toBeInTheDocument();
     expect(items[1]).toHaveAttribute("data-patient-tone", "default");
+    expect(screen.getByRole("link", { name: "Voltar para minha saúde" }))
+      .toHaveAttribute("href", "/patient");
+    expect(screen.getByText("Meus dependentes", { selector: "small" })).toBeInTheDocument();
+    const switcher = screen.getByRole("navigation", { name: "Contexto de acesso" });
+    const active = within(switcher).getByRole("link", { name: "Meus dependentes" });
+    expect(active).toHaveAttribute("aria-current", "page");
+    expect(active).toHaveAttribute("href", "/patient/dependents");
+    expect(within(switcher).queryByRole("link", { name: "Minha saúde" }))
+      .not.toBeInTheDocument();
     expect(requestedPaths()).toEqual(["/me"]);
   });
 

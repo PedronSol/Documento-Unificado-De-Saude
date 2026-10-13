@@ -5,6 +5,10 @@
   gap: var(--ds-space-5);
 }
 
+.dependents-back {
+  justify-self: start;
+}
+
 .dependents-heading {
   display: grid;
   gap: var(--ds-space-1);
