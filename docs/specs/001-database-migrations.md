@@ -38,6 +38,13 @@ aplicadas.
 4. `alembic upgrade head` não reaplica uma revisão registrada.
 5. Uma falha interrompe o upgrade e impede o backend de iniciar.
 6. Seeds ficam em `db/seeds/` e nunca são aplicados automaticamente em produção.
+6a. Os CPFs das contas demonstrativas têm dígitos verificadores válidos, para
+    que fluxos que validam CPF (como o vínculo direto do médico) possam usá-las.
+6b. O seed cria uma guarda `active` de Carlos (`carlos.silva@email.com`,
+    responsável, parentesco `parent`) sobre Mariana
+    (`mariana.souza@email.com`, menor), já aceita pelo responsável e
+    confirmada pela dependente, para demonstrar o contexto de dependente sem
+    passos manuais. O seed continua idempotente.
 7. Reset destrutivo exige `APP_ENV=development` e comando explícito.
 8. Correções de schema usam nova revisão forward-only.
 9. Apenas o serviço `migrate` executa upgrades no Compose.
@@ -68,6 +75,14 @@ Quando o executor tentar aplicá-la
 Então a execução termina com erro
 E migrations posteriores não são executadas
 E a migration com falha não é registrada como aplicada.
+
+### Cenário: dados demonstrativos utilizáveis
+
+Dado um banco migrado e populado pelo seed de desenvolvimento
+Quando os CPFs das contas demonstrativas são conferidos
+Então todos têm dígitos verificadores válidos
+E Carlos tem guarda `active` de Mariana
+E executar o seed novamente não duplica a guarda.
 
 ### Cenário: configuração injetada
 
@@ -146,6 +161,7 @@ camada de configuração ainda não existe.
 | Alembic 2 | `database_admin` ausente durante a coleta | Executor Alembic e administração: 10 testes passaram | Configuração, migration e administração separadas | `backend/__tests__/test_migrations.py` |
 | Alembic 3 | CLI não aceitava dependências injetadas | Teste direcionado passou | Composition root recebe factories e casos de uso | `backend/database_tasks.py` |
 | MySQL real | Teste legado falhou ao importar `migrate` removido | Testes adaptados ao Alembic passaram no MySQL 8 real | Cobertura separada para idempotência, preservação de dados e interrupção após falha | `backend/__tests__/test_migrations_integration.py` |
+| Seed demonstrativo | `test_migrations.py`: 7 CPFs do seed com dígito verificador inválido; `test_migrations_integration.py` (MySQL real): nenhuma guarda após o seed | CPFs corrigidos e guarda `active` Carlos → Mariana com `INSERT IGNORE`; seed reaplicado no teste sem duplicar | `db/README.md` documenta a guarda e a necessidade de `make db-reset` | pendente de commit |
 
 ## Critérios de conclusão
 
@@ -170,3 +186,6 @@ camada de configuração ainda não existe.
 - Implementada e validada em 2026-10-02 com MySQL 8 real via Docker: banco
   vazio, segunda execução idempotente, preservação de dados, interrupção após
   SQL inválido e persistência do volume após reinício do container.
+- Revisada em 2026-10-12 a pedido do produto: CPFs do seed com dígitos
+  verificadores válidos (regra 6a) e guarda demonstrativa Carlos → Mariana
+  (regra 6b).

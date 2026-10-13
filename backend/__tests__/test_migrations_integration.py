@@ -130,8 +130,22 @@ def test_aplica_alembic_e_seed_em_mysql_real():
             ).scalar_one()
 
         upgrade_database(database_engine, alembic_config)
+        seed_database(database_engine, seed_path, app_env="development")
 
         with database_engine.connect() as connection:
+            demo_guardianships = connection.exec_driver_sql(
+                """
+                SELECT gu.email AS guardian, du.email AS dependent,
+                       g.relationship, g.status,
+                       g.accepted_at IS NOT NULL AS accepted,
+                       g.dependent_confirmed_at IS NOT NULL AS confirmed
+                FROM patient_guardianships g
+                JOIN patients gp ON gp.patient_id = g.guardian_patient_id
+                JOIN users gu ON gu.user_id = gp.user_id
+                JOIN patients dp ON dp.patient_id = g.dependent_patient_id
+                JOIN users du ON du.user_id = dp.user_id
+                """
+            ).mappings().all()
             revision = connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
             ).scalar_one()
@@ -153,6 +167,14 @@ def test_aplica_alembic_e_seed_em_mysql_real():
         assert care_group_count == 3
         assert pending_doctor_roles == 0
         assert patient_count_after_second_upgrade == patient_count
+        assert [dict(row) for row in demo_guardianships] == [{
+            "guardian": "carlos.silva@email.com",
+            "dependent": "mariana.souza@email.com",
+            "relationship": "parent",
+            "status": "active",
+            "accepted": 1,
+            "confirmed": 1,
+        }]
     finally:
         database_engine.dispose()
         with admin_engine.begin() as connection:
