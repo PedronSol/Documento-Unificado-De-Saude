@@ -433,7 +433,7 @@ Body: igual ao anterior
 | 9 | `test_blood_type_flows.py` (MySQL real): responsável, médico, 403, 409 e resumo público; falhou por `blood_type_source` ausente | Contratos próprio, dependente e médico; `PUT /medical/patients/{id}/blood-type` | Fixtures de caracterização atualizadas | `22e6511` |
 | 10 | `blood-type.test.jsx`: textos do (i), permissões, diálogo, erro e prontuário; falhou por componentes inexistentes | `BloodTypeFact`, `BloodTypeDialog`, `MedicalBloodType` | Stub de `ResizeObserver` no setup do Vitest | `8c8b7f7` |
 | 12 | Cadastro e ativação aceitam senha de 8 caracteres e rejeitam 7 (`test_patient_registration.py`, `test_provisional_patients.py`, testes de frontend); falharam com o mínimo de 12 | Mínimo 8 em `PatientRegistration`, `PatientClaimLocal`, `PasswordField`, placeholder e mensagem de 422 | — | `47c0529` |
-| 13 | Paciente e responsável alteram valor de origem `doctor` (`test_blood_type.py`, `test_blood_type_flows.py`, `blood-type.test.jsx`); falharam com `409` e ação oculta | Precedência médica removida no backend; ação e textos do (i) e do diálogo médico ajustados | — | Commit da edição compartilhada |
+| 13 | Paciente e responsável alteram valor de origem `doctor` (`test_blood_type.py`, `test_blood_type_flows.py`, `blood-type.test.jsx`); falharam com `409` e ação oculta | Precedência médica removida no backend; ação e textos do (i) e do diálogo médico ajustados | — | `1b07ecf` |
 | 11 | `authenticated-areas.test.jsx`: salvar recarrega `/me`; contexto do dependente; falhou sem integração | Painel próprio, área do dependente e prontuário | — | `8c8b7f7` |
 
 ## Critérios de conclusão
