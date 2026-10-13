@@ -18,14 +18,17 @@ atualizados.
 - Editáveis por qualquer usuário autenticado: `display_name`.
 - Editável somente quando o próprio usuário possui perfil de paciente:
   `preferred_name`.
-- Somente leitura: e-mail, CPF, nome civil (`full_name`), data de nascimento,
-  tipo sanguíneo, CRM/UF e status de verificação profissional.
+- Somente leitura nesta tela: e-mail, CPF, nome civil (`full_name`), data de
+  nascimento, tipo sanguíneo, CRM/UF e status de verificação profissional.
 - Não permitir edição de idade calculada, papéis, vínculos/grupos, dados clínicos,
   avatar/foto, senha ou status da conta nesta entrega.
 - Não permitir alteração do e-mail: ele também identifica login e não existe
   fluxo de confirmação de novo endereço.
 - Nome civil e data de nascimento requerem processo de correção/verificação
-  separado; tipo sanguíneo pertence ao fluxo clínico.
+  separado. Tipo sanguíneo pertence ao fluxo clínico e é editável pelo
+  paciente adulto, pelo responsável legal e pelo médico vinculado conforme a
+  spec `042-usability-feedback-registration-summary.md` (revisão de
+  2026-10-12); não é editado por `PATCH /me/profile`.
 
 ## Regras de negócio e validação
 
