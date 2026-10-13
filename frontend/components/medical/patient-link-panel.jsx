@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PaginatedList } from "@/components/ui/paginated-list";
 import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { apiFetch, readApiError } from "@/lib/api";
+import { formatCpf } from "@/lib/cpf";
 
 
 const MINOR_DETAIL = "Paciente menor exige responsável.";
@@ -67,7 +68,9 @@ function GuardianFieldset({ guardian, onChange }) {
             required
             onChange={(event) => onChange((current) => ({
               ...current,
-              [field]: event.target.value,
+              [field]: field === "cpf"
+                ? formatCpf(event.target.value)
+                : event.target.value,
             }))}
           />
         </div>
@@ -212,7 +215,7 @@ export function PatientLinkPanel({ onUnauthenticated, onPatientsChanged = () => 
             id="patient-link-cpf"
             value={cpf}
             onChange={(event) => {
-              setCpf(event.target.value);
+              setCpf(formatCpf(event.target.value));
               setProvisional(null);
               setGuardian(null);
             }}

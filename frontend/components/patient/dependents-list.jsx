@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 
 import { UserAvatar } from "@/components/identity/user-avatar";
@@ -10,6 +11,7 @@ import {
   dependentPath,
   dependentTone,
   listDependents,
+  PATIENT_PATH,
   resolveDefaultArea,
 } from "@/lib/areas";
 import { useSessionStore } from "@/stores/session-store";
@@ -26,6 +28,10 @@ export function DependentsList() {
   return (
     <main className="patient-main dependents-main">
       <section className="dependents-section" aria-labelledby="dependents-title">
+        <Link className="dependent-context-back dependents-back" href={PATIENT_PATH}>
+          <ArrowLeft aria-hidden="true" size={16} />
+          Voltar para minha saúde
+        </Link>
         <header className="dependents-heading">
           <p className="dependents-kicker">Responsabilidade legal</p>
           <h1 id="dependents-title">Meus dependentes</h1>

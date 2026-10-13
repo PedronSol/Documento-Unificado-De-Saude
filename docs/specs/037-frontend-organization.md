@@ -168,6 +168,12 @@ rota. Este step reorganiza somente o frontend; ele não muda contratos de API.
     explícito (WCAG 1.4.1). Botões de ação, foco, links e estados de sucesso,
     alerta e erro continuam com os tokens semânticos existentes; o tema de menor
     não muda cor de CTA nem de feedback.
+9g. Em `/patient/dependents` (somente a lista, não o dashboard do
+    dependente), o item do paciente no seletor de contexto passa a se chamar
+    `Meus dependentes`, aponta para `/patient/dependents` e fica ativo; o
+    rótulo do contexto no cabeçalho também exibe `Meus dependentes`. A lista
+    ganha, acima do título, o link `Voltar para minha saúde` para `/patient`,
+    com alvo de 44 px. Nas demais rotas o item continua `Minha saúde`.
 9g. Novos tokens, definidos em `styles/design-tokens.css` e documentados em
     `docs/design-system.md` na mesma entrega:
 
@@ -457,6 +463,14 @@ Quando ele abre `Meus dependentes`
 Então vê os dois itens com nome, idade e link `Ver saúde de …`
 E somente o de 8 anos exibe o selo `Menor de idade` no tom alaranjado.
 
+### Cenário: navegação na lista de dependentes
+
+Dado um responsável com ao menos um dependente
+Quando ele está em `/patient/dependents`
+Então o item ativo do seletor de contexto e o cabeçalho exibem `Meus dependentes`
+E a lista exibe o link `Voltar para minha saúde` para `/patient`
+E ao voltar para `/patient` o item volta a se chamar `Minha saúde`.
+
 ### Cenário: ver saúde de um menor
 
 Dado um responsável com guarda ativa do dependente menor 15
@@ -667,6 +681,7 @@ o módulo não existe.
 | 15 | REFACTOR coberto pela suíte existente | — | dashboard do paciente vira composição de `VaccinationHistory`, `AlertsSection`, `DocumentsSection`, `HealthMarkers`; marcadores e documentos divididos em diálogos e listas | 13.3 |
 | 16 | `tests/design-system.test.js`: `globals.css` ainda continha regras e não importava `styles/*` | divisão em 16 arquivos contíguos e índice de imports | guardrails passam a ler os arquivos na ordem da cascata | 13.4 |
 | 17 | `tests/legacy-cleanup.test.js`: `components/health-passport` e `mocks/` ainda existiam (2 falhas) | remoção do legado e do CSS `.safe-area-*` sem consumidor | guia e `AGENTS.md` descrevem organização por feature, stores e estilos | 13.5 |
+| 18 | `areas.test.js` e `authenticated-areas.test.jsx`: contexto ainda `Minha saúde` em `/patient/dependents` e link `Voltar para minha saúde` ausente (2 falhas) | `listContexts(identity, pathname)` renomeia o contexto na lista; link de volta na `DependentsList` (regra 9g) | constante `PATIENT_PATH`; E2E em 320 px e 1440 px | `e30663a` |
 
 ## Verificações executadas
 
@@ -748,3 +763,4 @@ PR do Step 13.
 | 4 | Sem sub-rotas para abas do admin e seções do paciente neste step | APROVADA |
 | 5 | CSS modularizado em arquivos por responsabilidade, preservando nomes de classe | APROVADA |
 | 6 | SOLID aplicado de forma concreta e Zustand para estado de sessão compartilhado | APROVADA |
+| 7 | Revisão de 2026-10-12 pedida pelo produto: em `/patient/dependents` o seletor nomeia o contexto `Meus dependentes` e a lista oferece `Voltar para minha saúde` (regra 9g) | APROVADA |

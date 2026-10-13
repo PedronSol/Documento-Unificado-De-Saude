@@ -63,6 +63,15 @@ Dado que a aplicação é vista em viewport de 800 px ou maior
 Quando o seletor de contexto é renderizado
 Então ele fica estático no cabeçalho e mantém o formato segmentado existente.
 
+### Cenário: somente o contexto ativo exibe o nome
+
+Dado que a pessoa possui mais de um contexto autorizado
+Quando o seletor é renderizado no dock (320 px) ou no cabeçalho (1440 px)
+Então o item ativo exibe ícone e nome
+E os demais itens exibem somente o ícone, com alvo de pelo menos 44 px
+E o nome de um item inativo aparece ao passar o ponteiro ou ao receber foco
+E todos os itens mantêm o nome completo como nome acessível.
+
 ### Cenário: não há dock para uma única role
 
 Dado que a pessoa possui apenas um contexto autenticado
@@ -74,6 +83,14 @@ Então o seletor não é renderizado nem há espaço vazio reservado para ele.
 - Manter o elemento `nav` com nome “Contexto de acesso”.
 - Manter botões nativos, `aria-pressed`, rótulos completos e foco visível.
 - Alvos de toque com pelo menos 44 px de altura.
+- Revisão de 2026-10-12: itens inativos exibem só o ícone; o nome fica
+  visualmente oculto (continua sendo o nome acessível do link) e aparece no
+  hover e no foco visível. O item ativo sempre exibe o nome. Itens só com ícone
+  têm alvo de pelo menos 44 × 44 px. A revelação anima largura e opacidade
+  do nome com os tokens `--ds-motion-*`/`--ds-ease-standard` e não anima com
+  `prefers-reduced-motion: reduce`. O dock passa a ter a largura do conteúdo,
+  centralizado; o item ativo não encolhe, e só o nome revelado é truncado
+  quando falta espaço.
 - Reservar padding inferior com safe area somente quando o dock existir.
 - Não criar overflow horizontal em 320 px.
 - Respeitar `prefers-reduced-motion`.
@@ -119,7 +136,16 @@ Então o seletor não é renderizado nem há espaço vazio reservado para ele.
   e retorno ao cabeçalho a partir de 800 px.
 - REFACTOR: ícones são resolvidos uma vez por papel durante a renderização; o
   seletor continua restrito às roles autenticadas.
+- RED (revisão de 2026-10-12): `areas.spec.ts`, em 320 px e 1440 px, falhou
+  porque o nome do item inativo estava visível.
+- GREEN: `aria-label` com o nome completo em cada item e rótulo oculto fora de
+  hover/foco; transição suave de largura e opacidade.
+- REFACTOR: dock com a largura do conteúdo, centralizado, depois que o E2E de
+  dependentes mostrou o item só com ícone sob o indicador de dev no canto
+  inferior; item ativo sem encolher. 327 unitários, 50 E2E e build aprovados.
 
 ## Revisão
 
 - Direção aprovada pelo usuário em 2026-10-08 com a referência visual anexada.
+- Revisão pedida pelo usuário em 2026-10-12: somente o contexto ativo exibe o
+  nome; os demais mostram o ícone e revelam o nome no hover e no foco.

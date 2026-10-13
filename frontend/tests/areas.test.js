@@ -95,6 +95,24 @@ describe("listContexts", () => {
       .toBe(true);
   });
 
+  it("names the patient context after the dependents list on that route", () => {
+    const owner = identity({
+      roles: ["patient"],
+      profile: patientProfile,
+      dependents: [minor],
+    });
+
+    expect(listContexts(owner, "/patient/dependents")[0]).toMatchObject({
+      key: "patient",
+      href: "/patient/dependents",
+      label: "Meus dependentes",
+    });
+    expect(listContexts(owner, "/patient/dependents/15")[0]).toMatchObject({
+      href: "/patient",
+      label: "Minha saúde",
+    });
+  });
+
   it("hides dependents and areas the identity does not hold", () => {
     const contexts = listContexts(identity({
       roles: ["admin"],

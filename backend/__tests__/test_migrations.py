@@ -1,5 +1,6 @@
 from pathlib import Path
 import importlib.util
+import re
 
 import pytest
 import sqlalchemy as sa
@@ -7,6 +8,7 @@ import sqlalchemy as sa
 import database_tasks
 from database_admin import UnsafeEnvironmentError, reset_database, seed_database
 from migration_service import upgrade_database
+from models import _is_valid_cpf
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -236,6 +238,14 @@ def test_estrutura_alembic_e_seed_estao_separados():
         / "0001_initial_schema.py"
     ).is_file()
     assert (PROJECT_ROOT / "db" / "seeds" / "development.sql").is_file()
+
+
+def test_cpfs_do_seed_tem_digitos_verificadores_validos():
+    seed = (PROJECT_ROOT / "db" / "seeds" / "development.sql").read_text(encoding="utf-8")
+    cpfs = re.findall(r"'(\d{11})'", seed)
+
+    assert len(cpfs) == 7
+    assert [cpf for cpf in cpfs if not _is_valid_cpf(cpf)] == []
 
 
 def test_migration_de_identidade_e_a_proxima_revisao_forward_only():

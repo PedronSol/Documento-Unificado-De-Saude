@@ -6,31 +6,31 @@ INSERT IGNORE INTO users (
 )
 VALUES
     (
-        '00011122222', 'Carlos Eduardo Silva', 'carlos.silva@email.com',
+        '00011122285', 'Carlos Eduardo Silva', 'carlos.silva@email.com',
         'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
     ),
     (
-        '11122233344', 'Mariana Costa Souza', 'mariana.souza@email.com',
+        '11122233396', 'Mariana Costa Souza', 'mariana.souza@email.com',
         'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
     ),
     (
-        '22233344455', 'Dra. Helena Costa', 'helena.costa@email.com',
+        '22233344405', 'Dra. Helena Costa', 'helena.costa@email.com',
         'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
     ),
     (
-        '33344455566', 'Dr. Marcos Nunes', 'marcos.nunes@email.com',
+        '33344455508', 'Dr. Marcos Nunes', 'marcos.nunes@email.com',
         'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
     ),
     (
-        '44455566677', 'Dra. Paula Reis', 'paula.reis@email.com',
+        '44455566619', 'Dra. Paula Reis', 'paula.reis@email.com',
         'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
     ),
     (
-        '55566677788', 'Alex Ferreira', 'admin@email.com',
+        '55566677720', 'Alex Ferreira', 'admin@email.com',
         'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', TRUE
     ),
     (
-        '66677788899', 'Conta Inativa', 'inativo@email.com',
+        '66677788830', 'Conta Inativa', 'inativo@email.com',
         'pbkdf2_sha256$600000$7d188f6dd28a5e5da794b0a43553b265$afda27b4adf6569ca95cb65dad8439753650a6ba62806f9b491b1d7bea7af30e', FALSE
     );
 
@@ -207,3 +207,18 @@ FROM patients p
 JOIN users u ON u.user_id = p.user_id
 JOIN users admin ON admin.email = 'admin@email.com'
 WHERE u.email = 'paula.reis@email.com';
+
+-- Guarda demonstrativa: Carlos é responsável por Mariana (menor), já aceita e
+-- confirmada, para o contexto de dependente aparecer sem passos manuais.
+INSERT IGNORE INTO patient_guardianships (
+    dependent_patient_id, guardian_patient_id, relationship, status,
+    requires_dependent_confirmation, dependent_confirmed_at, accepted_at
+)
+SELECT
+    dependent.patient_id, guardian.patient_id, 'parent', 'active',
+    TRUE, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM patients dependent
+JOIN users dependent_user ON dependent_user.user_id = dependent.user_id
+JOIN users guardian_user ON guardian_user.email = 'carlos.silva@email.com'
+JOIN patients guardian ON guardian.user_id = guardian_user.user_id
+WHERE dependent_user.email = 'mariana.souza@email.com';

@@ -58,7 +58,8 @@
   right: var(--ds-space-4);
   bottom: max(var(--ds-space-3), env(safe-area-inset-bottom));
   left: var(--ds-space-4);
-  width: min(calc(100% - (2 * var(--ds-space-4))), 23rem);
+  width: fit-content;
+  max-width: min(calc(100% - (2 * var(--ds-space-4))), 23rem);
   gap: var(--ds-space-1);
   border: 1px solid var(--ui-border);
   border-radius: var(--ds-radius-pill);
@@ -74,14 +75,14 @@
   text-decoration: none;
   min-width: 0;
   min-height: 3rem;
-  flex: 1 1 0;
+  flex: 0 1 auto;
   align-items: center;
   justify-content: center;
-  gap: var(--ds-space-2);
+  gap: 0;
   border: 0;
   border-radius: var(--ds-radius-pill);
   background: transparent;
-  padding: 0 var(--ds-space-2);
+  padding: 0 var(--ds-space-3);
   color: var(--ds-color-text-muted);
   font-size: var(--ds-font-size-xs);
   white-space: nowrap;
@@ -91,7 +92,38 @@
   flex: 0 0 auto;
 }
 
+/* Only the active context shows its name; others reveal it on hover/focus.
+   The label animates width and opacity, so the icon-to-label gap lives on it. */
+.context-switcher-label {
+  min-width: 0;
+  max-width: 12rem;
+  overflow: hidden;
+  margin-inline-start: var(--ds-space-2);
+  opacity: 1;
+  text-overflow: ellipsis;
+  transition:
+    max-width var(--ds-motion-normal) var(--ds-ease-standard),
+    margin-inline-start var(--ds-motion-normal) var(--ds-ease-standard),
+    opacity var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.context-switcher a:not([aria-current="page"]) {
+  min-width: var(--ds-control-min-height);
+}
+
+.context-switcher a:not([aria-current="page"]):not(:hover):not(:focus-visible)
+  .context-switcher-label {
+  max-width: 0;
+  margin-inline-start: 0;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .context-switcher-label { transition: none; }
+}
+
 .context-switcher a[aria-current="page"] {
+  flex-shrink: 0;
   background: var(--ds-color-primary-soft);
   color: var(--ds-color-primary);
   font-weight: var(--ds-font-weight-bold);

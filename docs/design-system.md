@@ -282,6 +282,9 @@ Estilo novo entra no arquivo da feature correspondente.
   flutuante junto ao rodapé, com ícones, rótulos e área segura; em viewport de
   1200 px ou maior permanece no cabeçalho somente em desktop com ponteiro fino
   e hover. Dispositivos touch mantêm o dock mesmo em viewports CSS amplos.
+- No seletor de contexto, somente o item ativo exibe o nome; os demais mostram
+  apenas o ícone (alvo mínimo de 44 × 44 px), revelam o nome no hover e no
+  foco visível e mantêm o nome completo como nome acessível.
 - Renderize o dock fora de headers sticky/transformed e valide que seu limite
   inferior acompanha a safe area do viewport, não somente `position: fixed`.
 

@@ -398,6 +398,16 @@ test.describe("Responsável legal", () => {
       await expect(page.locator("[data-patient-tone='minor']")).toHaveCount(0);
       await banner.getByRole("link", { name: "Voltar aos meus dependentes" }).click();
       await expect(page).toHaveURL("/patient/dependents");
+      const switcher = page.getByRole("navigation", { name: "Contexto de acesso" });
+      await expect(switcher.getByRole("link", { name: "Meus dependentes" }))
+        .toHaveAttribute("aria-current", "page");
+      const back = page.getByRole("link", { name: "Voltar para minha saúde" });
+      expect((await back.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      await expectNoHorizontalOverflow(page, viewport.width);
+      await back.click();
+      await expect(page).toHaveURL("/patient");
+      await expect(switcher.getByRole("link", { name: "Minha saúde" }))
+        .toHaveAttribute("aria-current", "page");
     }
 
     actingHeaders.length = 0;

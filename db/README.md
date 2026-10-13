@@ -5,7 +5,11 @@ CPF obrigatório e único, independentemente das roles. Relações, sessões e
 identificadores técnicos usam IDs internos; CPF não é removido do cadastro.
 O seed de desenvolvimento contém contas demonstrativas de paciente, médico
 verificado/pendente e administrador. Credenciais seedadas são exclusivamente
-para desenvolvimento local.
+para desenvolvimento local. Os CPFs seedados têm dígitos verificadores válidos,
+e Carlos (`carlos.silva@email.com`) já é responsável ativo pela menor Mariana
+(`mariana.souza@email.com`), o que demonstra o contexto de dependente. Como o
+seed usa `INSERT IGNORE`, um banco criado antes dessas mudanças só as recebe
+após `make db-reset`.
 
 O schema MySQL é versionado pelo Alembic. A aplicação não usa SQLAlchemy ORM;
 SQLAlchemy fornece apenas a conexão usada pela infraestrutura de migrations,

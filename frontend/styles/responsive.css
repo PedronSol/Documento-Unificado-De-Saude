@@ -120,7 +120,6 @@
   .context-switcher a {
     min-height: 2rem;
     flex: 0 0 auto;
-    gap: var(--ds-space-2);
     border-radius: var(--ds-radius-pill);
     padding: 0.35rem 0.8rem;
     font-size: 0.72rem;

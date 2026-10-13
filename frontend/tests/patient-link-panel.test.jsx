@@ -329,6 +329,29 @@ describe("PatientLinkPanel", () => {
     expect(Object.keys(JSON.parse(lastCall[1].body))).toEqual(["cpf", "guardian"]);
   });
 
+  it("formata o CPF do paciente e do responsável durante a digitação", async () => {
+    apiFetch.mockImplementation((path, options = {}) => {
+      if (path === "/medical/patient-links?status=pending") {
+        return respondWith([]);
+      }
+      if (path === "/medical/patient-links" && options.method === "POST") {
+        return respondWith({ detail: "Paciente menor exige responsável." }, 409);
+      }
+      return respondWith(null, 404);
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    const patientCpf = await screen.findByLabelText("CPF do paciente");
+    await user.type(patientCpf, "11122233396");
+    expect(patientCpf).toHaveValue("111.222.333-96");
+
+    await user.click(screen.getByRole("button", { name: "Solicitar acesso" }));
+    const guardianCpf = await screen.findByLabelText("CPF do responsável");
+    await user.type(guardianCpf, "00011122285");
+    expect(guardianCpf).toHaveValue("000.111.222-85");
+  });
+
   it("mostra estado vazio das solicitações", async () => {
     mockLinks({ pending: [] });
     renderPanel();
