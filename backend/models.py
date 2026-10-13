@@ -332,12 +332,28 @@ class PatientRegistration(BaseModel):
         return value
 
 
+BloodType = Literal["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+BloodTypeSource = Literal["patient", "guardian", "doctor"]
+
+
+class BloodTypeUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    blood_type: BloodType
+
+
+class BloodTypeResponse(BaseModel):
+    blood_type: Optional[BloodType] = None
+    blood_type_source: Optional[BloodTypeSource] = None
+
+
 class PatientProfileResponse(BaseModel):
     preferred_name: str
     full_name: str
     avatar_url: Optional[str] = None
     health_status: Literal["updated", "pending", "overdue"]
     blood_type: Optional[str] = None
+    blood_type_source: Optional[BloodTypeSource] = None
     is_adult: bool
     age: int
 
@@ -353,6 +369,7 @@ class MedicalPatientSummary(BaseModel):
 
 class MedicalPatientProfile(MedicalPatientSummary):
     blood_type: Optional[str] = None
+    blood_type_source: Optional[BloodTypeSource] = None
     account_status: Literal["active", "provisional"]
     manages_provisional: bool
 
@@ -377,6 +394,7 @@ class DependentProfile(BaseModel):
     avatar_url: Optional[str] = None
     health_status: Literal["updated", "pending", "overdue"]
     blood_type: Optional[str] = None
+    blood_type_source: Optional[BloodTypeSource] = None
     is_adult: bool
     age: int
 

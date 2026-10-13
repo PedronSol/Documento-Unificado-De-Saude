@@ -4,10 +4,16 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 import mysql.connector
 
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_user, require_adult
 from care.guardianship import list_dependents
 from database import cursor_scope, get_connection, transaction
-from models import CurrentUserProfileResponse, OwnProfileUpdate
+from models import (
+    BloodTypeResponse,
+    BloodTypeUpdate,
+    CurrentUserProfileResponse,
+    OwnProfileUpdate,
+)
+from patients.blood_type import update_blood_type
 from patients.service import find_patient_by_user_id, serialize_patient_profile
 
 
@@ -90,3 +96,28 @@ def update_me_profile(
     )
     updated_user = {**user, "display_name": display_name}
     return get_me(user=updated_user, connection=connection)
+
+
+@router.put("/me/blood-type", response_model=BloodTypeResponse)
+def update_own_blood_type(
+    update: BloodTypeUpdate,
+    patient: dict = Depends(require_adult),
+    connection: Any = Depends(get_connection),
+):
+    source = "guardian" if patient.get("acting_guardian") else "patient"
+    try:
+        with cursor_scope(connection, dictionary=True) as cursor:
+            with transaction(connection):
+                return update_blood_type(
+                    cursor,
+                    patient_id=patient["patient_id"],
+                    blood_type=update.blood_type,
+                    source=source,
+                    actor_user_id=patient["user_id"],
+                )
+    except mysql.connector.Error as error:
+        logger.exception("Falha ao atualizar o tipo sanguíneo")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados indisponível.",
+        ) from error

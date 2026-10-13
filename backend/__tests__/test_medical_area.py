@@ -85,6 +85,7 @@ def patient_row(**overrides):
         "avatar_url": None,
         "health_status": "updated",
         "blood_type": "A+",
+        "blood_type_source": "doctor",
         "birth_date": date(1985, 4, 12),
         "account_claimed_at": datetime(2026, 1, 1, 12, 0),
         "provisioned_by_doctor_id": None,
@@ -225,6 +226,7 @@ def test_medical_record_returns_allowlisted_timeline_and_audits_view():
     )
 
     assert result["patient"]["blood_type"] == "A+"
+    assert result["patient"]["blood_type_source"] == "doctor"
     assert result["vaccines"][0]["name"] == "Influenza"
     assert result["markers"] == {
         "active": [marker_row()],

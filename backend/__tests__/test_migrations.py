@@ -1272,3 +1272,53 @@ def test_migration_0015_registra_quem_enviou_cada_documento():
     )
     with pytest.raises(NotImplementedError, match="forward-only"):
         migration.downgrade()
+
+
+def test_migration_0016_registra_origem_do_tipo_sanguineo():
+    migration_path = (
+        PROJECT_ROOT / "db" / "migrations" / "versions" / "0016_blood_type_source.py"
+    )
+    assert migration_path.is_file()
+
+    spec = importlib.util.spec_from_file_location("blood_type_source", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    class OperationsDouble:
+        def __init__(self):
+            self.added_columns = []
+            self.statements = []
+            self.checks = []
+
+        def add_column(self, table, column):
+            self.added_columns.append((table, column))
+
+        def execute(self, statement):
+            self.statements.append(str(statement))
+
+        def create_check_constraint(self, name, table, condition):
+            self.checks.append((name, table, str(condition)))
+
+    operations = OperationsDouble()
+    migration.op = operations
+    migration.upgrade()
+
+    assert migration.revision == "0016"
+    assert migration.down_revision == "0015"
+    [(table, column)] = operations.added_columns
+    assert table == "patients"
+    assert column.name == "tipo_sanguineo_origem"
+    assert column.nullable
+    assert list(column.type.enums) == ["patient", "guardian", "doctor"]
+    assert any(
+        "tipo_sanguineo_origem = 'doctor'" in sql
+        and "tipo_sanguineo IS NOT NULL" in sql
+        for sql in operations.statements
+    )
+    assert operations.checks == [(
+        "ck_patients_blood_type_source",
+        "patients",
+        "(tipo_sanguineo IS NULL) = (tipo_sanguineo_origem IS NULL)",
+    )]
+    with pytest.raises(NotImplementedError, match="forward-only"):
+        migration.downgrade()
