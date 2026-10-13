@@ -444,7 +444,7 @@ Body: igual ao anterior
 | 12 | Cadastro e ativação aceitam senha de 8 caracteres e rejeitam 7 (`test_patient_registration.py`, `test_provisional_patients.py`, testes de frontend); falharam com o mínimo de 12 | Mínimo 8 em `PatientRegistration`, `PatientClaimLocal`, `PasswordField`, placeholder e mensagem de 422 | — | `47c0529` |
 | 13 | Paciente e responsável alteram valor de origem `doctor` (`test_blood_type.py`, `test_blood_type_flows.py`, `blood-type.test.jsx`); falharam com `409` e ação oculta | Precedência médica removida no backend; ação e textos do (i) e do diálogo médico ajustados | — | `1b07ecf` |
 | 11 | `authenticated-areas.test.jsx`: salvar recarrega `/me`; contexto do dependente; falhou sem integração | Painel próprio, área do dependente e prontuário | — | `8c8b7f7` |
-| 14 | `patient-link-panel.test.jsx`: CPF do paciente e do responsável formatados no vínculo direto; falhou com `11122233396` sem máscara | `formatCpf` no `PatientLinkPanel` (regra 8b) | — | pendente de commit |
+| 14 | `patient-link-panel.test.jsx`: CPF do paciente e do responsável formatados no vínculo direto; falhou com `11122233396` sem máscara | `formatCpf` no `PatientLinkPanel` (regra 8b) | — | `c24faea` |
 
 ## Critérios de conclusão
 

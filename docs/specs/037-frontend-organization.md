@@ -681,7 +681,7 @@ o módulo não existe.
 | 15 | REFACTOR coberto pela suíte existente | — | dashboard do paciente vira composição de `VaccinationHistory`, `AlertsSection`, `DocumentsSection`, `HealthMarkers`; marcadores e documentos divididos em diálogos e listas | 13.3 |
 | 16 | `tests/design-system.test.js`: `globals.css` ainda continha regras e não importava `styles/*` | divisão em 16 arquivos contíguos e índice de imports | guardrails passam a ler os arquivos na ordem da cascata | 13.4 |
 | 17 | `tests/legacy-cleanup.test.js`: `components/health-passport` e `mocks/` ainda existiam (2 falhas) | remoção do legado e do CSS `.safe-area-*` sem consumidor | guia e `AGENTS.md` descrevem organização por feature, stores e estilos | 13.5 |
-| 18 | `areas.test.js` e `authenticated-areas.test.jsx`: contexto ainda `Minha saúde` em `/patient/dependents` e link `Voltar para minha saúde` ausente (2 falhas) | `listContexts(identity, pathname)` renomeia o contexto na lista; link de volta na `DependentsList` (regra 9g) | constante `PATIENT_PATH`; E2E em 320 px e 1440 px | pendente de commit |
+| 18 | `areas.test.js` e `authenticated-areas.test.jsx`: contexto ainda `Minha saúde` em `/patient/dependents` e link `Voltar para minha saúde` ausente (2 falhas) | `listContexts(identity, pathname)` renomeia o contexto na lista; link de volta na `DependentsList` (regra 9g) | constante `PATIENT_PATH`; E2E em 320 px e 1440 px | `e30663a` |
 
 ## Verificações executadas
 
