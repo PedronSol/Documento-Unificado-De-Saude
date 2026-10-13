@@ -95,7 +95,7 @@ export function PasswordField({ toggleLabel = "Mostrar senha", ...props }) {
       {...props}
       type={visible ? "text" : "password"}
       autoComplete="new-password"
-      minLength={12}
+      minLength={8}
       maxLength={128}
       trailing={(
         <button

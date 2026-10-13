@@ -58,9 +58,12 @@ Uma rodada de avaliação de usabilidade apontou quatro problemas:
 
 ## Não objetivos
 
-- Alterar regras de validação do backend para CPF, senha ou nome (o backend já
+- Alterar regras de validação do backend para CPF ou nome (o backend já
   normaliza CPF com máscara; a confirmação de senha é verificação de
-  digitação, não regra de segurança).
+  digitação, não regra de segurança). A única mudança de validação de senha é
+  o mínimo da regra 8a.
+- Alterar o mínimo de 12 caracteres da senha de administrador institucional
+  (`AdminAccountCreate`, criada pela CLI).
 - Medidor de força de senha, política de complexidade ou checagem de senhas
   vazadas.
 - Aplicar visualização/confirmação de senha ao convite profissional
@@ -104,6 +107,12 @@ Uma rodada de avaliação de usabilidade apontou quatro problemas:
    continua recebendo o valor mascarado, que o backend já normaliza.
 8. A formatação é uma função pura única (`formatCpf`) em `frontend/lib/`,
    reutilizada por cadastro local, onboarding Google e ativação de conta.
+8a. A senha local de paciente, no cadastro (`PatientRegistration`) e na
+   ativação de conta (`PatientClaimLocal`), passa a ter de 8 a 128 caracteres
+   (antes 12). O backend valida o limite; o frontend usa `minLength={8}`, o
+   placeholder "Mínimo de 8 caracteres" e a mensagem de 422 da ativação "A
+   senha precisa ter ao menos 8 caracteres.". As demais regras da spec `006`
+   (não alterar, hash, ausência em logs) permanecem.
 
 ### Marcadores de saúde
 
@@ -192,6 +201,13 @@ E o foco vai para o campo de confirmação
 Dado que todos os campos são válidos e senha e confirmação coincidem
 Quando o visitante envia o cadastro
 Então o corpo da requisição contém `password` e não contém a confirmação
+
+### Cenário: senha com 8 caracteres
+
+Dado um cadastro local ou uma ativação de conta com dados válidos
+Quando a senha tem 8 caracteres
+Então a conta é criada
+E com 7 caracteres a resposta é 422 sem criar conta
 
 ### Cenário: máscara de CPF
 
@@ -412,6 +428,7 @@ Body: igual ao anterior
 | 8 | `test_blood_type.py`: regras de origem, 409, auditoria e rollback; falhou na coleta (modelo/rota inexistentes) | `BloodTypeUpdate`, `patients/blood_type.py`, `PUT /me/blood-type` | — | `22e6511` |
 | 9 | `test_blood_type_flows.py` (MySQL real): responsável, médico, 403, 409 e resumo público; falhou por `blood_type_source` ausente | Contratos próprio, dependente e médico; `PUT /medical/patients/{id}/blood-type` | Fixtures de caracterização atualizadas | `22e6511` |
 | 10 | `blood-type.test.jsx`: textos do (i), permissões, diálogo, erro e prontuário; falhou por componentes inexistentes | `BloodTypeFact`, `BloodTypeDialog`, `MedicalBloodType` | Stub de `ResizeObserver` no setup do Vitest | `8c8b7f7` |
+| 12 | Cadastro e ativação aceitam senha de 8 caracteres e rejeitam 7 (`test_patient_registration.py`, `test_provisional_patients.py`, testes de frontend); falharam com o mínimo de 12 | Mínimo 8 em `PatientRegistration`, `PatientClaimLocal`, `PasswordField`, placeholder e mensagem de 422 | — | Commit da revisão de senha |
 | 11 | `authenticated-areas.test.jsx`: salvar recarrega `/me`; contexto do dependente; falhou sem integração | Painel próprio, área do dependente e prontuário | — | `8c8b7f7` |
 
 ## Critérios de conclusão
@@ -421,7 +438,8 @@ Body: igual ao anterior
       remissão a esta spec (revisão de 2026-10-12).
 - [x] `docs/specs/README.md` e roadmap atualizados com status e referência.
 - [x] Definition of Done do roadmap atendida: 329 testes backend (MySQL real),
-      325 unitários, 49 E2E e build do frontend aprovados.
+      325 unitários, 49 E2E e build do frontend aprovados; após a regra 8a,
+      332 testes backend, 325 unitários, E2E de cadastro/ativação e build.
 
 ## Decisões e observações
 
@@ -431,6 +449,10 @@ Body: igual ao anterior
   visualização mantém rótulo fixo e comunica o estado só por `aria-pressed`,
   pois alterar rótulo e estado ao mesmo tempo gera leitura contraditória em
   leitores de tela; com dois campos de senha, cada rótulo nomeia o seu campo.
+- Revisão de 2026-10-12 pedida pelo produto: senha mínima de paciente reduzida
+  de 12 para 8 caracteres (regra 8a), alinhada ao limite que pessoas leigas
+  esperam; a confirmação e a visualização reduzem o risco de erro de
+  digitação. A senha do admin institucional mantém 12.
 - Decisão de 2026-10-12: três autores de tipo sanguíneo são contemplados — o
   paciente adulto informa (autodeclarado), o responsável legal informa pelo
   dependente e o médico vinculado registra ou corrige. O registro médico

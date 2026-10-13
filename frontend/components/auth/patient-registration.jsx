@@ -251,7 +251,7 @@ export function PatientRegistration({
               passwordConfirmation.clearMismatch();
               setLocalValue("password", event.target.value);
             }}
-            placeholder="Mínimo de 12 caracteres"
+            placeholder="Mínimo de 8 caracteres"
             disabled={isLoading}
           />
           <PasswordField

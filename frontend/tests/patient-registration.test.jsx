@@ -103,6 +103,9 @@ describe("PatientRegistration", () => {
     expect(password).toHaveValue("senha-local-segura");
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     expect(toggle).toHaveFocus();
+    expect(password).toHaveAttribute("minLength", "8");
+    expect(password).toHaveAttribute("placeholder", "Mínimo de 8 caracteres");
+    expect(screen.getByLabelText("Confirme a senha")).toHaveAttribute("minLength", "8");
     expect(
       screen.getByRole("button", { name: "Mostrar confirmação de senha" }),
     ).toHaveAttribute("aria-pressed", "false");

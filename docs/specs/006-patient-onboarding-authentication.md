@@ -54,7 +54,8 @@ sob controle do backend.
 2. No cadastro local, o backend recebe e normaliza o e-mail com remoção de
    espaços nas extremidades e conversão para minúsculas. A mesma normalização
    passa a ser aplicada ao login local e às comparações de unicidade.
-3. A senha local deve ter de 12 a 128 caracteres Unicode, não pode ser composta
+3. A senha local deve ter de 8 a 128 caracteres Unicode (mínimo reduzido de
+   12 para 8 pela spec `042`, regra 8a, em 2026-10-12), não pode ser composta
    somente por espaços e não é alterada silenciosamente pelo backend. Ela é
    transformada pelo `hash_password` existente antes de qualquer persistência e
    nunca aparece em resposta, log ou auditoria.

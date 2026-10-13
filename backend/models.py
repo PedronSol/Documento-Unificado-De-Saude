@@ -269,7 +269,7 @@ class PatientRegistration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: str = Field(max_length=254)
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     cpf: str
     display_name: str = Field(max_length=100)
     preferred_name: str = Field(max_length=20)
@@ -949,7 +949,7 @@ class PatientClaimBase(BaseModel):
 
 class PatientClaimLocal(PatientClaimBase):
     email: str = Field(max_length=254)
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
 
     @field_validator("email", mode="before")
     @classmethod

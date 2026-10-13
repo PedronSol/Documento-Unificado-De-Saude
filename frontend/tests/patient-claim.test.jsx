@@ -139,7 +139,7 @@ describe("PatientClaim", () => {
   it.each([
     [403, "Link inválido, expirado ou dados que não conferem. Após 5 tentativas o link é bloqueado."],
     [409, "Esse e-mail ou conta Google já está em uso."],
-    [422, "Revise os dados informados. A senha precisa ter ao menos 12 caracteres."],
+    [422, "Revise os dados informados. A senha precisa ter ao menos 8 caracteres."],
   ])("explica a resposta %s sem detalhes internos", async (status, message) => {
     apiFetch.mockReturnValue(respondWith({ detail: "interno" }, status));
     const user = userEvent.setup();

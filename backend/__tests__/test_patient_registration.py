@@ -220,10 +220,31 @@ async def test_patient_can_start_local_registration(client, registration_databas
     assert registration_database.commits == 1
 
 
+async def test_local_registration_accepts_eight_character_password(
+    client,
+    registration_database,
+):
+    response = await client.post(
+        "/auth/patient-registration",
+        json={
+            "email": "oito@example.com",
+            "password": "senha123",
+            "cpf": "529.982.247-25",
+            "display_name": "Carlos da Silva",
+            "preferred_name": "Carlos",
+            "birth_date": "1985-04-12",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    assert verify_password("senha123", registration_database.users[1]["password_hash"])
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
         ("password", "curta"),
+        ("password", "x" * 7),
         ("password", " " * 12),
         ("password", "x" * 129),
         ("cpf", "111.111.111-11"),
