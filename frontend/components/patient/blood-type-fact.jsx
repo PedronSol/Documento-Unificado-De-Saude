@@ -13,7 +13,8 @@ const CONFIRM_OR_CORRECT = "O médico responsável pode confirmá-lo ou corrigi-
 function explanation({ profile, context }) {
   const source = profile.blood_type_source;
   if (source === "doctor") {
-    return "Registrado pelo médico responsável. Para corrigir, fale com ele.";
+    return "Registrado pelo médico responsável. Altere somente com base em "
+      + "exame ou documento confiável.";
   }
   if (source === "guardian") {
     return `Informado pelo responsável legal. ${CONFIRM_OR_CORRECT}`;
@@ -67,7 +68,8 @@ export function BloodTypeInfo({ text }) {
 }
 
 
-// Guardians act for dependents of any age; minors cannot edit in their own login.
+// Both sides edit the blood type (spec 042, rule 14). Guardians act for
+// dependents of any age; minors cannot edit in their own login.
 export function BloodTypeFact({
   profile,
   context = "own",
@@ -77,8 +79,7 @@ export function BloodTypeFact({
   const triggerRef = useRef(null);
   const [opening, setOpening] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  const canEdit = (context === "dependent" || profile.is_adult)
-    && profile.blood_type_source !== "doctor";
+  const canEdit = context === "dependent" || profile.is_adult;
 
   return (
     <div className="blood-type-fact">

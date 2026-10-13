@@ -49,7 +49,7 @@ def test_adult_patient_informs_and_changes_own_blood_type(make_client, engine):
     assert (me["blood_type"], me["blood_type_source"]) == ("O-", "patient")
 
 
-def test_guardian_informs_and_doctor_registration_prevails(make_client, engine):
+def test_guardian_and_doctor_both_edit_blood_type(make_client, engine):
     doctor, guardian, child_id = guardian_with_dependent(make_client, engine)
     unlinked_doctor = login(make_client, "helena.costa@email.com")
     stranger, _stranger_user = register_patient(make_client)
@@ -85,20 +85,21 @@ def test_guardian_informs_and_doctor_registration_prevails(make_client, engine):
     assert by_doctor.status_code == 200, by_doctor.text
     assert by_doctor.json() == {"blood_type": "B-", "blood_type_source": "doctor"}
     assert (record["blood_type"], record["blood_type_source"]) == ("B-", "doctor")
-    assert overwrite.status_code == 409
+    assert overwrite.status_code == 200, overwrite.text
+    assert overwrite.json() == {"blood_type": "AB+", "blood_type_source": "guardian"}
     stored = fetch_one(
         engine,
         "SELECT tipo_sanguineo, tipo_sanguineo_origem FROM patients WHERE patient_id = %s",
         (child_id,),
     )
-    assert stored == {"tipo_sanguineo": "B-", "tipo_sanguineo_origem": "doctor"}
+    assert stored == {"tipo_sanguineo": "AB+", "tipo_sanguineo_origem": "guardian"}
     events = fetch_one(
         engine,
         "SELECT COUNT(*) AS total FROM clinical_audit_events "
         "WHERE patient_id = %s AND action = 'patient.blood_type_updated'",
         (child_id,),
     )
-    assert events["total"] == 2
+    assert events["total"] == 3
 
 
 def test_public_summary_does_not_expose_blood_type_source(make_client, engine):

@@ -5,6 +5,8 @@ from fastapi import HTTPException, status
 from audit.service import record_clinical_event
 
 
+# Patient side and linked doctor both edit it; the latest change wins and the
+# audit trail keeps every previous value (spec 042, rule 14).
 def update_blood_type(
     cursor: Any,
     *,
@@ -31,11 +33,6 @@ def update_blood_type(
         "blood_type": current["blood_type"],
         "blood_type_source": current["blood_type_source"],
     }
-    if source != "doctor" and before["blood_type_source"] == "doctor":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Tipo sanguíneo registrado pelo médico responsável.",
-        )
     after = {"blood_type": blood_type, "blood_type_source": source}
     if after == before:
         return after

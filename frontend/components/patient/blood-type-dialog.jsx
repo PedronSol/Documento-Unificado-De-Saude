@@ -89,7 +89,8 @@ export function BloodTypeDialog({
                     ? "O tipo sanguíneo deve vir de um exame ou documento confiável. "
                       + "O médico responsável pode confirmá-lo ou corrigi-lo."
                     : "Registre o tipo sanguíneo confirmado por exame. "
-                      + "O registro profissional prevalece sobre o autodeclarado."}
+                      + "O paciente também pode alterá-lo; a origem da última "
+                      + "alteração fica visível."}
                 </p>
               </DialogDescription>
             </div>

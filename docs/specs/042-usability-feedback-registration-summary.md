@@ -127,16 +127,20 @@ Uma rodada de avaliação de usabilidade apontou quatro problemas:
 11. O tipo sanguíneo passa a ter origem registrada: `patient` (autodeclarado
     pelo titular), `guardian` (declarado pelo responsável legal) ou `doctor`
     (registrado por profissional). Valor `null` não tem origem.
-12. O paciente adulto pode informar seu próprio tipo sanguíneo quando ele está
-    `null` e alterá-lo enquanto a origem não for `doctor`.
+12. O paciente adulto pode informar ou alterar seu próprio tipo sanguíneo a
+    qualquer momento, inclusive um valor registrado pelo médico; a origem
+    passa a `patient`.
 13. O responsável legal ativo, agindo no contexto do dependente
     (`X-Acting-Patient`, regras 24–27 da spec `036`), pode informar ou alterar
-    o tipo sanguíneo do dependente nas mesmas condições, com origem `guardian`.
+    o tipo sanguíneo do dependente a qualquer momento, com origem `guardian`.
     Isso vale para dependente de qualquer idade, como as demais rotas clínicas
     do contexto do dependente.
-14. Depois que um médico registra o tipo sanguíneo (origem `doctor`), nem o
-    paciente nem o responsável podem alterá-lo; a tentativa retorna `409`.
-    Correções passam a ser feitas pelo médico.
+14. O tipo sanguíneo é o único dado clínico editável tanto pelo lado do
+    paciente (titular adulto ou responsável) quanto pelo médico vinculado:
+    nenhum lado bloqueia o outro, e prevalece a última alteração. A origem
+    sempre reflete quem fez a última alteração, e a auditoria preserva o
+    histórico completo. Os demais dados registrados pelo médico seguem as
+    regras das suas próprias specs.
 15. Por natureza, o tipo sanguíneo quase nunca muda; a edição existe para
     corrigir erro de registro. A interface trata "Alterar" como ação
     secundária e o diálogo pede confirmação do novo valor.
@@ -157,8 +161,8 @@ Uma rodada de avaliação de usabilidade apontou quatro problemas:
     - origem `guardian`: "Informado pelo responsável legal. O médico
       responsável pode confirmá-lo ou corrigi-lo." e a ação "Alterar" quando
       quem vê é o responsável no contexto do dependente ou o titular adulto;
-    - origem `doctor`: "Registrado pelo médico responsável. Para corrigir,
-      fale com ele." e nenhuma ação de edição.
+    - origem `doctor`: "Registrado pelo médico responsável. Altere somente com
+      base em exame ou documento confiável." e a ação "Alterar".
 19. O paciente menor no próprio login não vê a ação de informar/alterar (mesma
     regra de `require_adult` dos marcadores); o (i) explica que o dado é
     informado pelo responsável legal ou registrado pelo médico. No contexto do
@@ -248,12 +252,12 @@ Dado um paciente adulto com tipo sanguíneo `O+` de origem `patient`
 Quando envia `PUT /me/blood-type` com `{"blood_type": "O-"}`
 Então a resposta é 200 com o novo valor e origem `patient`
 
-### Cenário: paciente não sobrescreve registro médico
+### Cenário: paciente altera registro médico
 
 Dado um paciente adulto com tipo sanguíneo `A+` de origem `doctor`
 Quando envia `PUT /me/blood-type` com `{"blood_type": "B+"}`
-Então a resposta é 409
-E o valor e a origem permanecem inalterados e nada é auditado
+Então a resposta é 200 com `blood_type="B+"` e `blood_type_source="patient"`
+E a auditoria registra o valor e a origem anteriores
 
 ### Cenário: menor não informa tipo sanguíneo no próprio login
 
@@ -268,11 +272,11 @@ Quando envia `PUT /me/blood-type` com `X-Acting-Patient` do dependente e `{"bloo
 Então a resposta é 200 com `blood_type="B+"` e `blood_type_source="guardian"`
 E a auditoria registra o responsável como ator e o dependente como paciente
 
-### Cenário: responsável não sobrescreve registro médico
+### Cenário: responsável altera registro médico
 
 Dado um dependente com tipo sanguíneo de origem `doctor`
 Quando o responsável envia `PUT /me/blood-type` no contexto do dependente
-Então a resposta é 409 e nada é alterado
+Então a resposta é 200 com origem `guardian`
 
 ### Cenário: quem não é responsável ativo
 
@@ -316,7 +320,7 @@ Auth: paciente adulto, ou responsável ativo com X-Acting-Patient (require_adult
 Body: {"blood_type": "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-"}
 200: {"blood_type": "O+", "blood_type_source": "patient" | "guardian"}
 401 sem sessão · 403 menor agindo por si, sem perfil de paciente ou sem guarda ativa
-409 valor registrado por médico · 422 valor inválido · 503 banco indisponível
+422 valor inválido · 503 banco indisponível
 ```
 
 ```text
@@ -382,9 +386,9 @@ Body: igual ao anterior
   dígitos verificadores continua sendo do backend (422 com a mensagem atual).
 - Mensagem de senhas diferentes some quando o usuário edita qualquer um dos
   dois campos de senha.
-- Concorrência paciente/responsável × médico: o bloqueio da linha garante que
-  um registro médico concluído não seja sobrescrito por uma requisição
-  iniciada antes; essa requisição retorna 409.
+- Concorrência paciente/responsável × médico: o bloqueio da linha serializa
+  as alterações; a última confirmada prevalece e cada uma gera seu próprio
+  evento de auditoria com o estado anterior correto.
 - Erro de API no diálogo de tipo sanguíneo usa `readApiError`, mantém o diálogo
   aberto e preserva a seleção.
 
@@ -398,10 +402,10 @@ Body: igual ao anterior
   não dígitos); alternância de visualização da senha; bloqueio por senhas
   diferentes sem chamada à API; corpo da requisição sem confirmação; máscara no
   onboarding Google e na ativação; novo texto dos marcadores; conteúdo do (i)
-  para cada estado; ação oculta para menor e para origem `doctor`.
+  para cada estado; ação oculta somente para o menor no próprio login.
 - Backend (pytest): regras 12–17, responsável com origem `guardian`, 403
-  menor agindo por si e sem guarda ativa, 409 origem `doctor` para paciente e
-  responsável, 422 valor
+  menor agindo por si e sem guarda ativa, alteração de valor de origem
+  `doctor` por paciente e responsável, 422 valor
   inválido, 403 médico sem vínculo, 403 admin, auditoria atômica e ausência de
   auditoria em valor repetido, `blood_type_source` nos contratos próprio e
   médico e ausência no público.
@@ -429,6 +433,7 @@ Body: igual ao anterior
 | 9 | `test_blood_type_flows.py` (MySQL real): responsável, médico, 403, 409 e resumo público; falhou por `blood_type_source` ausente | Contratos próprio, dependente e médico; `PUT /medical/patients/{id}/blood-type` | Fixtures de caracterização atualizadas | `22e6511` |
 | 10 | `blood-type.test.jsx`: textos do (i), permissões, diálogo, erro e prontuário; falhou por componentes inexistentes | `BloodTypeFact`, `BloodTypeDialog`, `MedicalBloodType` | Stub de `ResizeObserver` no setup do Vitest | `8c8b7f7` |
 | 12 | Cadastro e ativação aceitam senha de 8 caracteres e rejeitam 7 (`test_patient_registration.py`, `test_provisional_patients.py`, testes de frontend); falharam com o mínimo de 12 | Mínimo 8 em `PatientRegistration`, `PatientClaimLocal`, `PasswordField`, placeholder e mensagem de 422 | — | `47c0529` |
+| 13 | Paciente e responsável alteram valor de origem `doctor` (`test_blood_type.py`, `test_blood_type_flows.py`, `blood-type.test.jsx`); falharam com `409` e ação oculta | Precedência médica removida no backend; ação e textos do (i) e do diálogo médico ajustados | — | Commit da edição compartilhada |
 | 11 | `authenticated-areas.test.jsx`: salvar recarrega `/me`; contexto do dependente; falhou sem integração | Painel próprio, área do dependente e prontuário | — | `8c8b7f7` |
 
 ## Critérios de conclusão
@@ -457,10 +462,14 @@ Body: igual ao anterior
   digitação. A senha do admin institucional mantém 12.
 - Decisão de 2026-10-12: três autores de tipo sanguíneo são contemplados — o
   paciente adulto informa (autodeclarado), o responsável legal informa pelo
-  dependente e o médico vinculado registra ou corrige. O registro médico
-  prevalece sobre o declarado, e a origem fica visível
+  dependente e o médico vinculado registra ou corrige. A origem fica visível
   para o paciente e para o médico, para não tratar dado autodeclarado como
   confirmado.
+- Revisão de 2026-10-12 pedida pelo produto: o registro médico deixa de
+  prevalecer sobre o declarado. O tipo sanguíneo é o único dado em que faz
+  sentido o paciente alterar o que o médico registrou; os dois lados editam,
+  prevalece a última alteração, e origem e auditoria mantêm a rastreabilidade
+  (regra 14). O `409` por origem `doctor` foi removido.
 - A confirmação de senha é proteção contra erro de digitação; não altera a
   política de senha da spec `006`.
 - A máscara de CPF não muda o contrato porque `_normalize_cpf` já remove a

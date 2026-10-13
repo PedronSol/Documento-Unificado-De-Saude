@@ -126,20 +126,25 @@ def test_guardian_informs_dependent_blood_type_as_guardian():
     assert audit_event(connection)[1:3] == (2, 20)
 
 
-@pytest.mark.parametrize("patient", [ADULT, GUARDIAN_ACTING])
-def test_doctor_registered_blood_type_cannot_be_overwritten(patient):
+@pytest.mark.parametrize(
+    ("patient", "source"),
+    [(ADULT, "patient"), (GUARDIAN_ACTING, "guardian")],
+)
+def test_patient_side_can_change_doctor_registered_blood_type(patient, source):
     connection = BloodTypeConnection(blood_type="A+", source="doctor")
 
-    with pytest.raises(HTTPException) as error:
-        update_own_blood_type(
-            update=BloodTypeUpdate(blood_type="B+"),
-            patient=patient,
-            connection=connection,
-        )
+    result = update_own_blood_type(
+        update=BloodTypeUpdate(blood_type="B+"),
+        patient=patient,
+        connection=connection,
+    )
 
-    assert error.value.status_code == 409
-    assert len(statements(connection)) == 1
-    assert connection.commits == 0
+    assert result == {"blood_type": "B+", "blood_type_source": source}
+    assert json.loads(audit_event(connection)[6]) == {
+        "blood_type": "A+",
+        "blood_type_source": "doctor",
+    }
+    assert connection.commits == 1
 
 
 def test_repeating_same_value_and_source_changes_nothing():

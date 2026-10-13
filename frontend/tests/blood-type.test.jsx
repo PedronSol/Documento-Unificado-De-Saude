@@ -81,15 +81,16 @@ describe("BloodTypeFact", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("bloqueia a edição de registro médico", async () => {
+  it("permite ao paciente alterar o registro médico", async () => {
     const user = userEvent.setup();
     renderFact({ profile: profile({ blood_type: "A+", blood_type_source: "doctor" }) });
 
     expect(screen.getByText("A+")).toBeInTheDocument();
     expect(await openInfo(user)).toHaveTextContent(
-      "Registrado pelo médico responsável. Para corrigir, fale com ele.",
+      "Registrado pelo médico responsável. Altere somente com base em exame "
+      + "ou documento confiável.",
     );
-    expect(screen.queryByRole("button", { name: "Alterar" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alterar" })).toBeInTheDocument();
   });
 
   it("explica o valor autodeclarado e permite alterar", async () => {
@@ -176,7 +177,7 @@ describe("BloodTypeFact", () => {
     apiFetch.mockResolvedValue({
       ok: false,
       status: 409,
-      json: async () => ({ detail: "Tipo sanguíneo registrado pelo médico responsável." }),
+      json: async () => ({ detail: "Perfil de paciente inconsistente." }),
     });
     const user = userEvent.setup();
     renderFact({ profile: profile() });
@@ -186,7 +187,7 @@ describe("BloodTypeFact", () => {
     await user.click(screen.getByRole("button", { name: "Salvar tipo sanguíneo" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Tipo sanguíneo registrado pelo médico responsável.",
+      "Perfil de paciente inconsistente.",
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByLabelText("Tipo sanguíneo")).toHaveTextContent("AB-");
@@ -224,6 +225,8 @@ describe("MedicalBloodType", () => {
 
     expect(screen.getByText("autodeclarado")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Corrigir" }));
+    expect(screen.getByText(/O paciente também pode alterá-lo/)).toBeInTheDocument();
+    expect(screen.queryByText(/prevalece/)).not.toBeInTheDocument();
     await chooseBloodType(user, "O-");
     await user.click(screen.getByRole("button", { name: "Confirmar alteração" }));
 
