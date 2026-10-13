@@ -161,7 +161,7 @@ camada de configuração ainda não existe.
 | Alembic 2 | `database_admin` ausente durante a coleta | Executor Alembic e administração: 10 testes passaram | Configuração, migration e administração separadas | `backend/__tests__/test_migrations.py` |
 | Alembic 3 | CLI não aceitava dependências injetadas | Teste direcionado passou | Composition root recebe factories e casos de uso | `backend/database_tasks.py` |
 | MySQL real | Teste legado falhou ao importar `migrate` removido | Testes adaptados ao Alembic passaram no MySQL 8 real | Cobertura separada para idempotência, preservação de dados e interrupção após falha | `backend/__tests__/test_migrations_integration.py` |
-| Seed demonstrativo | `test_migrations.py`: 7 CPFs do seed com dígito verificador inválido; `test_migrations_integration.py` (MySQL real): nenhuma guarda após o seed | CPFs corrigidos e guarda `active` Carlos → Mariana com `INSERT IGNORE`; seed reaplicado no teste sem duplicar | `db/README.md` documenta a guarda e a necessidade de `make db-reset` | pendente de commit |
+| Seed demonstrativo | `test_migrations.py`: 7 CPFs do seed com dígito verificador inválido; `test_migrations_integration.py` (MySQL real): nenhuma guarda após o seed | CPFs corrigidos e guarda `active` Carlos → Mariana com `INSERT IGNORE`; seed reaplicado no teste sem duplicar | `db/README.md` documenta a guarda e a necessidade de `make db-reset` | `47a4534` |
 
 ## Critérios de conclusão
 
