@@ -1028,6 +1028,16 @@
   gap: var(--ds-space-2);
 }
 
+.public-share-facts [data-slot="button"],
+.public-share-state [data-slot="button"] {
+  min-height: var(--ds-control-min-height);
+  white-space: normal;
+}
+
+.public-share-state [data-slot="button"] {
+  margin-top: var(--ds-space-4);
+}
+
 .public-share-facts > div {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

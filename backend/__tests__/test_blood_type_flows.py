@@ -15,6 +15,12 @@ from test_guardianships import (
     cpf_of,
     minor_payload,
 )
+from models import (
+    BloodTypeUpdate,
+    HealthShareCreatedResponse,
+    MarkerCreateUpdate,
+    PublicHealthSummaryResponse,
+)
 
 
 def guardian_with_dependent(make_client, engine):
@@ -118,3 +124,59 @@ def test_public_summary_does_not_expose_blood_type_source(make_client, engine):
         "preferred_name": "Convidado",
         "blood_type": "A-",
     }
+
+
+def test_same_share_reads_current_blood_type_and_markers_without_extending_expiry(make_client, engine):
+    patient, _user_id = register_patient(make_client)
+    initial = patient.put("/me/blood-type", json=BloodTypeUpdate(blood_type="AB+").model_dump())
+    assert initial.status_code == 200
+    marker = patient.post("/me/markers", json=MarkerCreateUpdate(type="allergy", name="Dipirona").model_dump())
+    assert marker.status_code == 201, marker.text
+    created = patient.post("/me/shares")
+    assert created.status_code == 201, created.text
+    share = HealthShareCreatedResponse.model_validate(created.json())
+    token = share.share_url.split("#", 1)[1]
+    public = make_client()
+
+    first = public.get("/public/shares/summary", headers={"X-Share-Token": token})
+    assert first.status_code == 200
+    before = PublicHealthSummaryResponse.model_validate(first.json())
+    assert before.patient.blood_type == "AB+"
+    assert [item.name for item in before.markers.allergies] == ["Dipirona"]
+
+    changed = patient.put("/me/blood-type", json=BloodTypeUpdate(blood_type="O-").model_dump())
+    assert changed.status_code == 200
+    removed = patient.delete(f"/me/markers/{marker.json()['marker_id']}")
+    assert removed.status_code == 200
+    second = public.get("/public/shares/summary", headers={"X-Share-Token": token})
+    assert second.status_code == 200, second.text
+    after = PublicHealthSummaryResponse.model_validate(second.json())
+    assert after.patient.blood_type == "O-"
+    assert after.markers.allergies == []
+    assert before.expires_at == after.expires_at == share.expires_at
+
+    revoked = patient.delete(f"/me/shares/{share.share_id}")
+    assert revoked.status_code == 204
+    refused = public.get("/public/shares/summary", headers={"X-Share-Token": token})
+    assert refused.status_code == 404
+    assert refused.json() == {"detail": "Compartilhamento indisponível."}
+    assert refused.headers["cache-control"] == "no-store, max-age=0"
+
+
+def test_expired_share_cannot_be_reopened(make_client, engine):
+    patient, _user_id = register_patient(make_client)
+    created = patient.post("/me/shares")
+    assert created.status_code == 201
+    share = HealthShareCreatedResponse.model_validate(created.json())
+    token = share.share_url.split("#", 1)[1]
+    public = make_client()
+    assert public.get("/public/shares/summary", headers={"X-Share-Token": token}).status_code == 200
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "UPDATE health_shares SET created_at = UTC_TIMESTAMP(6) - INTERVAL 3 HOUR, "
+            "expires_at = UTC_TIMESTAMP(6) - INTERVAL 1 HOUR, last_accessed_at = NULL "
+            "WHERE share_id = %s", (share.share_id,),
+        )
+    refused = public.get("/public/shares/summary", headers={"X-Share-Token": token})
+    assert refused.status_code == 404
+    assert refused.json() == {"detail": "Compartilhamento indisponível."}

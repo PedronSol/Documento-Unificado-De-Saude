@@ -17,6 +17,7 @@ export function useApiResource(path, {
   fallback,
   initialData = [],
   onUnauthenticated = expireSession,
+  fetchResource = apiFetch,
 }) {
   const [requestVersion, setRequestVersion] = useState(0);
   const [resource, setResource] = useState({
@@ -40,11 +41,11 @@ export function useApiResource(path, {
         errorStatus: null,
       }));
       try {
-        const response = await apiFetch(path);
+        const response = await fetchResource(path);
         if (!active) {
           return;
         }
-        if (response.status === 401) {
+        if (response.status === 401 && onUnauthenticated) {
           onUnauthenticated();
           return;
         }
@@ -82,7 +83,7 @@ export function useApiResource(path, {
     };
     // initialData is a default value, not a request input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fallback, onUnauthenticated, path, requestVersion]);
+  }, [fallback, fetchResource, onUnauthenticated, path, requestVersion]);
 
   const reload = useCallback(() => setRequestVersion((value) => value + 1), []);
   const updateData = useCallback((update) => setResource((current) => ({
