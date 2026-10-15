@@ -176,8 +176,8 @@ o dashboard emissor da página pública e citar esta spec.
 
 | Ciclo | Teste RED | Implementação GREEN | Refactor | Referência |
 |---|---|---|---|---|
-| Continuidade, atualização, retry e expiração | `vitest run tests/public-health-share.test.jsx`: 14 falhas e 3 sucessos antes de produção; fragmento vazio na recarga, botão de atualização ausente e resumo mantido após expirar | Mesmo comando: 17 testes passaram após preservar o fragmento e adicionar atualização, retry e expiração | Fluxo de leitura reutiliza `useApiResource`/`readApiError`; o teste Strict Mode verifica o comportamento sem exigir quantidade de requisições da implementação anterior | Branch `fix/qr-code-resumo-dinamico`; commit pendente de autoria Git, registrado no roadmap |
-| Transporte público do hook | `vitest run tests/use-api-resource.test.jsx`: 1 falha e 10 sucessos; transporte público injetado não era utilizado (`errorStatus` nulo em vez de `401`) | Hook recebe `fetchResource` e permite `onUnauthenticated: null`; cenários públicos e consumidores existentes passaram | Removida a duplicação do ciclo de carregamento, reload, erros e descarte de respostas no componente público | Branch `fix/qr-code-resumo-dinamico`; commit pendente de autoria Git, registrado no roadmap |
+| Continuidade, atualização, retry e expiração | `vitest run tests/public-health-share.test.jsx`: 14 falhas e 3 sucessos antes de produção; fragmento vazio na recarga, botão de atualização ausente e resumo mantido após expirar | Mesmo comando: 17 testes passaram após preservar o fragmento e adicionar atualização, retry e expiração | Fluxo de leitura reutiliza `useApiResource`/`readApiError`; o teste Strict Mode verifica o comportamento sem exigir quantidade de requisições da implementação anterior | Branch `fix/qr-code-resumo-dinamico`; commit `f8984b4`, registrado no roadmap |
+| Transporte público do hook | `vitest run tests/use-api-resource.test.jsx`: 1 falha e 10 sucessos; transporte público injetado não era utilizado (`errorStatus` nulo em vez de `401`) | Hook recebe `fetchResource` e permite `onUnauthenticated: null`; cenários públicos e consumidores existentes passaram | Removida a duplicação do ciclo de carregamento, reload, erros e descarte de respostas no componente público | Branch `fix/qr-code-resumo-dinamico`; commit `f8984b4`, registrado no roadmap |
 
 ## Critérios de conclusão
 
@@ -187,7 +187,7 @@ o dashboard emissor da página pública e citar esta spec.
 - [x] Falhas retiram dados antigos e permitem retry quando temporárias.
 - [x] Testes RED/GREEN/REFACTOR documentados e verificações relevantes concluídas.
 - [x] Specs `040`/`043`, índice e roadmap sincronizados com a implementação.
-- [ ] Referência de commit/PR: pendente de nome/e-mail de autoria Git no ambiente.
+- [x] Referência da implementação: commit `f8984b4`.
 
 
 ## Verificação da entrega
@@ -231,10 +231,9 @@ preserva o prazo conhecido durante uma atualização pendente. O módulo local
 `@vercel/analytics/next` recebe pathname/rota sem fragmento; o token continua
 somente no fragmento local e no header da API.
 
-Não há teste ou build obrigatório pendente para esta entrega. O commit local
-foi tentado, mas o Git retornou `Author identity unknown`; a autoria não foi
-inventada nem a configuração global alterada. As mudanças permanecem na branch
-para registro assim que nome/e-mail forem configurados. A suíte backend
+Não há teste, build ou referência de implementação pendente para esta entrega.
+Após o usuário fornecer nome/e-mail, a autoria foi configurada apenas neste
+repositório e a implementação registrada no commit `f8984b4`. A suíte backend
 completa e os demais E2E não foram repetidos: o backend de produção não mudou,
 a integração afetada passou e todos os consumidores do hook foram cobertos
 pela regressão unitária completa.

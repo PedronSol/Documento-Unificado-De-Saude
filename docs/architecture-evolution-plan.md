@@ -485,7 +485,8 @@ revogação.
 - [x] Gerar QR-Code e temporizador no frontend.
 - [x] Complemento: preservar o acesso público na recarga e consultar dados
       atuais com o mesmo token até expiração/revogação — DONE,
-      `docs/specs/043-public-share-refresh.md`, branch `fix/qr-code-resumo-dinamico`.
+      `docs/specs/043-public-share-refresh.md`, commit `f8984b4`,
+      branch `fix/qr-code-resumo-dinamico`.
 
 ### Critérios de conclusão
 
@@ -903,5 +904,6 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-12 | 13 (complemento) | REVISÃO IMPLEMENTADA | `docs/specs/032-mobile-context-dock.md`, `3c8e60a` | Seletor de contexto exibe o nome só do item ativo; os demais mostram o ícone e revelam o nome no hover e no foco com transição suave; dock compacto e centralizado. 327 unitários, 50 E2E e build aprovados. |
 | 2026-10-14 | 8 (complemento) | PLANNED → SPEC REVIEW | `docs/specs/043-public-share-refresh.md` (branch `fix/qr-code-resumo-dinamico`) | Preservar fragmento na página pública para recarga, consultar dados atuais com ação de atualização e retry, manter prazo/revogação e retirar resumo expirado; implementação aguarda revisão. |
 | 2026-10-14 | 8 (complemento) | SPEC REVIEW → SPEC APPROVED | `docs/specs/043-public-share-refresh.md` | Usuário aprovou continuidade pelo fragmento, atualização manual, retry e expiração; próximo passo é RED da recarga. |
-| 2026-10-14 | 8 (complemento) | SPEC APPROVED → DONE | `docs/specs/043-public-share-refresh.md` (branch `fix/qr-code-resumo-dinamico`; commit pendente de autoria Git) | Fragmento preservado, atualização/retry via hook público, prazo UTC e retirada do resumo ao expirar. RED/GREEN/REFACTOR registrados; 341 unitários aprovados após corrigir mounts de documentação, 17 testes backend com MySQL real, cinco E2E relevantes em 320/1440 px e build aprovados. |
+| 2026-10-14 | 8 (complemento) | SPEC APPROVED → DONE | `docs/specs/043-public-share-refresh.md` (branch `fix/qr-code-resumo-dinamico`; commit `f8984b4`) | Fragmento preservado, atualização/retry via hook público, prazo UTC e retirada do resumo ao expirar. RED/GREEN/REFACTOR registrados; 341 unitários aprovados após corrigir mounts de documentação, 17 testes backend com MySQL real, cinco E2E relevantes em 320/1440 px e build aprovados. |
 | 2026-10-14 | 8 (complemento) | REFERÊNCIA PENDENTE | Branch `fix/qr-code-resumo-dinamico` | Implementação e validação concluídas; tentativa de commit retornou `Author identity unknown`. Nome/e-mail Git precisam ser configurados para registrar o commit/PR; nenhuma identidade foi presumida. |
+| 2026-10-14 | 8 (complemento) | REFERÊNCIA REGISTRADA | `f8984b4` | Autoria local configurada com nome/e-mail fornecidos pelo usuário; implementação e evidências TDD registradas, sem pendências de referência. |
