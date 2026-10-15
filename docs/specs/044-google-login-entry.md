@@ -2,9 +2,10 @@
 
 ## Status
 
-IMPLEMENTED — aprovada pelo usuário em 2026-10-15; entrega na
-[PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16),
-branch `fix/qr-code-resumo-dinamico`, destino `develop`.
+IMPLEMENTED — aprovada pelo usuário em 2026-10-15; implementação no commit
+`59fd372`, branch `fix/qr-code-resumo-dinamico`. O destino da PR existente
+(#16) foi verificado como `develop`; o push desta nova entrega aguarda
+autorização específica.
 
 ## Dependências e tarefa selecionada
 
@@ -186,8 +187,8 @@ Então o redirecionamento atual continua funcionando sem solicitar Google.
 
 | Ciclo | RED | GREEN | REFACTOR | Referência |
 |---|---|---|---|---|
-| Composição e login Google | Antes de produção, `vitest run tests/login-google.test.jsx tests/login-page.test.jsx --maxWorkers=1 --reporter=dot`: 14 falhas e 2 sucessos; botão ausente e client ID não injetado | Reutilização de `GoogleSignInButton` e `/auth/google`, validação do sucesso, orientação de onboarding, mensagens e bloqueio entre métodos | JSX organizado e mensagens nomeadas; sem extrair serviços ou modificar o componente Google compartilhado | PR #16 |
-| Mensagens controladas | `vitest run tests/login-google.test.jsx --maxWorkers=1 --reporter=dot`: 2 falhas e 14 sucessos; `409`/`422` exibiam detail técnico | Overrides por status usam mensagens controladas também para respostas inesperadas; 38 testes direcionados passaram | Tratamento reutiliza `readApiError`, com `401` tratado pelo fluxo de autenticação | PR #16 |
+| Composição e login Google | Antes de produção, `vitest run tests/login-google.test.jsx tests/login-page.test.jsx --maxWorkers=1 --reporter=dot`: 14 falhas e 2 sucessos; botão ausente e client ID não injetado | Reutilização de `GoogleSignInButton` e `/auth/google`, validação do sucesso, orientação de onboarding, mensagens e bloqueio entre métodos | JSX organizado e mensagens nomeadas; sem extrair serviços ou modificar o componente Google compartilhado | `59fd372` |
+| Mensagens controladas | `vitest run tests/login-google.test.jsx --maxWorkers=1 --reporter=dot`: 2 falhas e 14 sucessos; `409`/`422` exibiam detail técnico | Overrides por status usam mensagens controladas também para respostas inesperadas; 38 testes direcionados passaram | Tratamento reutiliza `readApiError`, com `401` tratado pelo fluxo de autenticação | `59fd372` |
 
 ## Critérios de aceite e conclusão
 
@@ -247,3 +248,14 @@ Não foi realizado login com conta Google real nem deploy: os E2E são
 independentes do provedor. A suíte completa do backend e os demais E2E não
 foram repetidos; os contratos backend não mudaram e os fluxos de autenticação
 foram cobertos pelos testes afetados.
+
+
+## Referência e envio remoto
+
+Implementação e testes registrados no commit local `59fd372`. A revisão
+automática de aprovação rejeitou o push por considerar que a autorização
+anterior abrangia a correção do QR-Code, sem autorizar expressamente o envio
+da nova funcionalidade Google. Nenhum push ou edição da PR foi executado
+para esta entrega; a descrição atualizada está preparada para revisão e
+aguarda autorização do usuário. O destino verificado da PR existente é
+`develop`.
