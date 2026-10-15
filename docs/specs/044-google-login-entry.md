@@ -3,9 +3,9 @@
 ## Status
 
 IMPLEMENTED — aprovada pelo usuário em 2026-10-15; implementação no commit
-`59fd372`, branch `fix/qr-code-resumo-dinamico`. O destino da PR existente
-(#16) foi verificado como `develop`; o push desta nova entrega aguarda
-autorização específica.
+`59fd372`, branch `fix/qr-code-resumo-dinamico`. Envio autorizado pelo usuário
+e concluído na [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16),
+com destino `develop`.
 
 ## Dependências e tarefa selecionada
 
@@ -252,10 +252,9 @@ foram cobertos pelos testes afetados.
 
 ## Referência e envio remoto
 
-Implementação e testes registrados no commit local `59fd372`. A revisão
-automática de aprovação rejeitou o push por considerar que a autorização
-anterior abrangia a correção do QR-Code, sem autorizar expressamente o envio
-da nova funcionalidade Google. Nenhum push ou edição da PR foi executado
-para esta entrega; a descrição atualizada está preparada para revisão e
-aguarda autorização do usuário. O destino verificado da PR existente é
-`develop`.
+Implementação e testes registrados no commit `59fd372`; documentação de
+fechamento inicial em `100e0e2`. Após a autorização explícita do usuário em
+2026-10-15, os dois commits foram enviados à branch remota. A PR #16 permanece
+aberta contra `develop`, com título e descrição atualizados para refletir a
+correção do resumo por QR-Code e a entrada Google no login. A pendência de
+autorização do envio foi resolvida; não houve merge nem deploy.
