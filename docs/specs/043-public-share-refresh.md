@@ -237,3 +237,39 @@ repositório e a implementação registrada no commit `f8984b4`. A suíte backen
 completa e os demais E2E não foram repetidos: o backend de produção não mudou,
 a integração afetada passou e todos os consumidores do hook foram cobertos
 pela regressão unitária completa.
+
+
+## Revisão de texto aprovada em 2026-10-15
+
+A pedido explícito do usuário, o botão da área do paciente que abre o diálogo
+para encerrar o compartilhamento passa de `Revogar acesso` para `Cancelar acesso`.
+A alteração se restringe ao texto do acionador: contrato `DELETE`, confirmação,
+mensagens e regra de revogação permanecem iguais. O teste existente deve
+localizar o botão pelo novo nome e continuar comprovando a chamada de revogação.
+Não há novo comportamento a revisar.
+
+A entrega permanece na branch `fix/qr-code-resumo-dinamico`, vinculada à
+[PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16), cujo
+destino foi verificado como `develop` antes da correção; a PR está aberta.
+
+
+Evidência TDD da revisão de texto:
+
+- RED: `vitest run tests/health-sharing.test.jsx --maxWorkers=1 --reporter=dot`
+  apresentou 1 falha e 7 sucessos; o teste não encontrou o botão `Cancelar acesso`
+  porque o componente ainda exibia `Revogar acesso`.
+- GREEN: após substituir apenas o texto do botão, o mesmo comando passou os
+  8 testes, incluindo confirmação acessível e chamada ao `DELETE` existente.
+- REFACTOR: nenhuma extração necessária para a alteração de um único literal.
+  Seletores dos E2E consumidores foram atualizados para o nome acessível atual.
+
+- Regressão visual/funcional: `PLAYWRIGHT_BASE_URL=http://localhost:3001 npx
+  playwright test tests/login.spec.ts --grep "QR temporário|QR público"
+  --workers=1 --reporter=list` passou os 3 cenários afetados. O botão foi
+  verificado em 320 px e 1440 px, sem overflow e com alvo mínimo de 44 px,
+  preservando foco inicial seguro no diálogo e a confirmação da revogação.
+- `npm run build` passou compilação, TypeScript e geração de rotas. A primeira
+  tentativa encontrou páginas antigas presentes apenas na imagem do container;
+  após limpar a cópia temporária e copiar somente o código atual, o build passou.
+- `git diff --check` aprovado. Sem mudanças no backend nem nos componentes base;
+  os testes e build executados cobrem a revisão de texto e seus consumidores.

@@ -527,7 +527,14 @@ test.describe('Página Home', () => {
     await expect(page.getByRole('button', { name: 'Copiar link' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 
-    await page.getByRole('button', { name: 'Revogar acesso' }).click();
+    const cancelAccess = page.getByRole('button', { name: 'Cancelar acesso', exact: true });
+    await expect(cancelAccess).toBeVisible();
+    expect((await cancelAccess.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(cancelAccess).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
+    await page.setViewportSize({ width: 320, height: 720 });
+    await cancelAccess.click();
     const dialog = page.getByRole('alertdialog', { name: 'Revogar acesso temporário' });
     await expect(dialog).toBeVisible();
     await expect(page.getByRole('button', { name: 'Manter acesso' })).toBeFocused();
@@ -657,7 +664,7 @@ test.describe('Página Home', () => {
       await recipient.getByRole('button', { name: 'Tentar novamente' }).click();
       await expect(recipient.getByText('O-', { exact: true })).toBeVisible();
 
-      await page.getByRole('button', { name: 'Revogar acesso', exact: true }).click();
+      await page.getByRole('button', { name: 'Cancelar acesso', exact: true }).click();
       await page.getByRole('button', { name: 'Confirmar revogação' }).click();
       await expect(page.getByRole('button', { name: 'Gerar acesso temporário' })).toBeVisible();
       await refresh.click();

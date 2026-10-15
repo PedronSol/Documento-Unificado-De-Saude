@@ -349,7 +349,7 @@ export function HealthSharing({ isAdult, onUnauthenticated }) {
                 </Button>
                 <Button variant="destructive" onClick={(event) => openDialog("revoke", event)}>
                   <Trash2 aria-hidden="true" size={16} />
-                  Revogar acesso
+                  Cancelar acesso
                 </Button>
               </div>
             </div>
