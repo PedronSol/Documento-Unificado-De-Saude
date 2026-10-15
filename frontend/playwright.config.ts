@@ -23,6 +23,7 @@ export default defineConfig({
   // Só sobe o Next.js localmente — no Docker o frontend já está rodando
   webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
     command: 'npm run dev',
+    env: { NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? 'dus-playwright.apps.googleusercontent.com' },
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

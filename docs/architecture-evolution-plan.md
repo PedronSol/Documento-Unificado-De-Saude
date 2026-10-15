@@ -516,6 +516,9 @@ provisionamento confiável.
       caminhos.
 - [x] Coletar e validar os dados cadastrais que o provedor não fornece.
 - [x] Preservar o login local existente e normalizar e-mail consistentemente.
+- [x] Complemento: oferecer Google diretamente no login, preservando senha e
+      conta lembrada — DONE, `docs/specs/044-google-login-entry.md`,
+      [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16).
 - [x] Criar sessão HTTP-only local depois de autenticar ou concluir o cadastro.
 - [x] Impedir autodeclaração de `doctor` e `admin` em qualquer payload.
 - [x] Cobrir cadastro, login, conflito de CPF/e-mail e erros no frontend em
@@ -908,3 +911,6 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-14 | 8 (complemento) | REFERÊNCIA PENDENTE | Branch `fix/qr-code-resumo-dinamico` | Implementação e validação concluídas; tentativa de commit retornou `Author identity unknown`. Nome/e-mail Git precisam ser configurados para registrar o commit/PR; nenhuma identidade foi presumida. |
 | 2026-10-14 | 8 (complemento) | REFERÊNCIA REGISTRADA | `f8984b4` | Autoria local configurada com nome/e-mail fornecidos pelo usuário; implementação e evidências TDD registradas, sem pendências de referência. |
 | 2026-10-15 | 8 (complemento) | TEXTO CORRIGIDO | [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16), spec `043` | Botão do paciente passa de `Revogar acesso` para `Cancelar acesso`, conforme texto solicitado e aprovado pelo usuário. RED: 1 falha/7 sucessos; GREEN: 8 sucessos; 3 E2E afetados em 320/1440 px e build aprovados. PR verificada aberta contra `develop`; contrato e confirmação de revogação preservados. |
+| 2026-10-15 | 9 (complemento) | PLANNED → SPEC REVIEW | `docs/specs/044-google-login-entry.md` | Expor no login o botão Google e a autenticação existentes, incluindo conta lembrada, orientação para identidade não vinculada e estados de erro; implementação aguarda revisão da spec. |
+| 2026-10-15 | 9 (complemento) | SPEC REVIEW → SPEC APPROVED | `docs/specs/044-google-login-entry.md` | Usuário aprovou entrada Google no login, preservação do login local/conta lembrada, orientação de onboarding e erros controlados; próximo passo é RED do controle ausente. |
+| 2026-10-15 | 9 (complemento) | SPEC APPROVED → DONE | `docs/specs/044-google-login-entry.md`, [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16) | Google exposto no login por componente/endpoint existentes, com senha e conta lembrada preservadas, orientação de onboarding, erro controlado e bloqueio concorrente. RED/GREEN/REFACTOR documentados; 359 unitários aprovados após repetição de um timeout administrativo, 13 testes backend, 17 E2E de acesso/cadastro e build aprovados; 320/1440 px verificados. |

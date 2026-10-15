@@ -40,6 +40,7 @@ Exemplo: `001-database-migrations.md`.
 | `041-same-origin-api-proxy.md` | Proxy de mesma origem para a API | IMPLEMENTED |
 | `042-usability-feedback-registration-summary.md` | Ajustes de usabilidade: cadastro, marcadores e tipo sanguíneo | IMPLEMENTED |
 | `043-public-share-refresh.md` | Continuidade e atualização do resumo público por QR-Code | IMPLEMENTED |
+| `044-google-login-entry.md` | Acesso com Google diretamente na tela de login | IMPLEMENTED |
 
 ## Template
 

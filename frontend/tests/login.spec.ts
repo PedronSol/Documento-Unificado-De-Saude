@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { fulfillPaged } from "./e2e-support/paged";
+import { mockGoogleSdk } from "./e2e-support/google";
+
+test.beforeEach(async ({ page }) => mockGoogleSdk(page));
 
 const MOCK_USER = {
   user_id: 1,

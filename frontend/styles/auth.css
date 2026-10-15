@@ -507,6 +507,29 @@
   border-radius: var(--ds-radius-control);
 }
 
+.login-google-method {
+  display: grid;
+  gap: var(--ds-space-3);
+  min-width: 0;
+  margin-top: var(--ds-space-5);
+}
+
+.login-method-separator {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  margin: 0;
+  color: var(--ds-color-text-subtle);
+  font-size: var(--ds-font-size-sm);
+}
+
+.login-method-separator::before,
+.login-method-separator::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--ds-color-border);
+}
+
 .google-auth-control > div {
   min-height: var(--ds-control-min-height);
 }
