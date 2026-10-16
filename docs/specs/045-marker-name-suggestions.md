@@ -124,7 +124,7 @@ de medições clínicas.
 ## Revisão do dropdown
 
 IMPLEMENTED — revisão de apresentação solicitada pelo usuário após avaliar
-a entrega inicial, concluída na mesma branch.
+a entrega inicial, concluída na mesma branch, commit `e33f64f`.
 
 - RED funcional: teste de geometria em Chromium/320 px no build anterior falhou
   pelo motivo esperado: abrir a lista deslocava Tipo em `293.328125 px`.
