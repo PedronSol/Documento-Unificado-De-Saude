@@ -483,6 +483,10 @@ revogação.
 - [x] Excluir CPF, e-mail e dados não necessários.
 - [x] Auditar geração, revogação e acesso.
 - [x] Gerar QR-Code e temporizador no frontend.
+- [x] Complemento: preservar o acesso público na recarga e consultar dados
+      atuais com o mesmo token até expiração/revogação — DONE,
+      `docs/specs/043-public-share-refresh.md`, commit `f8984b4`,
+      branch `fix/qr-code-resumo-dinamico`.
 
 ### Critérios de conclusão
 
@@ -512,6 +516,10 @@ provisionamento confiável.
       caminhos.
 - [x] Coletar e validar os dados cadastrais que o provedor não fornece.
 - [x] Preservar o login local existente e normalizar e-mail consistentemente.
+- [x] Complemento: oferecer Google diretamente no login, preservando senha e
+      conta lembrada — DONE, `docs/specs/044-google-login-entry.md`,
+      commit `59fd372`, [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16)
+      (destino `develop`).
 - [x] Criar sessão HTTP-only local depois de autenticar ou concluir o cadastro.
 - [x] Impedir autodeclaração de `doctor` e `admin` em qualquer payload.
 - [x] Cobrir cadastro, login, conflito de CPF/e-mail e erros no frontend em
@@ -898,3 +906,14 @@ Uma tarefa só pode ser marcada como `DONE` quando:
 | 2026-10-12 | 9 e 13 (complementos) | PR ABERTO | [PR #15](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/15) | Máscara de CPF no vínculo direto (spec `042`, regra 8b) e navegação da lista de dependentes (spec `037`, regra 9g) entregues contra `develop`. |
 | 2026-10-12 | 1 (complemento) | REVISÃO IMPLEMENTADA | `docs/specs/001-database-migrations.md`, regras 6a e 6b, `47a4534` | CPFs do seed com dígitos verificadores válidos e guarda demonstrativa `active` Carlos → Mariana. 333 testes backend (MySQL real) aprovados. |
 | 2026-10-12 | 13 (complemento) | REVISÃO IMPLEMENTADA | `docs/specs/032-mobile-context-dock.md`, `3c8e60a` | Seletor de contexto exibe o nome só do item ativo; os demais mostram o ícone e revelam o nome no hover e no foco com transição suave; dock compacto e centralizado. 327 unitários, 50 E2E e build aprovados. |
+| 2026-10-14 | 8 (complemento) | PLANNED → SPEC REVIEW | `docs/specs/043-public-share-refresh.md` (branch `fix/qr-code-resumo-dinamico`) | Preservar fragmento na página pública para recarga, consultar dados atuais com ação de atualização e retry, manter prazo/revogação e retirar resumo expirado; implementação aguarda revisão. |
+| 2026-10-14 | 8 (complemento) | SPEC REVIEW → SPEC APPROVED | `docs/specs/043-public-share-refresh.md` | Usuário aprovou continuidade pelo fragmento, atualização manual, retry e expiração; próximo passo é RED da recarga. |
+| 2026-10-14 | 8 (complemento) | SPEC APPROVED → DONE | `docs/specs/043-public-share-refresh.md` (branch `fix/qr-code-resumo-dinamico`; commit `f8984b4`) | Fragmento preservado, atualização/retry via hook público, prazo UTC e retirada do resumo ao expirar. RED/GREEN/REFACTOR registrados; 341 unitários aprovados após corrigir mounts de documentação, 17 testes backend com MySQL real, cinco E2E relevantes em 320/1440 px e build aprovados. |
+| 2026-10-14 | 8 (complemento) | REFERÊNCIA PENDENTE | Branch `fix/qr-code-resumo-dinamico` | Implementação e validação concluídas; tentativa de commit retornou `Author identity unknown`. Nome/e-mail Git precisam ser configurados para registrar o commit/PR; nenhuma identidade foi presumida. |
+| 2026-10-14 | 8 (complemento) | REFERÊNCIA REGISTRADA | `f8984b4` | Autoria local configurada com nome/e-mail fornecidos pelo usuário; implementação e evidências TDD registradas, sem pendências de referência. |
+| 2026-10-15 | 8 (complemento) | TEXTO CORRIGIDO | [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16), spec `043` | Botão do paciente passa de `Revogar acesso` para `Cancelar acesso`, conforme texto solicitado e aprovado pelo usuário. RED: 1 falha/7 sucessos; GREEN: 8 sucessos; 3 E2E afetados em 320/1440 px e build aprovados. PR verificada aberta contra `develop`; contrato e confirmação de revogação preservados. |
+| 2026-10-15 | 9 (complemento) | PLANNED → SPEC REVIEW | `docs/specs/044-google-login-entry.md` | Expor no login o botão Google e a autenticação existentes, incluindo conta lembrada, orientação para identidade não vinculada e estados de erro; implementação aguarda revisão da spec. |
+| 2026-10-15 | 9 (complemento) | SPEC REVIEW → SPEC APPROVED | `docs/specs/044-google-login-entry.md` | Usuário aprovou entrada Google no login, preservação do login local/conta lembrada, orientação de onboarding e erros controlados; próximo passo é RED do controle ausente. |
+| 2026-10-15 | 9 (complemento) | SPEC APPROVED → DONE | `docs/specs/044-google-login-entry.md`, `59fd372`, [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16) | Google exposto no login por componente/endpoint existentes, com senha e conta lembrada preservadas, orientação de onboarding, erro controlado e bloqueio concorrente. RED/GREEN/REFACTOR documentados; 359 unitários aprovados após repetição de um timeout administrativo, 13 testes backend, 17 E2E de acesso/cadastro e build aprovados; 320/1440 px verificados. |
+| 2026-10-15 | 9 (complemento) | PUSH PENDENTE | `59fd372`, spec `044` | Revisão automática rejeitou envio da nova funcionalidade Google por exigir autorização específica, considerando que a anterior abrangia somente QR-Code. Código e validação concluídos localmente; push e atualização da PR #16 (destino `develop`) aguardam autorização do usuário. |
+| 2026-10-15 | 9 (complemento) | PUSH AUTORIZADO E CONCLUÍDO | `59fd372`, `100e0e2`, [PR #16](https://github.com/PedronSol/Documento-Unificado-De-Saude/pull/16) | Usuário autorizou explicitamente o envio da entrada Google. Commits publicados na branch atual; título e descrição da PR atualizados, mantendo `develop` como base. Pendência de autorização resolvida; sem merge/deploy. |

@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { fulfillPaged } from "./e2e-support/paged";
+import { mockGoogleSdk } from "./e2e-support/google";
+
+test.beforeEach(async ({ page }) => mockGoogleSdk(page));
 
 const MOCK_USER = {
   user_id: 1,
@@ -527,7 +530,14 @@ test.describe('Página Home', () => {
     await expect(page.getByRole('button', { name: 'Copiar link' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 
-    await page.getByRole('button', { name: 'Revogar acesso' }).click();
+    const cancelAccess = page.getByRole('button', { name: 'Cancelar acesso', exact: true });
+    await expect(cancelAccess).toBeVisible();
+    expect((await cancelAccess.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(cancelAccess).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
+    await page.setViewportSize({ width: 320, height: 720 });
+    await cancelAccess.click();
     const dialog = page.getByRole('alertdialog', { name: 'Revogar acesso temporário' });
     await expect(dialog).toBeVisible();
     await expect(page.getByRole('button', { name: 'Manter acesso' })).toBeFocused();
@@ -537,7 +547,7 @@ test.describe('Página Home', () => {
     await expect(page.getByRole('button', { name: 'Gerar acesso temporário' })).toBeVisible();
   });
 
-  test('abre resumo público sem login, remove o fragmento e organiza em abas', async ({ page }) => {
+  test('abre resumo público sem login, preserva o fragmento e organiza em abas', async ({ page }) => {
     const token = 'v'.repeat(43);
     await page.route('**/public/shares/summary', async (route) => {
       expect(await route.request().headerValue('x-share-token')).toBe(token);
@@ -566,7 +576,7 @@ test.describe('Página Home', () => {
     await page.goto(`/share#${token}`);
 
     await expect(page.getByRole('heading', { name: 'Resumo de Carlos' })).toBeVisible();
-    await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('');
+    await expect.poll(() => page.evaluate(() => window.location.hash)).toBe(`#${token}`);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     const tablist = page.getByRole('tablist', { name: 'Categorias clínicas' });
     await expect(tablist.getByRole('tab', { name: 'Alergias (1)' })).toHaveAttribute('aria-selected', 'true');
@@ -583,6 +593,91 @@ test.describe('Página Home', () => {
     await expect(page.getByRole('tabpanel')).toContainText('Hipertensão');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
   });
+
+  for (const width of [320, 1440]) {
+    test(`mantém QR público atualizado após alterar tipo sanguíneo e recarregar em ${width} px`, async ({ page, context }) => {
+      const token = 'v'.repeat(43);
+      const expiresAt = '2099-10-09T14:00:00';
+      let profile = { ...MOCK_PROFILE_RESPONSE.patient_profile, blood_type: 'AB+', blood_type_source: 'patient' };
+      let revoked = false;
+      let temporaryFailure = false;
+      await page.route('**/me', (route) => fulfillPaged(route, {
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ ...MOCK_PROFILE_RESPONSE, patient_profile: profile }),
+      }));
+      await page.route('**/me/blood-type', (route) => {
+        profile = { ...profile, ...route.request().postDataJSON() };
+        return fulfillPaged(route, {
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({ blood_type: profile.blood_type, blood_type_source: 'patient' }),
+        });
+      });
+      await page.route('**/me/shares/42', (route) => {
+        revoked = true;
+        return route.fulfill({ status: 204 });
+      });
+      await context.route('**/public/shares/summary', async (route) => {
+        expect(await route.request().headerValue('x-share-token')).toBe(token);
+        expect(await route.request().headerValue('cookie')).toBeNull();
+        return route.fulfill({
+          status: revoked ? 404 : temporaryFailure ? 503 : 200,
+          contentType: 'application/json',
+          body: JSON.stringify(revoked || temporaryFailure ? { detail: 'Indisponível' } : {
+            expires_at: expiresAt,
+            patient: { preferred_name: 'Carlos', blood_type: profile.blood_type },
+            markers: { allergies: [], medications: [], conditions: [], diagnoses: [] },
+          }),
+        });
+      });
+      await page.reload();
+      await waitForHydration(page);
+      await page.getByRole('button', { name: 'Gerar acesso temporário' }).click();
+      await expect(page.getByLabel('QR-Code do compartilhamento')).toBeVisible();
+
+      const recipient = await context.newPage();
+      await recipient.setViewportSize({ width, height: 900 });
+      await recipient.goto(`/share#${token}`);
+      await expect(recipient.getByText('AB+', { exact: true })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Alterar', exact: true }).click();
+      await page.getByLabel('Tipo sanguíneo', { exact: true }).click();
+      await page.getByRole('option', { name: 'O-' }).click();
+      await page.getByRole('button', { name: 'Confirmar alteração' }).click();
+      await expect(page.getByRole('dialog', { name: 'Alterar tipo sanguíneo' })).toBeHidden();
+      expect(profile.blood_type).toBe('O-');
+
+      const refresh = recipient.getByRole('button', { name: 'Atualizar dados' });
+      expect((await refresh.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await refresh.focus();
+      await recipient.keyboard.press('Enter');
+      await expect(recipient.getByText('O-', { exact: true })).toBeVisible();
+      await recipient.reload();
+      await expect(recipient.getByText('O-', { exact: true })).toBeVisible();
+      expect(new URL(recipient.url()).hash).toBe(`#${token}`);
+      await expect(recipient.getByText('Disponível até').locator('..')).toContainText('09/10/2099');
+      expect(await recipient.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      expect(await recipient.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length }))).toEqual({ local: 0, session: 0 });
+      await recipient.screenshot({ path: `/tmp/dus-qr-${width}.png`, fullPage: true });
+
+      temporaryFailure = true;
+      await refresh.click();
+      await expect(recipient.getByRole('alert').filter({ hasText: 'Não foi possível consultar agora' })).toBeVisible();
+      await expect(recipient.getByText('O-', { exact: true })).toHaveCount(0);
+      temporaryFailure = false;
+      await recipient.getByRole('button', { name: 'Tentar novamente' }).click();
+      await expect(recipient.getByText('O-', { exact: true })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Cancelar acesso', exact: true }).click();
+      await page.getByRole('button', { name: 'Confirmar revogação' }).click();
+      await expect(page.getByRole('button', { name: 'Gerar acesso temporário' })).toBeVisible();
+      await refresh.click();
+      await expect(recipient.getByRole('heading', { name: 'Este acesso não está disponível' })).toBeVisible();
+      await expect(recipient.getByText('O-', { exact: true })).toHaveCount(0);
+      await recipient.reload();
+      await expect(recipient.getByRole('heading', { name: 'Este acesso não está disponível' })).toBeVisible();
+      await recipient.close();
+    });
+  }
 
   test('move o seletor de contexto para um dock em mobile e mantém o header no desktop', async ({ page }) => {
     await page.unroute('**/me');

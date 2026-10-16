@@ -73,9 +73,11 @@ sob controle do backend.
 7. A identidade externa usa `(issuer, subject)` com unicidade. E-mail não é
    usado como chave federada e uma mudança de e-mail no provedor não cria outra
    pessoa.
-8. Token Google novo sem identidade associada não cria conta parcial. O cliente
-   recebe estado `onboarding_required`, mantém a credencial somente em memória e
-   envia novamente junto aos campos restantes do cadastro.
+8. Token Google novo sem identidade associada não cria conta parcial. No fluxo
+   de cadastro, o cliente recebe `onboarding_required`, mantém a credencial
+   somente em memória e a envia novamente junto aos campos restantes. Na tela
+   de login, a spec `044` orienta cadastro ou vínculo autenticado, sem manter
+   a credencial nem criar conta pelo login.
 9. No cadastro Google, nome completo e e-mail verificado vêm das claims
    permitidas; CPF, nome preferido e data de nascimento são fornecidos pelo
    paciente e seguem as mesmas validações do cadastro local.
@@ -279,6 +281,18 @@ integração. Valores, tokens e senhas nunca aparecem em logs.
 - Rate limiting distribuído, recuperação de senha, verificação de e-mail e MFA
   ficam para consolidação operacional; erros e validações não podem depender de
   estado em memória por processo.
+
+## Entrada Google na tela de login (spec 044)
+
+- A rota `/` também oferece `Continuar com Google` pelo componente e endpoint
+  existentes, com `NEXT_PUBLIC_GOOGLE_CLIENT_ID` injetado pela página.
+- Senha, conta lembrada e redirecionamento de sessão válida são preservados.
+  Google não cria nem altera lembretes de dispositivo.
+- A identidade externa conhecida recebe sessão local e segue para `/home`;
+  `onboarding_required` orienta o cadastro ou vínculo nas configurações, sem
+  redirecionar como usuário autenticado.
+- A spec `044-google-login-entry.md` detalha erros, concorrência, configuração
+  ausente e evidência de regressão da entrega.
 
 ## Casos de erro e limites
 

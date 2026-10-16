@@ -85,7 +85,7 @@ describe("HealthSharing", () => {
 
     render(<HealthSharing isAdult onUnauthenticated={vi.fn()} />);
 
-    const trigger = await screen.findByRole("button", { name: "Revogar acesso" });
+    const trigger = await screen.findByRole("button", { name: "Cancelar acesso" });
     await user.click(trigger);
     expect(
       screen.getByRole("alertdialog", { name: "Revogar acesso temporário" }),

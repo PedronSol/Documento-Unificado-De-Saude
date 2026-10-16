@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED
+IMPLEMENTED — continuidade e atualização pública complementadas pela spec `043-public-share-refresh.md`.
 
 ## Dependências
 
@@ -32,7 +32,8 @@ o design system vigente e não será tratado como fonte de verdade.
 - Exibir sem login um resumo mínimo, somente leitura, com dados em allowlist.
 - Permitir revogação imediata e substituição segura do compartilhamento ativo.
 - Auditar geração, revogação e cada leitura pública bem-sucedida.
-- Não persistir nem registrar o token bruto no backend ou no navegador.
+- Não persistir nem registrar o token bruto no backend ou em storage do navegador;
+  o destinatário mantém o fragmento da URL conforme a spec `043`.
 
 ## Não objetivos
 
@@ -43,7 +44,7 @@ o design system vigente e não será tratado como fonte de verdade.
 - Permitir edição, download ou identificação/cadastro do destinatário.
 - Permitir que médico, admin ou paciente menor gere um compartilhamento nesta
   versão; representação legal de menores exige uma spec própria.
-- Manter o link recuperável depois de recarregar ou fechar a página.
+- Reconstruir o link no dashboard emissor depois de perder o estado em memória.
 - Armazenar token em cookie, `localStorage`, `sessionStorage`, cache ou URL
   enviada ao servidor frontend.
 - Criar serviço externo, Redis ou rate limit em memória por processo. Proteção
@@ -61,14 +62,16 @@ o design system vigente e não será tratado como fonte de verdade.
    SHA-256 em hexadecimal é persistido.
 4. A validade é fixa em duas horas a partir de `created_at`, usando UTC do banco.
    No instante `expires_at` o acesso já é inválido.
-5. O token bruto aparece somente na resposta da criação e no link em memória no
-   frontend. O backend não consegue reconstruí-lo depois dessa resposta.
+5. O token bruto aparece na resposta da criação, no link em memória do emissor
+   e no fragmento da URL pública do destinatário (spec `043`). O backend não
+   consegue reconstruí-lo depois da resposta de criação.
 6. O QR-Code contém somente a URL pública no formato
    `{PUBLIC_APP_URL}/share#{token}`. Nenhum dado clínico ou identificador interno
    é codificado no QR.
 7. O fragmento `#` impede que o navegador envie o token ao servidor frontend ou
-   no cabeçalho `Referer`. A página remove o fragmento do histórico assim que o
-   lê e envia o token somente no header `X-Share-Token` para a API.
+   no cabeçalho `Referer`. Conforme a revisão aprovada na spec `043`, a página
+   pública preserva o fragmento para recarga/reabertura e envia o token somente
+   no header `X-Share-Token` para a API. O segredo pode ficar no histórico local.
 8. O resumo público contém apenas nome de preferência, tipo sanguíneo quando
    informado e marcadores ativos dos quatro tipos já implementados.
 9. A resposta não contém nome completo, CPF, e-mail, idade/data de nascimento,
@@ -85,7 +88,8 @@ o design system vigente e não será tratado como fonte de verdade.
 13. Tentativa pública inválida não cria evento clínico porque nenhum paciente ou
     recurso autorizado foi resolvido e o token não pode ser registrado.
 14. A API e a página pública enviam política `no-store`; o resumo e o token não
-    são persistidos pelo service worker nem por código do frontend.
+   são persistidos pelo service worker nem em storage do frontend; a URL pública
+   preserva o fragmento conforme a spec `043`.
 15. A página pública é responsiva desde 320 px, não exibe navegação autenticada e
     oferece estados de carregamento, conteúdo, vazio, indisponível e falha
     temporária sem revelar detalhes internos.
@@ -169,7 +173,7 @@ E nenhum token, registro ou evento de sucesso é criado.
 
 Dado que o paciente acabou de gerar o link
 Quando o QR-Code e a ação de copiar são exibidos
-Então o link permanece apenas no estado em memória do componente
+Então o link permanece apenas no estado em memória do componente emissor
 E não aparece em storage, cookie, cache do service worker ou parâmetro de busca
 E, após recarregar, a interface mostra somente os metadados do acesso ativo.
 
@@ -377,9 +381,9 @@ Regras estruturais:
   revogar/gerar novo, mas não tenta reconstruir QR ou link.
 - Revogação e substituição usam diálogo acessível com foco inicial seguro,
   loading, erro e retorno ao acionador.
-- A rota pública `/share` é client-side para ler o fragmento, removê-lo com
-  `history.replaceState` e consultar a API. Ela não exige nem redireciona para
-  login.
+- A rota pública `/share` é client-side para ler e preservar o fragmento e
+  consultar a API. Ela não exige nem redireciona para login. A spec `043`
+  acrescenta atualização manual, retry e retirada do resumo ao expirar.
 - O resumo público usa Instrument Sans, tokens `--ds-*`, `Card`, `Badge` e
   `Button`; não usa o gradiente, ID universal ou CTA verde do `QRCard` legado.
 - Categorias vazias permanecem explícitas. Informações clínicas não são
@@ -418,9 +422,9 @@ ainda não existe.
    ordem, e ausência explícita de CPF, e-mail, IDs, nome completo e histórico.
 10. Acesso válido atualiza último acesso e audita; falha de auditoria retorna
     `503` sem payload e reverte a transação.
-11. Testes React cobrem loading, vazio, criação, QR, cópia, timer, recarga sem
-    token, diálogo de revogação/substituição e erros.
-12. Testes da página pública comprovam leitura/remoção do fragmento, header,
+11. Testes React cobrem loading, vazio, criação, QR, cópia, timer, recarga do
+    dashboard sem reconstruir token, diálogo de revogação/substituição e erros.
+12. Testes da página pública comprovam leitura/preservação do fragmento, header,
     estados, headers `no-store` e ausência de storage/cache.
 13. Playwright cobre geração e abertura do QR/link, revogação imediata, viewport
     de 320 px e uma viewport ampla.
@@ -450,8 +454,9 @@ ainda não existe.
 
 - O card foi inserido no dashboard do paciente sem alterar os componentes base;
   reutiliza `Card`, `Button`, `Badge` e o diálogo Radix já adotado.
-- A nova rota `/share` usa apenas dados da allowlist, remove o fragmento antes da
-  chamada à API e não cria cookie, cache, `localStorage` ou `sessionStorage`.
+- A rota `/share` usa apenas dados da allowlist e não cria cookie, cache,
+  `localStorage` ou `sessionStorage`. A spec `043` revisa a remoção original
+  do fragmento, preservando-o para recarga e atualização do destinatário.
 - O visual segue a linguagem clínica institucional e os tokens `--ds-*`, com
   comportamento mobile-first validado em 320 px e grid expandido em desktop.
 - O service worker continua limitado ao fallback offline genérico; o cenário

@@ -303,8 +303,12 @@ Todo componente interativo considera:
 
 - Login e cadastro compartilham a moldura institucional e a mesma hierarquia
   tipográfica; o cadastro não cria uma linguagem visual paralela.
-- A escolha entre e-mail/senha e Google usa controle segmentado com estado
-  pressionado explícito. Google aparece como alternativa, nunca como requisito.
+- No cadastro, a escolha entre e-mail/senha e Google usa controle segmentado
+  com estado pressionado explícito. Google é uma alternativa, nunca requisito.
+- No login (spec `044`), o formulário por senha permanece visível e o botão
+  Google aparece abaixo, separado por `ou`, inclusive para conta lembrada.
+  O botão reutiliza o componente oficial existente e fica fora do submit por
+  senha. Sem configuração, uma nota explica a indisponibilidade no ambiente.
 - O formulário começa em uma coluna a 320 px. CPF e data de nascimento somente
   dividem linha a partir de 768 px, quando há largura útil para preservar labels
   e alvos de 44 px.

@@ -5,7 +5,7 @@ import Clock3 from "lucide-react/dist/esm/icons/clock-3";
 import Droplets from "lucide-react/dist/esm/icons/droplets";
 import HeartPulse from "lucide-react/dist/esm/icons/heart-pulse";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Content as TabsContent,
   List as TabsList,
@@ -14,7 +14,9 @@ import {
 } from "@radix-ui/react-tabs";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useApiResource } from "@/hooks/use-api-resource";
 import { publicApiFetch } from "@/lib/api";
 
 
@@ -24,6 +26,13 @@ const GROUPS = [
   ["conditions", "Condições"],
   ["diagnoses", "Diagnósticos"],
 ];
+
+const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43,64}$/;
+
+// The API serializes naive MySQL timestamps in UTC (spec 040).
+function expirationTime(value) {
+  return new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`).getTime();
+}
 
 const EMPTY_LABEL = {
   allergies: "Nenhuma alergia registrada.",
@@ -36,10 +45,10 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
-  }).format(new Date(value));
+  }).format(new Date(expirationTime(value)));
 }
 
-function UnavailableShare({ temporaryFailure = false }) {
+function UnavailableShare({ temporaryFailure = false, onRetry }) {
   return (
     <main className="public-share-shell">
       <section className="public-share-state" role={temporaryFailure ? "alert" : undefined}>
@@ -55,58 +64,57 @@ function UnavailableShare({ temporaryFailure = false }) {
             ? "Tente abrir o link novamente em alguns instantes."
             : "O link pode ter expirado, sido revogado ou digitado incorretamente."}
         </p>
+        {temporaryFailure && <Button onClick={onRetry}>Tentar novamente</Button>}
       </section>
     </main>
   );
 }
 
 export function PublicHealthShare() {
-  const [result, setResult] = useState({ status: "loading", data: null });
-  const tokenRef = useRef(null);
+  const [token, setToken] = useState(null);
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [, setNow] = useState(Date.now);
 
   useEffect(() => {
-    let current = true;
-    if (tokenRef.current === null) {
-      tokenRef.current = window.location.hash.slice(1);
-      window.history.replaceState(
-        null,
-        "",
-        `${window.location.pathname}${window.location.search}`,
-      );
-    }
-    const token = tokenRef.current;
-
-    if (!token) {
-      setResult({ status: "unavailable", data: null });
-      return undefined;
-    }
-
-    async function loadSummary() {
-      try {
-        const response = await publicApiFetch("/public/shares/summary", {
-          headers: { "X-Share-Token": token },
-        });
-        if (response.status === 404) {
-          if (current) setResult({ status: "unavailable", data: null });
-          return;
-        }
-        if (!response.ok) {
-          throw new Error("temporary failure");
-        }
-        const data = await response.json();
-        if (current) setResult({ status: "ready", data });
-      } catch {
-        if (current) setResult({ status: "error", data: null });
-      }
-    }
-
-    loadSummary();
-    return () => {
-      current = false;
-    };
+    const fragment = window.location.hash.slice(1);
+    setToken(TOKEN_PATTERN.test(fragment) ? fragment : "");
   }, []);
 
-  if (result.status === "loading") {
+  const fetchSummary = useCallback((path) => publicApiFetch(path, {
+    headers: { "X-Share-Token": token },
+  }), [token]);
+  const { reload, ...result } = useApiResource(token ? "/public/shares/summary" : null, {
+    fallback: "Não foi possível consultar agora",
+    initialData: null,
+    fetchResource: fetchSummary,
+    onUnauthenticated: null,
+  });
+  const deadline = result.status === "ready" ? expirationTime(result.data?.expires_at) : expiresAt;
+
+  useEffect(() => {
+    if (result.status === "ready" && Number.isFinite(deadline)) setExpiresAt(deadline);
+  }, [deadline, result.status]);
+
+  useEffect(() => {
+    if (expiresAt === null) return undefined;
+    let timer;
+    function checkExpiration() {
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        setNow(Date.now());
+        return;
+      }
+      // Avoid timeout overflow when tests or servers return distant dates.
+      timer = window.setTimeout(checkExpiration, Math.min(remaining, 2 ** 31 - 1));
+    }
+    checkExpiration();
+    return () => window.clearTimeout(timer);
+  }, [expiresAt]);
+
+  if (token === "" || result.errorStatus === 404 || (deadline !== null && deadline <= Date.now())) {
+    return <UnavailableShare />;
+  }
+  if (token === null || result.status === "idle" || result.status === "loading") {
     return (
       <main className="public-share-shell">
         <div className="public-share-loading" role="status">
@@ -116,8 +124,7 @@ export function PublicHealthShare() {
       </main>
     );
   }
-  if (result.status === "unavailable") return <UnavailableShare />;
-  if (result.status === "error") return <UnavailableShare temporaryFailure />;
+  if (result.status === "error" || !Number.isFinite(deadline)) return <UnavailableShare temporaryFailure onRetry={reload} />;
 
   const summary = result.data;
   return (
@@ -151,6 +158,7 @@ export function PublicHealthShare() {
             <span>Disponível até</span>
             <strong>{formatDate(summary.expires_at)}</strong>
           </div>
+          <Button onClick={reload}>Atualizar dados</Button>
         </div>
       </section>
 

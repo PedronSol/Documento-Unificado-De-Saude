@@ -4,6 +4,7 @@ import LoginForm from "@/components/auth/login-form";
 
 
 export default function LoginPage() {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
   return (
     <main className="login-shell">
       <section className="login-intro" aria-labelledby="login-title">
@@ -33,7 +34,7 @@ export default function LoginPage() {
             <h2>Entre na sua conta</h2>
             <p>Use as credenciais vinculadas à sua identidade.</p>
           </div>
-          <LoginForm />
+          <LoginForm googleClientId={googleClientId} />
           <div className="new-patient-entry">
             <span>Primeiro acesso?</span>
             <Link href="/register">Criar conta de paciente</Link>

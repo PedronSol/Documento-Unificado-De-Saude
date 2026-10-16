@@ -39,6 +39,23 @@ describe("useApiResource", () => {
     expect(apiFetch).toHaveBeenCalledWith("/me/vaccines");
   });
 
+  it("usa transporte público injetado sem encerrar a sessão em 401", async () => {
+    const fetchResource = vi.fn().mockReturnValueOnce(respondWith({}, 401))
+      .mockReturnValueOnce(respondWith({ patient: { blood_type: "O-" } }));
+    const { result } = renderHook(() => useApiResource("/public/shares/summary", {
+      fallback: FALLBACK, initialData: null, fetchResource, onUnauthenticated: null,
+    }));
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.errorStatus).toBe(401);
+    expect(useSessionStore.getState().status).toBe("idle");
+    expect(apiFetch).not.toHaveBeenCalled();
+
+    act(() => result.current.reload());
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.data.patient.blood_type).toBe("O-");
+    expect(fetchResource).toHaveBeenCalledTimes(2);
+  });
+
   it("usa a mensagem padronizada em erro", async () => {
     vi.mocked(apiFetch).mockReturnValue(respondWith({ detail: "SQL" }, 503));
 
