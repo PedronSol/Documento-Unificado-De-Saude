@@ -862,6 +862,91 @@ test.describe('Página Home', () => {
     await expect(trigger).toBeFocused();
   });
 
+  for (const width of [320, 1440]) {
+    test.describe(`sugestões em ${width} px`, () => {
+      test.use({ hasTouch: width === 320 });
+      test(`sugere nomes de marcadores por categoria em ${width} px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
+        await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Adicionar marcador' });
+        const input = page.getByRole('combobox', { name: 'Nome do marcador' });
+        await expect(input).toBeFocused();
+        await dialog.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        await expect(input).toHaveAttribute('aria-expanded', 'false');
+        const typeBefore = await page.getByLabel('Tipo', { exact: true }).boundingBox();
+        const dialogBefore = await dialog.boundingBox();
+        await input.click();
+        await expect(input).toHaveAttribute('aria-expanded', 'true');
+        const typeAfter = await page.getByLabel('Tipo', { exact: true }).boundingBox();
+        const dialogAfter = await dialog.boundingBox();
+        expect(Math.abs(typeAfter!.y - typeBefore!.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(dialogAfter!.height - dialogBefore!.height)).toBeLessThanOrEqual(1);
+        const menu = page.locator('.marker-name-suggestions');
+        await menu.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        await expect(menu).toHaveCSS('overflow-y', 'auto');
+        const menuAppearance = await menu.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return { background: style.backgroundColor, border: style.borderColor, radius: style.borderRadius, shadow: style.boxShadow };
+        });
+        const menuBounds = await menu.boundingBox();
+        const inputBounds = await input.boundingBox();
+        expect(Math.abs(menuBounds!.x - inputBounds!.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(menuBounds!.width - inputBounds!.width)).toBeLessThanOrEqual(1);
+        expect(menuBounds!.y - (inputBounds!.y + inputBounds!.height)).toBeGreaterThanOrEqual(0);
+        expect(menuBounds!.y - (inputBounds!.y + inputBounds!.height)).toBeLessThanOrEqual(8);
+        expect(menuBounds!.y + menuBounds!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+        await expect(page.getByRole('option')).toHaveCount(6);
+        await expect(page.getByRole('group', { name: 'Cardiovascular' })).toBeVisible();
+        await expect(page.getByRole('group', { name: 'Diabetes / Metabolismo' })).toHaveCount(1);
+        await expect(page.getByRole('group', { name: 'Composição corporal' })).toHaveCount(1);
+        expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        for (const option of await page.getByRole('option').all()) {
+          expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        }
+        await page.screenshot({ path: `/tmp/dus-marker-select-${width}.png` });
+        await input.fill('PRESSAO');
+        await expect(page.getByRole('option')).toHaveCount(1);
+        await page.screenshot({ path: `/tmp/dus-marker-search-${width}.png` });
+        await input.press('ArrowDown');
+        await input.press('Enter');
+        await expect(input).toHaveValue('Pressão arterial (sistólica/diastólica)');
+        await page.getByRole('button', { name: 'Abrir sugestões de marcadores' }).click();
+        await expect(page.getByRole('option', { name: 'Pressão arterial (sistólica/diastólica)' })).toHaveAttribute('aria-selected', 'true');
+        await menu.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        await page.screenshot({ path: `/tmp/dus-marker-selected-${width}.png` });
+        await page.getByRole('button', { name: 'Fechar sugestões de marcadores' }).click();
+        await expect(dialog).toBeVisible();
+        await input.press('ArrowDown');
+        await input.press('Escape');
+        await expect(dialog).toBeVisible();
+        await expect(input).toHaveAttribute('aria-expanded', 'false');
+        await input.fill('');
+        const corporalOption = page.getByRole('option', { name: 'Circunferência abdominal' });
+        if (width === 320) await corporalOption.tap();
+        else await corporalOption.click();
+        await expect(input).toHaveValue('Circunferência abdominal');
+        await page.getByRole('button', { name: 'Abrir sugestões de marcadores' }).click();
+        await expect(page.getByRole('option', { name: 'Circunferência abdominal' })).toHaveAttribute('data-state', 'checked');
+        await page.getByRole('button', { name: 'Fechar sugestões de marcadores' }).click();
+        const typeSelect = page.getByLabel('Tipo', { exact: true });
+        await expect(typeSelect).toContainText('Condição');
+        await typeSelect.click();
+        const typeAppearance = await page.locator('.clinical-select-content').evaluate((element) => {
+          const style = getComputedStyle(element);
+          return { background: style.backgroundColor, border: style.borderColor, radius: style.borderRadius, shadow: style.boxShadow };
+        });
+        expect(menuAppearance).toEqual(typeAppearance);
+        await page.getByRole('option', { name: 'Condição', exact: true }).click();
+        const saved = page.waitForRequest((request) => request.url().endsWith('/me/markers') && request.method() === 'POST');
+        await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+        expect((await saved).postDataJSON()).toMatchObject({ name: 'Circunferência abdominal', type: 'condition' });
+        await expect(dialog).toBeHidden();
+        await expect(page.getByRole('heading', { name: 'Circunferência abdominal' })).toBeVisible();
+      });
+    });
+  }
+
   test('gerencia marcador em diálogos acessíveis e preserva o histórico', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const addTrigger = page.getByRole('button', { name: 'Adicionar marcador' });

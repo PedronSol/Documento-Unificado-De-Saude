@@ -23,6 +23,7 @@ import {
 import X from "lucide-react/dist/esm/icons/x";
 
 import { TYPE_OPTIONS } from "@/components/markers/marker-types";
+import { MarkerNameField } from "@/components/markers/marker-name-field";
 import { ClinicalSelect } from "@/components/ui/clinical-select";
 
 
@@ -45,6 +46,12 @@ export function MarkerDialog({
         <DialogOverlay className="modal-backdrop" />
         <DialogContent
           className="clinical-dialog marker-dialog"
+          onEscapeKeyDown={(event) => {
+            if (event.target === nameFieldRef.current &&
+                nameFieldRef.current?.getAttribute("aria-expanded") === "true") {
+              event.preventDefault();
+            }
+          }}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             nameFieldRef.current?.focus();
@@ -80,20 +87,11 @@ export function MarkerDialog({
           </header>
 
           <form onSubmit={onSubmit}>
-            <div className="dialog-field">
-              <label htmlFor="marker-name">Nome do marcador</label>
-              <input
-                ref={nameFieldRef}
-                id="marker-name"
-                name="name"
-                value={form.name}
-                onChange={onFieldChange}
-                placeholder="Ex.: Hipertensão"
-                autoComplete="off"
-                maxLength={120}
-                required
-              />
-            </div>
+            <MarkerNameField
+              inputRef={nameFieldRef}
+              value={form.name}
+              onChange={onFieldChange}
+            />
 
             <div className="dialog-field">
               <label htmlFor="marker-type">Tipo</label>

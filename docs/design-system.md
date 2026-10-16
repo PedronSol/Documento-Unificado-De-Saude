@@ -240,6 +240,21 @@ Estilo novo entra no arquivo da feature correspondente.
 - o menu respeita largura do gatilho, colisão com viewport e navegação por
   setas, Enter e Escape fornecida pelo Radix Select.
 
+**Nome de marcador com sugestões**
+
+- `MarkerNameField` é editável, com o mesmo menu visual de `ClinicalSelect`:
+  classes de superfície, viewport, item, indicador e ícone compartilhadas.
+- `Popover` Radix existente ancora e porta o menu, ajustando colisões com a
+  viewport; o menu pode sair dos limites do diálogo sem recorte ou deslocamento.
+- Campo sem lupa, com seta de abertura/fechamento e check no nome selecionado.
+  Menu fechado no foco inicial; clique, seta ou digitação abrem as sugestões.
+- Grupos com rótulos discretos; seleção e navegação usam os estados de Tipo.
+- Digitação filtra por nome sem acentos; seleção preenche o rótulo completo.
+  Reabrir mostra o catálogo e a seleção atual. Texto livre continua permitido.
+- Foco permanece na busca, setas navegam, Enter confirma e Escape fecha somente
+  o menu primeiro. A confirmação não altera o tipo ou salva implicitamente.
+- Validar paciente, dependente e médico, largura de 320 px e viewport ampla.
+
 **List item**
 
 - card de borda regular, avatar/ícone, conteúdo e ação;

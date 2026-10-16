@@ -260,6 +260,8 @@ describe("MedicalRecordView", () => {
       screen.getByRole("dialog", { name: "Adicionar marcador" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Nome do marcador")).toHaveFocus();
+    await user.click(screen.getByLabelText("Nome do marcador"));
+    expect(screen.getAllByRole("option")).toHaveLength(6);
 
     await user.type(
       screen.getByLabelText("Nome do marcador"),
