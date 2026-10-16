@@ -4,8 +4,7 @@
 
 IMPLEMENTED — proposta e referência visual aprovadas em 16/10/2026.
 
-Entrega na branch `feat/marker-name-suggestions`; referência do commit registrada
-no roadmap após o commit da implementação.
+Entrega na branch `feat/marker-name-suggestions`, commit `e4ef588`.
 
 ## Dependências
 
