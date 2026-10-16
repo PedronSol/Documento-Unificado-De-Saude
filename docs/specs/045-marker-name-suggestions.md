@@ -188,7 +188,7 @@ Logs locais: `/tmp/dus-marker-red.log`, `/tmp/dus-marker-green.log`,
 
 ## Revisão para o padrão do seletor Tipo
 
-IMPLEMENTED — usuário solicitou explicitamente seguir o seletor Tipo e manter
+IMPLEMENTED — commit `1b9bc74`. Usuário solicitou seguir o seletor Tipo e manter
 associação entre a sugestão escolhida e o texto do campo. Esta revisão prevalece
 sobre a abertura automática e o posicionamento interno das versões anteriores.
 
