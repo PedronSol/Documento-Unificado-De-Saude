@@ -54,10 +54,17 @@ de medições clínicas.
     para o campo, pois não há combobox editável compartilhado. Não converter o
     campo em ClinicalSelect: ele precisa continuar aceitando texto livre.
 12. Usar tokens existentes em estilos da feature, alvos de 44 px, foco visível e
-    lista com rolagem limitada no fluxo do formulário, sem sobrepor outros campos.
+    lista em dropdown sobreposto imediatamente abaixo do campo, com a mesma
+    largura, altura limitada e rolagem interna. Abrir, filtrar ou fechar sugestões
+    não desloca Tipo, Observação ou ações, nem redimensiona o diálogo.
     Cabeçalhos usam ícones decorativos e texto, seguindo a referência visual e
     preservando as cores institucionais. Em 320 px, nenhum overflow horizontal; cabeçalho,
     lista e botões devem continuar acessíveis por rolagem. Validar também 1440 px.
+
+13. Revisão visual solicitada explicitamente pelo usuário: apresentar as sugestões
+    em cascata a partir da caixa de busca, sem painel que ocupe espaço no formulário.
+    Em 320 e 1440 px, validar geometria do menu e estabilidade dos campos ao abrir
+    e fechar; o menu permanece dentro do diálogo e acessível por rolagem interna.
 
 ## Contratos e erros
 
@@ -113,6 +120,11 @@ de medições clínicas.
 - Regressão nos consumidores paciente, dependente e médico; E2E a 320/1440 px.
 - Executar testes afetados, build frontend e `git diff --check`.
 - Atualizar design system com o padrão e roadmap com evidências e commit/PR.
+
+## Revisão do dropdown
+
+SPEC APPROVED — revisão de apresentação solicitada pelo usuário após avaliar
+a entrega inicial. Implementação e validação desta revisão em andamento.
 
 ## Evidência TDD
 
