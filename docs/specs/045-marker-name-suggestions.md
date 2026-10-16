@@ -21,8 +21,8 @@ de medições clínicas.
 
 ## Regras
 
-1. Converter o campo de nome em combobox editável com lista de sugestões. Ao
-   focar o campo vazio, apresentar o catálogo agrupado, sem exigir digitação.
+1. Converter o campo de nome em combobox editável com lista de sugestões. O foco inicial no campo mantém o menu fechado; clique na caixa/seta,
+   digitação ou setas de navegação abrem as opções.
 2. Catálogo inicial, fixo no frontend:
    - Cardiovascular: Pressão arterial (sistólica/diastólica); Batimentos cardíacos (frequência cardíaca).
    - Diabetes / Metabolismo: Glicemia em jejum; Glicemia pós-prandial.
@@ -182,3 +182,31 @@ não foram alterados; a suíte backend não foi executada nesta entrega.
 Logs locais: `/tmp/dus-marker-red.log`, `/tmp/dus-marker-green.log`,
 `/tmp/dus-marker-regression.log`, `/tmp/dus-marker-areas-slow-environment.log`,
 `/tmp/dus-marker-e2e.log` e `/tmp/dus-marker-build.log`.
+
+## Revisão para o padrão do seletor Tipo
+
+SPEC APPROVED — usuário solicitou explicitamente seguir o seletor Tipo e manter
+associação entre a sugestão escolhida e o texto do campo. Esta revisão prevalece
+sobre a abertura automática e o posicionamento interno das versões anteriores.
+
+- Menu fechado no foco inicial do diálogo. Clique no campo ou seta, digitação
+  e setas do teclado abrem as opções; seta também permite fechar.
+- Reutilizar a apresentação de `ClinicalSelect` (superfície, espaçamento das
+  opções, destaque e check) e o Popover Radix já instalado para portal e
+  posicionamento com colisão. Não criar um segundo modal nem copiar o seletor
+  somente leitura: o campo deve continuar editável.
+- Remover a lupa e os ícones das categorias; manter grupos com rótulos discretos.
+- Digitar `pressão` ou `PRESSAO` filtra a opção de pressão arterial. Selecionar
+  associa o campo ao nome completo: clicar ou Enter preenche `name` com o rótulo
+  canônico. Ao salvar, enviar esse mesmo nome no contrato existente.
+- Ao reabrir depois de selecionar, exibir o catálogo completo e o check no nome
+  atual. Navegação destaca sem confirmar; editar o texto invalida a seleção
+  quando ele deixa de corresponder ao nome escolhido. Texto livre permanece válido.
+- Menu usa a largura da caixa e pode inverter o lado para caber na viewport,
+  como Tipo; pode ultrapassar os limites do diálogo sem ser recortado. Não muda
+  a posição dos campos ou a altura do formulário.
+- Validar foco, check, abertura/fechamento pela seta, filtragem, payload e texto
+  livre; comparar visualmente com Tipo em 320 e 1440 px e verificar que a seleção
+  no menu portado não fecha o formulário.
+
+Evidência desta revisão: pendente de RED/GREEN/REFACTOR e build.
