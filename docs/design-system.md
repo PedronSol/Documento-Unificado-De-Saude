@@ -240,6 +240,18 @@ Estilo novo entra no arquivo da feature correspondente.
 - o menu respeita largura do gatilho, colisão com viewport e navegação por
   setas, Enter e Escape fornecida pelo Radix Select.
 
+**Nome de marcador com sugestões**
+
+- `MarkerNameField`, em `components/markers/`, é um combobox editável de domínio;
+  reutiliza o diálogo clínico nos contextos paciente, dependente e médico.
+- Ícone de busca, chevron e orientação permitem escolher ou escrever nome livre.
+- Lista no fluxo do formulário, com altura limitada e rolagem, grupos com ícone
+  decorativo e texto; cores primárias identificam navegação, sem código clínico.
+- Opções com pelo menos 44 px, quebra de nomes longos e destaque de foco por azul.
+- Foco permanece no campo, setas navegam e Enter escolhe; primeiro Escape fecha
+  a lista, segundo segue o fechamento do diálogo. Tab não confirma uma sugestão.
+- Nome escolhido não define tipo, valor, unidade nem interpretação clínica.
+
 **List item**
 
 - card de borda regular, avatar/ícone, conteúdo e ação;

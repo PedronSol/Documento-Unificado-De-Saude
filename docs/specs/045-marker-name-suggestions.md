@@ -2,7 +2,10 @@
 
 ## Status
 
-SPEC REVIEW — implementação aguarda revisão desta proposta.
+IMPLEMENTED — proposta e referência visual aprovadas em 16/10/2026.
+
+Entrega na branch `feat/marker-name-suggestions`; referência do commit registrada
+no roadmap após o commit da implementação.
 
 ## Dependências
 
@@ -22,9 +25,9 @@ de medições clínicas.
 1. Converter o campo de nome em combobox editável com lista de sugestões. Ao
    focar o campo vazio, apresentar o catálogo agrupado, sem exigir digitação.
 2. Catálogo inicial, fixo no frontend:
-   - Cardiovascular: Pressão arterial; Batimentos cardíacos.
-   - Diabetes: Glicemia.
-   - Corporal: Peso; Altura; Gordura corporal.
+   - Cardiovascular: Pressão arterial (sistólica/diastólica); Batimentos cardíacos (frequência cardíaca).
+   - Diabetes / Metabolismo: Glicemia em jejum; Glicemia pós-prandial.
+   - Composição corporal: Peso corporal; Circunferência abdominal.
 3. Categorias são apenas organização visual, sem relação automática com os tipos
    de marcador `condition`, `diagnosis`, `allergy` e `medication`.
 4. Filtrar por trecho do nome, ignorando maiúsculas, minúsculas, acentos e espaços
@@ -52,7 +55,9 @@ de medições clínicas.
     para o campo, pois não há combobox editável compartilhado. Não converter o
     campo em ClinicalSelect: ele precisa continuar aceitando texto livre.
 12. Usar tokens existentes em estilos da feature, alvos de 44 px, foco visível e
-    lista com rolagem limitada. Em 320 px, nenhum overflow horizontal; cabeçalho,
+    lista com rolagem limitada no fluxo do formulário, sem sobrepor outros campos.
+    Cabeçalhos usam ícones decorativos e texto, seguindo a referência visual e
+    preservando as cores institucionais. Em 320 px, nenhum overflow horizontal; cabeçalho,
     lista e botões devem continuar acessíveis por rolagem. Validar também 1440 px.
 
 ## Contratos e erros
@@ -77,8 +82,8 @@ de medições clínicas.
 1. Dado o formulário novo, quando focar Nome do marcador vazio, então exibir as
    seis sugestões agrupadas nas três categorias e manter foco no campo.
 2. Dado o catálogo aberto, quando digitar `PRESSAO`, então mostrar Pressão
-   arterial no grupo Cardiovascular e ocultar sugestões sem correspondência.
-3. Dado o texto `gli`, quando selecionar Glicemia por clique ou teclado, então
+   arterial (sistólica/diastólica) no grupo Cardiovascular e ocultar sugestões sem correspondência.
+3. Dado o texto `gli`, quando selecionar Glicemia em jejum por clique ou teclado, então
    preencher o nome, fechar sugestões e preservar todos os outros campos,
    sem emitir requisição de gravação.
 4. Dado um nome livre sem correspondência, quando salvar, então usar o contrato
@@ -112,4 +117,30 @@ de medições clínicas.
 
 ## Evidência TDD
 
-Pendente: revisão da spec antes de iniciar testes e implementação.
+| Etapa | Comando / evidência | Resultado |
+|---|---|---|
+| RED | `NODE_ENV=test npm test -- tests/marker-name-suggestions.test.jsx` antes do código | 5 falhas esperadas: combobox, opções e atributos ausentes. A primeira execução no contêiner herdou NODE_ENV=production; foi corrigida antes de observar o RED funcional. |
+| GREEN | Mesmo comando após implementar o campo e a proteção de Escape no diálogo | 5 testes aprovados. Escape no Radix foi confirmado no diálogo real, não apenas no componente isolado. |
+| REFACTOR | Dependência do efeito por ID da opção ativa e cálculo explícito de navegação por setas | 5 testes do campo permaneceram verdes na regressão. |
+| Regressão | Campo, `medical-record.test.jsx`, `design-system.test.js` e `authenticated-areas.test.jsx`, Node 22, um worker | 83 cenários aprovados no conjunto das verificações; inclui seleção no contexto de dependente e abertura no prontuário médico. Ver ressalva de tempo abaixo. |
+| E2E | `npx playwright test tests/login.spec.ts -g 'sugere nomes\|gerencia marcador\|oferece busca, prontuário'`, Chromium, um worker | 4 testes aprovados: sugestões em 320/1440 px, criação/edição/histórico do paciente e fluxo médico. Em 320 px a escolha final usou toque. |
+| Build | `npm run build`, frontend em contêiner isolado | Aprovado. |
+| Visual | Capturas em 320×720 e 1440×900; revisão visual e verificações geométricas no E2E | Sem overflow horizontal; nomes quebram, opções têm alvo mínimo de 44 px; lista e diálogo permitem rolagem para acessar ações. |
+
+### Ressalva da regressão
+
+A primeira execução concorrente com o build teve cinco falhas de tempo/espera em
+`authenticated-areas.test.jsx` (78/83 passaram). A repetição isolada padrão teve
+47/50 sucessos, com esperas insuficientes no carregamento inicial de áreas.
+A execução final dessa suíte passou 50/50 com `asyncUtilTimeout: 10000` e
+`--testTimeout=15000`, ajustados **somente no contêiner de validação**; nenhum
+limite de espera foi alterado no repositório. As outras três suítes passaram com
+os limites padrão. Não houve mudança de produção para contornar essas esperas.
+
+Os E2E usaram build isolado, API simulada e a configuração temporária do Chromium
+contra localhost:3100. Nenhum dado clínico real foi gravado. Backend e contratos
+não foram alterados; a suíte backend não foi executada nesta entrega.
+
+Logs locais: `/tmp/dus-marker-red.log`, `/tmp/dus-marker-green.log`,
+`/tmp/dus-marker-regression.log`, `/tmp/dus-marker-areas-slow-environment.log`,
+`/tmp/dus-marker-e2e.log` e `/tmp/dus-marker-build.log`.

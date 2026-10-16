@@ -41,7 +41,7 @@ Exemplo: `001-database-migrations.md`.
 | `042-usability-feedback-registration-summary.md` | Ajustes de usabilidade: cadastro, marcadores e tipo sanguíneo | IMPLEMENTED |
 | `043-public-share-refresh.md` | Continuidade e atualização do resumo público por QR-Code | IMPLEMENTED |
 | `044-google-login-entry.md` | Acesso com Google diretamente na tela de login | IMPLEMENTED |
-| `045-marker-name-suggestions.md` | Sugestões pesquisáveis e agrupadas para nomes de marcadores | SPEC REVIEW |
+| `045-marker-name-suggestions.md` | Sugestões pesquisáveis e agrupadas para nomes de marcadores | IMPLEMENTED |
 
 ## Template
 

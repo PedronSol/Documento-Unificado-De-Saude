@@ -985,6 +985,12 @@ describe("dependentes", () => {
     const clinical = actingByPath.filter(([path]) => path !== "/me");
     expect(clinical.length).toBeGreaterThan(0);
     expect(clinical.every(([, acting]) => acting === 9)).toBe(true);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
+    expect(screen.getAllByRole("option")).toHaveLength(6);
+    await user.click(screen.getByRole("option", { name: "Peso corporal" }));
+    expect(screen.getByLabelText("Nome do marcador")).toHaveValue("Peso corporal");
+    expect(useSessionStore.getState().actingPatientId).toBe(9);
   });
 
   it("permite ao responsável informar o tipo sanguíneo do dependente", async () => {

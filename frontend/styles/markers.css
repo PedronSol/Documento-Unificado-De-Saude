@@ -311,3 +311,89 @@
   font-size: 0.68rem;
   font-weight: 700;
 }
+.marker-name-control {
+  position: relative;
+  min-width: 0;
+}
+
+.clinical-dialog .marker-name-control input {
+  padding-inline: var(--ds-space-10);
+}
+
+.marker-name-search,
+.marker-name-chevron {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ds-color-text-muted);
+  pointer-events: none;
+}
+
+.marker-name-search {
+  left: var(--ds-space-3);
+}
+
+.marker-name-chevron {
+  right: var(--ds-space-3);
+}
+
+.marker-name-hint,
+.marker-name-no-results {
+  margin: 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-body);
+}
+
+.marker-name-suggestions {
+  max-height: min(calc(var(--ds-control-min-height) * 9), 50dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface);
+  padding: var(--ds-space-2);
+}
+
+.marker-name-category {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2);
+  color: var(--ds-color-primary);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-body);
+}
+
+.marker-name-category svg {
+  flex-shrink: 0;
+}
+
+.marker-name-option {
+  display: flex;
+  align-items: center;
+  min-height: var(--ds-control-min-height);
+  border-radius: var(--ds-radius-sm);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-body);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.marker-name-option:hover,
+.marker-name-option[aria-selected="true"] {
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
+}
+
+.marker-name-option[aria-selected="true"] {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: -2px;
+}
+
+.marker-name-no-results {
+  padding: var(--ds-space-3);
+}

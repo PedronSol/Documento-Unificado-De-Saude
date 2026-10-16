@@ -862,6 +862,50 @@ test.describe('Página Home', () => {
     await expect(trigger).toBeFocused();
   });
 
+  for (const width of [320, 1440]) {
+    test.describe(`sugestões em ${width} px`, () => {
+      test.use({ hasTouch: width === 320 });
+      test(`sugere nomes de marcadores por categoria em ${width} px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
+        await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Adicionar marcador' });
+        const input = page.getByRole('combobox', { name: 'Nome do marcador' });
+        await expect(input).toBeFocused();
+        await expect(page.getByRole('option')).toHaveCount(6);
+        await expect(page.getByRole('group', { name: 'Cardiovascular' })).toBeVisible();
+        await expect(page.getByRole('group', { name: 'Diabetes / Metabolismo' })).toHaveCount(1);
+        await expect(page.getByRole('group', { name: 'Composição corporal' })).toHaveCount(1);
+        expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        for (const option of await page.getByRole('option').all()) {
+          expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        }
+        await page.screenshot({ path: `/tmp/dus-marker-suggestions-${width}.png` });
+        await input.fill('PRESSAO');
+        await expect(page.getByRole('option')).toHaveCount(1);
+        await input.press('ArrowDown');
+        await input.press('Enter');
+        await expect(input).toHaveValue('Pressão arterial (sistólica/diastólica)');
+        await expect(dialog).toBeVisible();
+        await input.press('ArrowDown');
+        await input.press('Escape');
+        await expect(dialog).toBeVisible();
+        await expect(input).toHaveAttribute('aria-expanded', 'false');
+        await input.fill('');
+        const corporalOption = page.getByRole('option', { name: 'Circunferência abdominal' });
+        if (width === 320) await corporalOption.tap();
+        else await corporalOption.click();
+        await expect(input).toHaveValue('Circunferência abdominal');
+        await expect(page.getByLabel('Tipo', { exact: true })).toContainText('Condição');
+        const saved = page.waitForRequest((request) => request.url().endsWith('/me/markers') && request.method() === 'POST');
+        await page.getByRole('button', { name: 'Adicionar marcador' }).click();
+        expect((await saved).postDataJSON()).toMatchObject({ name: 'Circunferência abdominal', type: 'condition' });
+        await expect(dialog).toBeHidden();
+        await expect(page.getByRole('heading', { name: 'Circunferência abdominal' })).toBeVisible();
+      });
+    });
+  }
+
   test('gerencia marcador em diálogos acessíveis e preserva o histórico', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const addTrigger = page.getByRole('button', { name: 'Adicionar marcador' });
