@@ -117,40 +117,40 @@ export function MarkerNameField({ inputRef, value, onChange }) {
           required
         />
         <ChevronDown className="marker-name-chevron" size={16} aria-hidden="true" />
+        {isOpen ? (
+          <div className="marker-name-suggestions">
+            <div id={`${id}-list`} role="listbox" aria-label="Sugestões de marcadores">
+              {groups.map(({ name, icon: Icon, options: groupOptions, id: groupId }) => (
+                <div role="group" aria-labelledby={groupId} key={groupId}>
+                  <div id={groupId} className="marker-name-category">
+                    <Icon size={16} aria-hidden="true" />
+                    <span>{name}</span>
+                  </div>
+                  {groupOptions.map((option) => (
+                    <div
+                      id={option.id}
+                      key={option.id}
+                      role="option"
+                      aria-selected={activeName === option.name}
+                      className="marker-name-option"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectSuggestion(option.name)}
+                    >
+                      {option.name}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            {!options.length ? (
+              <p className="marker-name-no-results" role="status">
+                Nenhuma sugestão encontrada. Você pode usar o nome digitado.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <p id={`${id}-hint`} className="marker-name-hint">Escolha uma sugestão ou digite outro nome.</p>
-      {isOpen ? (
-        <div className="marker-name-suggestions">
-          <div id={`${id}-list`} role="listbox" aria-label="Sugestões de marcadores">
-            {groups.map(({ name, icon: Icon, options: groupOptions, id: groupId }) => (
-              <div role="group" aria-labelledby={groupId} key={groupId}>
-                <div id={groupId} className="marker-name-category">
-                  <Icon size={16} aria-hidden="true" />
-                  <span>{name}</span>
-                </div>
-                {groupOptions.map((option) => (
-                  <div
-                    id={option.id}
-                    key={option.id}
-                    role="option"
-                    aria-selected={activeName === option.name}
-                    className="marker-name-option"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectSuggestion(option.name)}
-                  >
-                    {option.name}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          {!options.length ? (
-            <p className="marker-name-no-results" role="status">
-              Nenhuma sugestão encontrada. Você pode usar o nome digitado.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

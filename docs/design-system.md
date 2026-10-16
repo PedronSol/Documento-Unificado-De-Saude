@@ -245,8 +245,10 @@ Estilo novo entra no arquivo da feature correspondente.
 - `MarkerNameField`, em `components/markers/`, é um combobox editável de domínio;
   reutiliza o diálogo clínico nos contextos paciente, dependente e médico.
 - Ícone de busca, chevron e orientação permitem escolher ou escrever nome livre.
-- Lista no fluxo do formulário, com altura limitada e rolagem, grupos com ícone
-  decorativo e texto; cores primárias identificam navegação, sem código clínico.
+- Dropdown ancorado imediatamente abaixo da busca, com a mesma largura e
+  sobreposição aos campos seguintes; abrir/fechar não desloca o formulário.
+- Menu com altura limitada, rolagem interna, sombra e camada de dropdown; grupos
+  com ícone decorativo e texto em cores institucionais.
 - Opções com pelo menos 44 px, quebra de nomes longos e destaque de foco por azul.
 - Foco permanece no campo, setas navegam e Enter escolhe; primeiro Escape fecha
   a lista, segundo segue o fechamento do diálogo. Tab não confirma uma sugestão.

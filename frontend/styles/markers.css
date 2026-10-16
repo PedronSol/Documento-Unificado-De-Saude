@@ -346,12 +346,17 @@
 }
 
 .marker-name-suggestions {
-  max-height: min(calc(var(--ds-control-min-height) * 9), 50dvh);
+  position: absolute;
+  z-index: var(--ds-z-dropdown);
+  top: calc(100% + var(--ds-space-1));
+  inset-inline: 0;
+  max-height: min(calc(var(--ds-control-min-height) * 6), 40dvh);
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--ds-color-border-strong);
   border-radius: var(--ds-radius-control);
-  background: var(--ds-color-surface);
+  background: var(--ds-color-surface-raised);
+  box-shadow: var(--ds-shadow-raised);
   padding: var(--ds-space-2);
 }
 

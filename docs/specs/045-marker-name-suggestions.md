@@ -123,8 +123,35 @@ de medições clínicas.
 
 ## Revisão do dropdown
 
-SPEC APPROVED — revisão de apresentação solicitada pelo usuário após avaliar
-a entrega inicial. Implementação e validação desta revisão em andamento.
+IMPLEMENTED — revisão de apresentação solicitada pelo usuário após avaliar
+a entrega inicial, concluída na mesma branch.
+
+- RED funcional: teste de geometria em Chromium/320 px no build anterior falhou
+  pelo motivo esperado: abrir a lista deslocava Tipo em `293.328125 px`.
+- A tentativa inicial contra `next dev` parou em navegação/rede antes do cenário;
+  o RED válido foi observado no build de produção, com o teste original.
+- Implementação mínima: menu passa a ser filho do controle relativo, posicionado
+  absolutamente sob a busca, com camada/sombra semânticas e rolagem interna.
+- Regressão unitária: 33 cenários do campo, prontuário médico e design system
+  aprovados no conjunto das execuções; um cenário médico excedeu 5 s e passou
+  isoladamente em 4,4 s com limite de 15 s só na execução. Limites do repositório
+  preservados.
+- Refactor: reaproveitar a âncora `.marker-name-control` existente; manter filtro,
+  catálogo, seleção e eventos sem duplicação ou nova dependência.
+- GREEN geométrico e regressão E2E: quatro cenários aprovados em Chromium sobre
+  o build de produção, incluindo 320/1440 px, toque e teclado. Abrir o dropdown
+  desloca Tipo e altera altura do diálogo em no máximo 1 px; a largura coincide
+  com a busca e o menu fica imediatamente abaixo, dentro do diálogo.
+- Dependente: cenário de abertura/seleção aprovado, com espera inicial ampliada
+  apenas no contêiner (`asyncUtilTimeout: 10000`, testTimeout 15000), após falha
+  de carregamento com espera padrão de 1 s. Total: 34 cenários unitários únicos
+  aprovados no conjunto das execuções desta revisão.
+- Build final aprovado; capturas de 320/1440 px revisadas visualmente. Refactor
+  mantido mínimo; eventos e catálogo existentes preservados.
+- Logs locais: `/tmp/dus-dropdown-red.log`, `/tmp/dus-dropdown-green.log`,
+  `/tmp/dus-dropdown-unit.log`, `/tmp/dus-dropdown-unit-recheck.log`,
+  `/tmp/dus-dropdown-dependent-recheck.log` e `/tmp/dus-dropdown-build.log`.
+  Capturas: `/tmp/dus-marker-dropdown-320.png` e `/tmp/dus-marker-dropdown-1440.png`.
 
 ## Evidência TDD
 
