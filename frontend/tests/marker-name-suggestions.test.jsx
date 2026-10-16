@@ -24,11 +24,48 @@ function Form({ editing = false, onSubmit = vi.fn() }) {
 }
 
 describe("sugestões de nome no diálogo de marcadores", () => {
-  it("mostra seis opções agrupadas ao focar e filtra sem acentos ou diferença de caixa", async () => {
+  it("abre e fecha pela seta como Tipo e mantém o foco no campo", async () => {
+    const user = userEvent.setup();
+    render(<Form />);
+    const input = screen.getByLabelText("Nome do marcador");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Abrir sugestões de marcadores" }));
+    expect(screen.getAllByRole("option")).toHaveLength(6);
+    expect(input).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Fechar sugestões de marcadores" }));
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).toHaveFocus();
+  });
+
+  it("associa pressão ao nome completo e mantém o check ao reabrir", async () => {
+    const user = userEvent.setup();
+    const submit = vi.fn();
+    render(<Form onSubmit={submit} />);
+    const input = screen.getByLabelText("Nome do marcador");
+    await user.type(input, "pressão");
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    await user.keyboard("{ArrowDown}{Enter}");
+    const name = "Pressão arterial (sistólica/diastólica)";
+    expect(input).toHaveValue(name);
+    await user.click(screen.getByRole("button", { name: "Abrir sugestões de marcadores" }));
+    expect(screen.getAllByRole("option")).toHaveLength(6);
+    expect(screen.getByRole("option", { name })).toHaveAttribute("data-state", "checked");
+    expect(screen.getByRole("option", { name })).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ name }));
+    await user.clear(input);
+    await user.type(input, "Pressão personalizada");
+    expect(screen.queryByRole("option", { selected: true })).not.toBeInTheDocument();
+  });
+
+  it("abre por clique e filtra sem acentos ou diferença de caixa", async () => {
     const user = userEvent.setup();
     render(<Form />);
     const input = screen.getByRole("combobox", { name: "Nome do marcador" });
     expect(input).toHaveFocus();
+    expect(input).toHaveAttribute("aria-expanded", "false");
+    await user.click(input);
     expect(input).toHaveAttribute("aria-expanded", "true");
     expect(screen.getAllByRole("option")).toHaveLength(6);
     for (const name of ["Cardiovascular", "Diabetes / Metabolismo", "Composição corporal"]) {
@@ -45,6 +82,7 @@ describe("sugestões de nome no diálogo de marcadores", () => {
     const user = userEvent.setup();
     const submit = vi.fn();
     render(<Form onSubmit={submit} />);
+    await user.click(screen.getByLabelText("Nome do marcador"));
     await user.click(screen.getByRole("option", { name: "Glicemia em jejum" }));
     expect(screen.getByLabelText("Nome do marcador")).toHaveValue("Glicemia em jejum");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
@@ -66,7 +104,8 @@ describe("sugestões de nome no diálogo de marcadores", () => {
     await user.keyboard("{ArrowDown}{ArrowDown}");
     const option = screen.getByRole("option", { name: "Glicemia pós-prandial" });
     expect(input).toHaveAttribute("aria-activedescendant", option.id);
-    expect(option).toHaveAttribute("aria-selected", "true");
+    expect(option).toHaveAttribute("data-highlighted");
+    expect(option).toHaveAttribute("aria-selected", "false");
     await user.keyboard("{Enter}");
     expect(input).toHaveValue("Glicemia pós-prandial");
     expect(input).toHaveFocus();

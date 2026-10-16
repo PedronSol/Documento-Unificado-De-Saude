@@ -987,6 +987,7 @@ describe("dependentes", () => {
     expect(clinical.every(([, acting]) => acting === 9)).toBe(true);
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Adicionar marcador" }));
+    await user.click(screen.getByLabelText("Nome do marcador"));
     expect(screen.getAllByRole("option")).toHaveLength(6);
     await user.click(screen.getByRole("option", { name: "Peso corporal" }));
     expect(screen.getByLabelText("Nome do marcador")).toHaveValue("Peso corporal");

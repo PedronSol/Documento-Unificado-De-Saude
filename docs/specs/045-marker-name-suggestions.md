@@ -21,7 +21,8 @@ de medições clínicas.
 
 ## Regras
 
-1. Converter o campo de nome em combobox editável com lista de sugestões. O foco inicial no campo mantém o menu fechado; clique na caixa/seta,
+1. Converter o campo de nome em combobox editável com lista de sugestões.
+   O foco inicial mantém o menu fechado; clique na caixa/seta,
    digitação ou setas de navegação abrem as opções.
 2. Catálogo inicial, fixo no frontend:
    - Cardiovascular: Pressão arterial (sistólica/diastólica); Batimentos cardíacos (frequência cardíaca).
@@ -44,7 +45,7 @@ de medições clínicas.
    sem selecionar automaticamente e fecha a lista. Enter sem opção ativa mantém
    o envio normal do formulário. Clique fora fecha sem alterar o texto.
 9. Não ativar a primeira opção automaticamente ao digitar. Depois de fechar com
-   Escape, nova edição ou novo foco permite reabrir a lista. A busca vazia volta
+   Escape, nova edição, clique ou setas permitem reabrir a lista. A busca vazia volta
    a mostrar todas as categorias; ocultar grupos sem correspondências.
 10. Usar semântica de combobox/listbox, rótulo associado, `aria-expanded`,
     `aria-controls`, `aria-autocomplete=list` e `aria-activedescendant` quando
@@ -57,14 +58,15 @@ de medições clínicas.
     lista em dropdown sobreposto imediatamente abaixo do campo, com a mesma
     largura, altura limitada e rolagem interna. Abrir, filtrar ou fechar sugestões
     não desloca Tipo, Observação ou ações, nem redimensiona o diálogo.
-    Cabeçalhos usam ícones decorativos e texto, seguindo a referência visual e
-    preservando as cores institucionais. Em 320 px, nenhum overflow horizontal; cabeçalho,
+    Cabeçalhos usam rótulos discretos, sem ícones, seguindo o padrão Tipo.
+    Em 320 px, nenhum overflow horizontal; cabeçalho,
     lista e botões devem continuar acessíveis por rolagem. Validar também 1440 px.
 
 13. Revisão visual solicitada explicitamente pelo usuário: apresentar as sugestões
     em cascata a partir da caixa de busca, sem painel que ocupe espaço no formulário.
     Em 320 e 1440 px, validar geometria do menu e estabilidade dos campos ao abrir
-    e fechar; o menu permanece dentro do diálogo e acessível por rolagem interna.
+    e fechar; o menu é portado, pode ultrapassar o diálogo e deve caber na
+    viewport, com rolagem interna e ajuste de colisão como o seletor Tipo.
 
 ## Contratos e erros
 
@@ -85,8 +87,9 @@ de medições clínicas.
 
 ## Cenários Given/When/Then
 
-1. Dado o formulário novo, quando focar Nome do marcador vazio, então exibir as
-   seis sugestões agrupadas nas três categorias e manter foco no campo.
+1. Dado o formulário novo com foco inicial no nome e menu fechado, quando clicar
+   na caixa ou seta, então exibir as seis sugestões nas três categorias e manter
+   foco no campo. Digitação também abre a lista filtrada.
 2. Dado o catálogo aberto, quando digitar `PRESSAO`, então mostrar Pressão
    arterial (sistólica/diastólica) no grupo Cardiovascular e ocultar sugestões sem correspondência.
 3. Dado o texto `gli`, quando selecionar Glicemia em jejum por clique ou teclado, então
@@ -185,7 +188,7 @@ Logs locais: `/tmp/dus-marker-red.log`, `/tmp/dus-marker-green.log`,
 
 ## Revisão para o padrão do seletor Tipo
 
-SPEC APPROVED — usuário solicitou explicitamente seguir o seletor Tipo e manter
+IMPLEMENTED — usuário solicitou explicitamente seguir o seletor Tipo e manter
 associação entre a sugestão escolhida e o texto do campo. Esta revisão prevalece
 sobre a abertura automática e o posicionamento interno das versões anteriores.
 
@@ -209,4 +212,39 @@ sobre a abertura automática e o posicionamento interno das versões anteriores.
   livre; comparar visualmente com Tipo em 320 e 1440 px e verificar que a seleção
   no menu portado não fecha o formulário.
 
-Evidência desta revisão: pendente de RED/GREEN/REFACTOR e build.
+### Evidência desta revisão
+
+- RED: sete testes do campo executados antes da produção; quatro falharam e três
+  passaram. Falhas esperadas: menu aberto no foco inicial, seta acionável ausente,
+  check/seleção persistente ausentes e navegação confundida com seleção.
+- GREEN: sete testes aprovados com abertura por clique/seta, busca acentuada,
+  associação ao nome canônico, check ao reabrir, texto livre e preservação dos
+  demais campos; eventos, foco e Escape verificados com o diálogo real.
+- REFACTOR: normalização da consulta calculada uma vez por render; superfície,
+  viewport, itens, indicador e chevron reutilizam as classes de ClinicalSelect.
+  Popover já era dependência direta do projeto; nenhuma dependência nova.
+- Regressão: 85 cenários unitários únicos aprovados no conjunto das execuções
+  (campo, áreas autenticadas/dependente, prontuário médico e design system). A
+  primeira execução passou 84/85; o carregamento inicial do paciente excedeu a
+  espera explícita de 3 s e passou isoladamente em 1,5 s. Como nas verificações
+  anteriores, asyncUtilTimeout 10000 e testTimeout 15000 foram aplicados somente
+  no ambiente de validação; nenhum timeout do repositório foi alterado.
+- E2E: quatro cenários aprovados em Chromium; menus comparados por cor de fundo,
+  borda, raio e sombra com Tipo. Inclui 320/1440 px, check, nome associado,
+  seleção por toque, payload, texto livre, edição/histórico e fluxo médico.
+- RED adicional observado na revisão visual: o overflow do menu era `hidden`
+  por precedência da classe compartilhada. Correção restrita ao seletor composto
+  da feature; dois cenários em 320/1440 px repetidos e aprovados com rolagem `auto`.
+- Build final aprovado. Capturas verificadas; a captura da seleção aguarda o fim
+  da animação de abertura para registrar o estado estável.
+- Frontend local atualizado com o build validado e ID público Google existente.
+  A execução anterior não continha o novo campo. Apenas artefatos do frontend e
+  fontes da feature foram substituídos no contêiner; versão anterior preservada
+  para reversão. Sem mudança de banco, backend ou arquivos de ambiente.
+- Backend não alterado; sua suíte não foi executada nesta revisão.
+
+Logs locais: `/tmp/dus-select-pattern-red.log`, `/tmp/dus-select-pattern-green.log`,
+`/tmp/dus-select-pattern-regression.log`, `/tmp/dus-select-pattern-recheck.log`,
+`/tmp/dus-select-pattern-scroll-red.log`, `/tmp/dus-select-pattern-final-e2e.log`
+e `/tmp/dus-select-pattern-build.log`. Capturas de referência:
+`/tmp/dus-marker-search-320.png` e `/tmp/dus-marker-selected-1440.png`.
