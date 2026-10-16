@@ -429,6 +429,7 @@ medicações com histórico.
 - [x] Usar diálogos acessíveis para edição e confirmação de remoção.
 - [x] Eliminar confirmação nativa remanescente na superfície frontend tocada.
 - [x] Cobrir validação, duplicidade, ownership e desativação.
+- [ ] Complemento: sugestões de nome pesquisáveis e agrupadas (spec `045`, SPEC REVIEW; dependências concluídas).
 
 ### Critérios de conclusão
 
