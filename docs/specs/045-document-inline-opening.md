@@ -2,8 +2,8 @@
 
 ## Status
 
-SPEC APPROVED — aprovada pelo usuário em 2026-11-06; implementação na branch
-`feat/document-open-doctor-alerts`.
+IMPLEMENTED — aprovada pelo usuário em 2026-11-06; implementação na branch
+`feat/document-open-doctor-alerts` (commit registrado no roadmap).
 
 ## Dependências e tarefa selecionada
 
@@ -130,13 +130,26 @@ Então nenhuma requisição é feita e a orientação de pop-up é anunciada.
 
 | Ciclo | RED | GREEN | REFACTOR | Referência |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| Abertura em nova aba | Antes de produção, `vitest run tests/digital-documents.test.jsx --maxWorkers=1`: 6 falhas e 14 sucessos; botão `Abrir Hemograma` ausente | `openDocument` abre a aba no gesto, busca pelo mesmo endpoint, aponta para URL `blob:` revogada em 60 s e trata `401`, erro, rede e pop-up bloqueado; 20 sucessos | Sem extração: download e abertura têm efeitos distintos (âncora × aba) e a duplicação é de poucas linhas; estilos com tokens `--ds-*` | Branch `feat/document-open-doctor-alerts` |
 
 ## Critérios de aceite e conclusão
 
-- [ ] Spec revisada antes de implementar.
-- [ ] Tocar no documento abre em nova aba sem baixar.
-- [ ] Download explícito preservado.
-- [ ] Erros, `401` e pop-up bloqueado tratados.
-- [ ] 320 px e viewport ampla verificados.
-- [ ] Evidência TDD, roadmap e commit registrados.
+- [x] Spec revisada antes de implementar.
+- [x] Tocar no documento abre em nova aba sem baixar.
+- [x] Download explícito preservado.
+- [x] Erros, `401` e pop-up bloqueado tratados.
+- [x] 320 px e viewport ampla verificados.
+- [x] Evidência TDD, roadmap e commit registrados.
+
+## Verificações da entrega
+
+- `vitest run --maxWorkers=2`: 367 testes unitários aprovados (35 arquivos).
+- `npm run build` aprovado; `PLAYWRIGHT_BASE_URL=http://localhost:3001 npx
+  playwright test`: 61 E2E aprovados no build de produção, incluindo
+  `paciente abre documento em nova aba sem baixar` em 320 px e 1280 px (alvo
+  ≥ 44 px, sem overflow, aba em `blob:` exibindo o arquivo e nenhum evento de
+  download).
+- O E2E usa um documento PNG: o Chromium headless não possui visualizador de
+  PDF e converte PDFs em download. A abertura de PDF depende do visualizador do
+  navegador; não foi verificada manualmente em Chrome/Safari com interface.
+- Backend inalterado; suíte backend completa aprovada (ver spec `046`).
