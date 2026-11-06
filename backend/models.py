@@ -383,6 +383,7 @@ class MedicalRecordResponse(BaseModel):
     patient: MedicalPatientProfile
     vaccines: List[VaccineResponse]
     markers: MedicalMarkerTimeline
+    alerts: List[AlertResponse]
 
 
 class DependentProfile(BaseModel):

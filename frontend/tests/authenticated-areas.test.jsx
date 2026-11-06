@@ -833,6 +833,7 @@ describe("redirecionamento por papel", () => {
           },
           vaccines: [],
           markers: { active: [], removed: [] },
+          alerts: [],
         });
       }
       return respondWith([]);

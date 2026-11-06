@@ -5,6 +5,7 @@ import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import Syringe from "lucide-react/dist/esm/icons/syringe";
 
+import { MedicalAlerts } from "@/components/alerts/medical-alerts";
 import { DigitalDocuments } from "@/components/documents/digital-documents";
 import { HealthMarkers } from "@/components/markers/health-markers";
 import { UserAvatar } from "@/components/identity/user-avatar";
@@ -66,6 +67,21 @@ function MedicalRecord({
             <dd>Grupo ativo</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="medical-alerts-section" aria-labelledby="medical-alerts-title">
+        <header>
+          <div>
+            <p className="eyebrow">Segurança clínica</p>
+            <h2 id="medical-alerts-title">Alertas médicos</h2>
+          </div>
+          <span>{record.alerts.length.toString().padStart(2, "0")}</span>
+        </header>
+        <MedicalAlerts
+          alerts={record.alerts}
+          withHeader={false}
+          emptyText="Nenhum alerta médico registrado."
+        />
       </section>
 
       {patient.account_status === "provisional" ? (

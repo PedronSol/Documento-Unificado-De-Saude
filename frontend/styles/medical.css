@@ -21,7 +21,8 @@
 .medical-roster-hero,
 .medical-roster,
 .medical-record-hero,
-.medical-vaccine-section {
+.medical-vaccine-section,
+.medical-alerts-section {
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-card);
   background: var(--ds-color-surface);
@@ -91,7 +92,8 @@
 }
 
 .medical-roster>header,
-.medical-vaccine-section>header {
+.medical-vaccine-section>header,
+.medical-alerts-section>header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -104,7 +106,8 @@
 }
 
 .medical-roster h2,
-.medical-vaccine-section h2 {
+.medical-vaccine-section h2,
+.medical-alerts-section h2 {
   margin: 0;
   color: var(--ds-color-text);
   font-family: var(--ds-font-interface);
@@ -510,11 +513,13 @@
   text-align: right;
 }
 
-.medical-vaccine-section {
+.medical-vaccine-section,
+.medical-alerts-section {
   padding: var(--ds-space-4);
 }
 
-.medical-vaccine-section>header>span {
+.medical-vaccine-section>header>span,
+.medical-alerts-section>header>span {
   display: grid;
   min-width: 2.5rem;
   min-height: 2.5rem;
@@ -690,7 +695,8 @@
     grid-row: 2;
   }
 
-  .medical-vaccine-section {
+  .medical-vaccine-section,
+  .medical-alerts-section {
     padding: var(--ds-space-6);
   }
 

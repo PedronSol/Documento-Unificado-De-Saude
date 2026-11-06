@@ -2,8 +2,8 @@
 
 ## Status
 
-SPEC APPROVED — aprovada pelo usuário em 2026-11-06; implementação na branch
-`feat/document-open-doctor-alerts`.
+IMPLEMENTED — aprovada pelo usuário em 2026-11-06; implementação na branch
+`feat/document-open-doctor-alerts` (commit registrado no roadmap).
 
 ## Dependências e tarefa selecionada
 
@@ -115,13 +115,26 @@ Então a resposta é `503` sem alertas parciais, como hoje.
 
 | Ciclo | RED | GREEN | REFACTOR | Referência |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| Contrato backend | `pytest __tests__/test_medical_area.py`: 1 falha e 11 sucessos; `KeyError: 'alerts'` | Consulta de `alerts` na transação autorizada, `ORDER BY FIELD(severidade_alerta, 'high', 'medium', 'low'), id_alerta`, campo `alerts` em `MedicalRecordResponse`; 13 sucessos | Sem refactor: consulta única e explícita, sem helper sem segundo consumidor | Branch `feat/document-open-doctor-alerts` |
+| Card no prontuário | `vitest run tests/medical-record.test.jsx`: 2 falhas e 14 sucessos; região `Alertas médicos` ausente | Seção após a identificação reutilizando `MedicalAlerts` com `emptyText`; 16 sucessos | Estilos da seção reaproveitam os seletores de vacinação; fixtures de prontuário atualizadas ao contrato | Branch `feat/document-open-doctor-alerts` |
 
 ## Critérios de aceite e conclusão
 
-- [ ] Spec revisada antes de implementar.
-- [ ] Prontuário médico retorna e exibe alertas ordenados.
-- [ ] Estado vazio explícito.
-- [ ] Autorização e auditoria preservadas.
-- [ ] 320 px e viewport ampla verificados.
-- [ ] Evidência TDD, roadmap e commit registrados.
+- [x] Spec revisada antes de implementar.
+- [x] Prontuário médico retorna e exibe alertas ordenados.
+- [x] Estado vazio explícito.
+- [x] Autorização e auditoria preservadas.
+- [x] 320 px e viewport ampla verificados.
+- [x] Evidência TDD, roadmap e commit registrados.
+
+## Verificações da entrega
+
+- Backend em container Python 3.11 com MySQL 8.0 descartável:
+  `RUN_DB_INTEGRATION=1 python -m pytest`: 337 aprovados, nenhum ignorado,
+  incluindo `get_medical_record` contra banco real.
+- `vitest run --maxWorkers=2`: 367 testes unitários aprovados; consumidor do
+  paciente (`AlertsSection`) sem regressão.
+- `npm run build` aprovado; 61 E2E aprovados no build de produção, incluindo
+  `médico vê alertas médicos no prontuário` em 320 px e 1280 px (ordem antes
+  de Vacinação, sem overflow). Capturas inspecionadas após a animação de
+  entrada.

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Heart, Pill, ShieldAlert } from "lucide-react";
 
-export function MedicalAlerts({ alerts, withHeader = true }) {
+export function MedicalAlerts({ alerts, withHeader = true, emptyText = "" }) {
   const typeConfig = {
     allergy: {
       icon: ShieldAlert,
@@ -70,6 +70,9 @@ export function MedicalAlerts({ alerts, withHeader = true }) {
           </CardHeader>
         ) : null}
         <CardContent className="pt-0">
+          {alerts.length === 0 && emptyText ? (
+            <p className="alerts-empty">{emptyText}</p>
+          ) : null}
           <motion.div
             variants={container}
             initial="hidden"

@@ -1056,6 +1056,7 @@ test.describe('Página Home', () => {
               active: medicalActiveMarkers,
               removed: medicalRemovedMarkers,
             },
+            alerts: [],
           }),
         });
       }

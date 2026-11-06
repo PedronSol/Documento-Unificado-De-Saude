@@ -356,6 +356,18 @@ def get_medical_record(
                     patient_id=patient_id,
                     marker_status="removed",
                 )
+                cursor.execute(
+                    """
+                    SELECT id_alerta AS alert_id, tipo_alerta AS type,
+                           titulo_alerta AS title, descricao_alerta AS description,
+                           severidade_alerta AS severity
+                    FROM alerts
+                    WHERE patient_id = %s
+                    ORDER BY FIELD(severidade_alerta, 'high', 'medium', 'low'), id_alerta
+                    """,
+                    (patient_id,),
+                )
+                alerts = cursor.fetchall()
                 record_clinical_event(
                     cursor,
                     actor_user_id=doctor["user_id"],
@@ -371,6 +383,7 @@ def get_medical_record(
                 "active": active_markers,
                 "removed": removed_markers,
             },
+            "alerts": alerts,
         }
     except mysql.connector.Error as error:
         _raise_database_unavailable("Falha ao carregar prontuário médico", error)

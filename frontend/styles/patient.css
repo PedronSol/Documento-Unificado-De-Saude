@@ -71,6 +71,17 @@
   background: linear-gradient(105deg, #fffafa, #fff 72%) !important;
 }
 
+/* Spec 046: explicit empty state, distinct from a loading failure. */
+.alerts-empty {
+  margin: var(--ds-space-4) 0 0;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-font-size-sm);
+}
+
+.medical-alerts-section .patient-alerts {
+  margin-top: var(--ds-space-4);
+}
+
 .patient-module [data-slot="card-title"] {
   color: #122543;
   font-family: var(--sans);

@@ -13,7 +13,7 @@ from medical.router import (
     list_medical_patients,
     update_medical_marker,
 )
-from models import MarkerCreateUpdate
+from models import MarkerCreateUpdate, MedicalRecordResponse
 
 
 class MedicalCursor:
@@ -263,6 +263,56 @@ def test_medical_record_audit_failure_returns_503_without_commit():
     assert error.value.status_code == 503
     assert connection.commits == 0
     assert connection.rollbacks == 1
+
+
+def alert_row(**overrides):
+    return {
+        "alert_id": 5,
+        "type": "allergy",
+        "title": "Penicilina",
+        "description": "Reação anafilática.",
+        "severity": "high",
+        **overrides,
+    }
+
+
+def test_medical_record_returns_patient_alerts_by_severity():
+    alerts = [alert_row(), alert_row(alert_id=1, type="condition", severity="low")]
+    connection = MedicalConnection(
+        fetchone_results=[patient_row(user_id=7)],
+        fetchall_results=[[], [], [], alerts],
+    )
+
+    result = get_medical_record(
+        patient_id=10,
+        doctor={"doctor_id": 3, "user_id": 8},
+        connection=connection,
+    )
+
+    assert result["alerts"] == alerts
+    statement, parameters = next(
+        executed for executed in connection.executed
+        if "FROM alerts" in executed[0]
+    )
+    assert "WHERE patient_id = %s" in statement
+    assert "ORDER BY FIELD(severidade_alerta, 'high', 'medium', 'low'), id_alerta" in statement
+    assert parameters == (10,)
+    assert MedicalRecordResponse.model_validate(result).alerts[0].title == "Penicilina"
+    assert connection.executed[-1][1][3] == "medical_record.viewed"
+
+
+def test_unauthorized_medical_record_never_reads_alerts():
+    connection = MedicalConnection(fetchone_result=None)
+
+    with pytest.raises(HTTPException) as error:
+        get_medical_record(
+            patient_id=99,
+            doctor={"doctor_id": 3, "user_id": 8},
+            connection=connection,
+        )
+
+    assert error.value.status_code == 403
+    assert not any("FROM alerts" in statement for statement, _ in connection.executed)
 
 
 def test_medical_marker_creation_uses_doctor_as_author():

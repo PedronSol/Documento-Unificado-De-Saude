@@ -46,6 +46,22 @@ const record = {
     },
   ],
   markers: { active: [marker], removed: [] },
+  alerts: [
+    {
+      alert_id: 5,
+      type: "allergy",
+      title: "Penicilina",
+      description: "Reação anafilática.",
+      severity: "high",
+    },
+    {
+      alert_id: 1,
+      type: "condition",
+      title: "Hipertensão",
+      description: "Acompanhamento regular recomendado.",
+      severity: "medium",
+    },
+  ],
 };
 
 const medicalDocuments = [
@@ -114,6 +130,36 @@ describe("MedicalRecordView", () => {
     expect(
       screen.queryByRole("button", { name: "Remover Hemograma recente" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("exibe os alertas médicos logo após a identificação (spec 046)", async () => {
+    apiFetch.mockImplementation((path) => {
+      if (path === "/medical/patients/10") return respondWith(record);
+      return respondWith([]);
+    });
+
+    renderRecord();
+
+    const alerts = await screen.findByRole("region", { name: "Alertas médicos" });
+    expect(within(alerts).getByText("Penicilina")).toBeInTheDocument();
+    expect(within(alerts).getByText("Alta")).toBeInTheDocument();
+    expect(within(alerts).getByText("Hipertensão")).toBeInTheDocument();
+    const vaccines = screen.getByRole("region", { name: "Vacinação" });
+    expect(
+      alerts.compareDocumentPosition(vaccines) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("informa quando o paciente não possui alertas médicos", async () => {
+    apiFetch.mockImplementation((path) => {
+      if (path === "/medical/patients/10") return respondWith({ ...record, alerts: [] });
+      return respondWith([]);
+    });
+
+    renderRecord();
+
+    const alerts = await screen.findByRole("region", { name: "Alertas médicos" });
+    expect(alerts).toHaveTextContent("Nenhum alerta médico registrado.");
   });
 
   it("mostra a remoção somente nos documentos enviados pelo médico", async () => {

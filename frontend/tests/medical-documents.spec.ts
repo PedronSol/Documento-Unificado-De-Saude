@@ -85,6 +85,7 @@ for (const viewport of [{ width: 320, height: 900 }, { width: 1280, height: 900 
           },
           vaccines: [],
           markers: { active: [], removed: [] },
+          alerts: [],
         });
         return true;
       }
