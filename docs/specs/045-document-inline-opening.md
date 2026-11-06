@@ -3,7 +3,7 @@
 ## Status
 
 IMPLEMENTED — aprovada pelo usuário em 2026-11-06; implementação na branch
-`feat/document-open-doctor-alerts` (commit registrado no roadmap).
+`feat/document-open-doctor-alerts` (commit `8cfede6`).
 
 ## Dependências e tarefa selecionada
 
