@@ -41,6 +41,8 @@ Exemplo: `001-database-migrations.md`.
 | `042-usability-feedback-registration-summary.md` | Ajustes de usabilidade: cadastro, marcadores e tipo sanguíneo | IMPLEMENTED |
 | `043-public-share-refresh.md` | Continuidade e atualização do resumo público por QR-Code | IMPLEMENTED |
 | `044-google-login-entry.md` | Acesso com Google diretamente na tela de login | IMPLEMENTED |
+| `045-document-inline-opening.md` | Abertura direta de documentos digitais | IMPLEMENTED |
+| `046-doctor-medical-alerts.md` | Alertas médicos no prontuário do médico | IMPLEMENTED |
 
 ## Template
 

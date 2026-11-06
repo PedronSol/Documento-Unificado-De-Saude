@@ -41,6 +41,10 @@ function formatSize(value) {
 
 const DOWNLOAD_ERROR = "Não foi possível baixar o documento.";
 const DELETE_ERROR = "Não foi possível remover o documento.";
+const OPEN_ERROR = "Não foi possível abrir o documento.";
+const POPUP_BLOCKED = "Permita pop-ups para abrir o documento ou use Baixar.";
+// Long enough for the browser viewer to load the blob; never persisted.
+const OBJECT_URL_LIFETIME_MS = 60_000;
 
 function doctorLabel(doctor) {
   return `${doctor.display_name} · CRM ${doctor.crm_number}/${doctor.crm_state}`;
@@ -87,6 +91,7 @@ export function DigitalDocuments({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [operationError, setOperationError] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
+  const [openingId, setOpeningId] = useState(null);
   const [documentToDelete, setDocumentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -123,6 +128,42 @@ export function DigitalDocuments({
       setOperationError(DOWNLOAD_ERROR);
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  // Opens the tab inside the gesture so pop-up blockers allow it, then points
+  // it at a temporary blob URL of the authorized file (spec 045).
+  async function openDocument(documentItem) {
+    setOperationError("");
+    const tab = window.open("", "_blank");
+    if (!tab) {
+      setOperationError(POPUP_BLOCKED);
+      return;
+    }
+    tab.opener = null;
+    setOpeningId(documentItem.document_id);
+    try {
+      const response = await apiFetch(
+        `${basePath}/${documentItem.document_id}/file`,
+      );
+      if (response.status === 401) {
+        tab.close();
+        onUnauthenticated();
+        return;
+      }
+      if (!response.ok) {
+        tab.close();
+        setOperationError((await readApiError(response, OPEN_ERROR)).message);
+        return;
+      }
+      const url = URL.createObjectURL(await response.blob());
+      tab.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), OBJECT_URL_LIFETIME_MS);
+    } catch {
+      tab.close();
+      setOperationError(OPEN_ERROR);
+    } finally {
+      setOpeningId(null);
     }
   }
 
@@ -195,7 +236,13 @@ export function DigitalDocuments({
             {items.map((documentItem) => (
               <li key={documentItem.document_id}>
                 <div className="document-icon"><FileText aria-hidden="true" size={20} /></div>
-                <div className="document-copy">
+                <button
+                  className="document-copy document-open"
+                  type="button"
+                  aria-label={`Abrir ${documentItem.title}`}
+                  disabled={openingId === documentItem.document_id}
+                  onClick={() => openDocument(documentItem)}
+                >
                   <strong>{documentItem.title}</strong>
                   <span>{TYPE_LABELS[documentItem.type] || "Documento"} · {formatSize(documentItem.size_bytes)}</span>
                   <small>{documentItem.original_filename} · {formatDate(documentItem.created_at)}</small>
@@ -204,7 +251,7 @@ export function DigitalDocuments({
                       Enviado por {doctorLabel(documentItem.uploaded_by_doctor)}
                     </small>
                   ) : null}
-                </div>
+                </button>
                 <span className="document-status">{STATUS_LABELS[documentItem.status] || documentItem.status}</span>
                 <div className="document-actions">
                   <button
@@ -230,6 +277,10 @@ export function DigitalDocuments({
           </ul>
         )}
       />
+
+      {openingId ? (
+        <p className="document-opening" role="status">Abrindo documento…</p>
+      ) : null}
 
       {operationError ? (
         <p className="form-error document-operation-error" role="alert">

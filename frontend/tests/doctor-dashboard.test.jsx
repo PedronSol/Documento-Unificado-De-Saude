@@ -50,6 +50,7 @@ const record = {
     },
   ],
   markers: { active: [marker], removed: [] },
+  alerts: [],
 };
 
 const medicalDocuments = [

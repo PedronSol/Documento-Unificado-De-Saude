@@ -4,6 +4,10 @@ import { fulfillPaged } from "./e2e-support/paged";
 
 const API_ORIGIN = "http://localhost:8000";
 const PDF = Buffer.from("%PDF-1.4\n%%EOF");
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 const doctorIdentity = {
   user: { user_id: 8, display_name: "Dra. Ana Lima", email: "ana@example.com", roles: ["doctor"] },
@@ -81,6 +85,7 @@ for (const viewport of [{ width: 320, height: 900 }, { width: 1280, height: 900 
           },
           vaccines: [],
           markers: { active: [], removed: [] },
+          alerts: [],
         });
         return true;
       }
@@ -178,5 +183,44 @@ for (const viewport of [{ width: 320, height: 900 }, { width: 1280, height: 900 
 
     await expect(page.getByText("Laudo do eco")).toHaveCount(0);
     expect(deleted).toEqual(["DELETE /me/documents/42"]);
+  });
+
+  test(`paciente abre documento em nova aba sem baixar em ${viewport.width} px`, async ({ page }) => {
+    // Headless Chromium has no PDF viewer, so an image proves inline viewing.
+    let downloads = 0;
+    page.on("download", () => { downloads += 1; });
+    page.context().on("page", (opened) => opened.on("download", () => { downloads += 1; }));
+    const scan = document({
+      original_filename: "hemograma.png", media_type: "image/png", size_bytes: PNG.length,
+    });
+    await mockApi(page, async (key, route) => {
+      if (key === "GET /me") return fulfill(route, patientIdentity).then(() => true);
+      if (key === "GET /me/shares/active") return fulfill(route, null).then(() => true);
+      if (key === "GET /me/documents") return fulfill(route, [scan]).then(() => true);
+      if (key === "GET /me/documents/42/file") {
+        await route.fulfill({
+          status: 200,
+          contentType: "image/png",
+          headers: { "Content-Disposition": "attachment; filename*=UTF-8''hemograma.png" },
+          body: PNG,
+        });
+        return true;
+      }
+      return false;
+    });
+
+    await page.setViewportSize(viewport);
+    await page.goto("/patient");
+    const open = page.getByRole("button", { name: "Abrir Hemograma" });
+    expect((await open.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    await expectNoHorizontalOverflow(page, viewport.width);
+
+    const popupPromise = page.waitForEvent("popup");
+    await open.click();
+    const popup = await popupPromise;
+    await expect.poll(() => popup.url()).toMatch(/^blob:/);
+    await expect(popup.locator("img")).toBeVisible();
+    expect(downloads).toBe(0);
+    await expect(page.getByRole("button", { name: "Baixar Hemograma" })).toBeVisible();
   });
 }

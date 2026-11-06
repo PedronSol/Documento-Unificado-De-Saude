@@ -23,6 +23,7 @@ function streamWithTrack() {
 describe("DigitalDocuments", () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    if (vi.isMockFunction(window.open)) window.open.mockRestore();
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: undefined,
@@ -264,6 +265,116 @@ describe("DigitalDocuments", () => {
       "Não foi possível baixar o documento.",
     );
     expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+  });
+
+  function openedTab() {
+    const tab = { opener: {}, location: { href: "" }, close: vi.fn() };
+    vi.spyOn(window, "open").mockReturnValue(tab);
+    return tab;
+  }
+
+  it("abre o documento em nova aba sem baixar o arquivo (spec 045)", async () => {
+    const user = userEvent.setup();
+    const tab = openedTab();
+    const blob = new Blob(["%PDF-1.7"], { type: "application/pdf" });
+    apiFetch.mockResolvedValue({ ok: true, status: 200, blob: async () => blob });
+    const createElement = vi.spyOn(document, "createElement");
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir Hemograma" }));
+
+    expect(window.open).toHaveBeenCalledWith("", "_blank");
+    expect(apiFetch).toHaveBeenCalledWith("/me/documents/42/file");
+    await waitFor(() => expect(tab.location.href).toBe("blob:document-preview"));
+    expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+    expect(tab.opener).toBeNull();
+    expect(createElement).not.toHaveBeenCalledWith("a");
+    createElement.mockRestore();
+  });
+
+  it("abre pelo caminho médico", async () => {
+    const user = userEvent.setup();
+    openedTab();
+    apiFetch.mockResolvedValue({ ok: true, status: 200, blob: async () => new Blob(["x"]) });
+    render(
+      <DigitalDocuments
+        basePath="/medical/patients/7/documents"
+        list={staticList([hemograma])}
+        viewer="doctor"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir Hemograma" }));
+
+    expect(apiFetch).toHaveBeenCalledWith("/medical/patients/7/documents/42/file");
+  });
+
+  it("fecha a aba e anuncia falha controlada ao abrir", async () => {
+    const user = userEvent.setup();
+    const tab = openedTab();
+    apiFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir Hemograma" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível abrir o documento.",
+    );
+    expect(tab.close).toHaveBeenCalled();
+  });
+
+  it("fecha a aba e expira a sessão em 401 ao abrir", async () => {
+    const user = userEvent.setup();
+    const tab = openedTab();
+    const onUnauthenticated = vi.fn();
+    apiFetch.mockResolvedValue({ ok: false, status: 401 });
+    render(
+      <DigitalDocuments
+        list={staticList([hemograma])}
+        isAdult
+        onUnauthenticated={onUnauthenticated}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir Hemograma" }));
+
+    await waitFor(() => expect(onUnauthenticated).toHaveBeenCalled());
+    expect(tab.close).toHaveBeenCalled();
+  });
+
+  it("orienta sobre pop-up bloqueado sem requisitar o arquivo", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "open").mockReturnValue(null);
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir Hemograma" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Permita pop-ups para abrir o documento ou use Baixar.",
+    );
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("desabilita a abertura pendente e revoga a URL temporária depois", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    openedTab();
+    let resolve;
+    apiFetch.mockReturnValue(new Promise((done) => { resolve = done; }));
+    render(<DigitalDocuments list={staticList([hemograma])} isAdult />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir Hemograma" }));
+    expect(screen.getByRole("button", { name: "Abrir Hemograma" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Abrindo documento…");
+
+    resolve({ ok: true, status: 200, blob: async () => new Blob(["x"]) });
+    await waitFor(() => expect(
+      screen.getByRole("button", { name: "Abrir Hemograma" }),
+    ).toBeEnabled());
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(60_000);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:document-preview");
+    vi.useRealTimers();
   });
 
   it("padroniza permissão negada na remoção", async () => {
